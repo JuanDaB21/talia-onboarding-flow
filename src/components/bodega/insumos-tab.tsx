@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ interface Insumo {
 }
 
 export function InsumosTab({ idNegocio }: { idNegocio: string }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,16 +88,17 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
               </TableRow>
             ) : (
               items.map((i) => (
-                <TableRow key={i.id_insumo}>
-                  <TableCell className="font-medium">
-                    <Link
-                      to="/bodega/insumos/$id"
-                      params={{ id: i.id_insumo }}
-                      className="hover:underline"
-                    >
-                      {i.nombre_insumo}
-                    </Link>
-                  </TableCell>
+                <TableRow
+                  key={i.id_insumo}
+                  className="cursor-pointer"
+                  onClick={() =>
+                    navigate({
+                      to: "/bodega/insumos/$id",
+                      params: { id: i.id_insumo },
+                    })
+                  }
+                >
+                  <TableCell className="font-medium">{i.nombre_insumo}</TableCell>
                   <TableCell className="hidden sm:table-cell">{i.unidad_medida}</TableCell>
                   <TableCell className="text-right">
                     {Number(i.costo_promedio).toLocaleString()}
