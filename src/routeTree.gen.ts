@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BodegaRouteImport } from './routes/bodega'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BodegaIndexRouteImport } from './routes/bodega.index'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -40,40 +41,60 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BodegaIndexRoute = BodegaIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BodegaRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/bodega': typeof BodegaRoute
+  '/bodega': typeof BodegaRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/bodega/': typeof BodegaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/bodega': typeof BodegaRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/bodega': typeof BodegaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/bodega': typeof BodegaRoute
+  '/bodega': typeof BodegaRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/bodega/': typeof BodegaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bodega' | '/dashboard' | '/login' | '/register'
+  fullPaths:
+    | '/'
+    | '/bodega'
+    | '/dashboard'
+    | '/login'
+    | '/register'
+    | '/bodega/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bodega' | '/dashboard' | '/login' | '/register'
-  id: '__root__' | '/' | '/bodega' | '/dashboard' | '/login' | '/register'
+  to: '/' | '/dashboard' | '/login' | '/register' | '/bodega'
+  id:
+    | '__root__'
+    | '/'
+    | '/bodega'
+    | '/dashboard'
+    | '/login'
+    | '/register'
+    | '/bodega/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BodegaRoute: typeof BodegaRoute
+  BodegaRoute: typeof BodegaRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -116,12 +137,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bodega/': {
+      id: '/bodega/'
+      path: '/'
+      fullPath: '/bodega/'
+      preLoaderRoute: typeof BodegaIndexRouteImport
+      parentRoute: typeof BodegaRoute
+    }
   }
 }
 
+interface BodegaRouteChildren {
+  BodegaIndexRoute: typeof BodegaIndexRoute
+}
+
+const BodegaRouteChildren: BodegaRouteChildren = {
+  BodegaIndexRoute: BodegaIndexRoute,
+}
+
+const BodegaRouteWithChildren =
+  BodegaRoute._addFileChildren(BodegaRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BodegaRoute: BodegaRoute,
+  BodegaRoute: BodegaRouteWithChildren,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
