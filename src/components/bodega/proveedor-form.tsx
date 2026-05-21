@@ -10,11 +10,28 @@ import { Switch } from "@/components/ui/switch";
 
 interface Props {
   idNegocio: string;
+  idProveedor?: string;
+  initialValues?: ProveedorInput;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ProveedorForm({ idNegocio, onSuccess, onCancel }: Props) {
+const EMPTY: ProveedorInput = {
+  razon_social: "",
+  documento_tributario: "",
+  nombre_contacto: "",
+  telefono: "",
+  estado: true,
+};
+
+export function ProveedorForm({
+  idNegocio,
+  idProveedor,
+  initialValues,
+  onSuccess,
+  onCancel,
+}: Props) {
+  const isEdit = Boolean(idProveedor);
   const {
     register,
     handleSubmit,
@@ -23,27 +40,33 @@ export function ProveedorForm({ idNegocio, onSuccess, onCancel }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<ProveedorInput>({
     resolver: zodResolver(proveedorSchema),
-    defaultValues: {
-      razon_social: "",
-      documento_tributario: "",
-      nombre_contacto: "",
-      telefono: "",
-      estado: true,
-    },
+    defaultValues: initialValues ?? EMPTY,
   });
 
   const estado = watch("estado");
 
   const onSubmit = async (values: ProveedorInput) => {
-    const { error } = await supabase.from("proveedores").insert({
-      id_negocio: idNegocio,
-      ...values,
-    });
-    if (error) {
-      toast.error("No se pudo crear el proveedor", { description: error.message });
-      return;
+    if (isEdit && idProveedor) {
+      const { error } = await supabase
+        .from("proveedores")
+        .update(values)
+        .eq("id_proveedor", idProveedor);
+      if (error) {
+        toast.error("No se pudo actualizar", { description: error.message });
+        return;
+      }
+      toast.success("Proveedor actualizado");
+    } else {
+      const { error } = await supabase.from("proveedores").insert({
+        id_negocio: idNegocio,
+        ...values,
+      });
+      if (error) {
+        toast.error("No se pudo crear el proveedor", { description: error.message });
+        return;
+      }
+      toast.success("Proveedor creado");
     }
-    toast.success("Proveedor creado");
     onSuccess();
   };
 
@@ -93,7 +116,7 @@ export function ProveedorForm({ idNegocio, onSuccess, onCancel }: Props) {
           Cancelar
         </Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
-          {isSubmitting ? "Guardando…" : "Guardar"}
+          {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
       </div>
     </form>
