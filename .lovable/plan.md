@@ -1,38 +1,31 @@
-# Plan: Implementar `/login` para Talia
+# Fix: "No se encontró un negocio asociado a tu usuario"
 
-## Objetivo
-Reemplazar el stub actual de `src/routes/login.tsx` por un formulario funcional de inicio de sesión con email + contraseña, consistente con el diseño del registro. No se altera nada del flujo `/register` ni de `/dashboard`.
+## Diagnóstico
 
-## Alcance
-- Solo se modifica `src/routes/login.tsx`.
-- Sin cambios en backend, RPC, RLS, esquema, ni en `register.tsx`/`dashboard.tsx`.
+La consulta a `usuarios_staff` devuelve **403** con el mensaje:
 
-## UX
-- Card centrada, mobile-first, mismo estilo visual que `/register` (header con "Talia", `Card`, `CardHeader`, `CardContent`).
-- Campos: correo, contraseña.
-- Validación con Zod + React Hook Form (`mode: "onChange"`).
-- Botón "Iniciar sesión" con estado `Loader2` mientras se procesa.
-- Enlace al final: "¿No tienes cuenta? Crear cuenta" → `/register`.
-- Toasts (`sonner`) para éxito y error.
-- Si el usuario ya está autenticado al entrar a `/login`, redirigir a `/dashboard` (chequeo con `supabase.auth.getUser()` en `useEffect`).
-
-## Lógica
-1. `supabase.auth.signInWithPassword({ email, password })`.
-2. Si error → `toast.error` con mensaje legible (mapear `Invalid login credentials` → "Correo o contraseña incorrectos").
-3. Si éxito → `toast.success` + `navigate({ to: "/dashboard" })`.
-
-## Esquema Zod (inline en el archivo, sin tocar `register-schemas.ts`)
-```ts
-const loginSchema = z.object({
-  correo: z.string().trim().toLowerCase().email("Correo no válido").max(255),
-  password: z.string().min(1, "Requerido").max(72),
-});
+```
+permission denied for function current_user_negocio
 ```
 
-## Archivos
-- Editar: `src/routes/login.tsx` (reemplazo completo del stub).
+Todas las políticas RLS de `usuarios_staff`, `negocio`, `proveedores` e `insumos` usan `public.current_user_negocio()` en sus expresiones `USING` / `WITH CHECK`. Esa función existe y es `SECURITY DEFINER`, pero el rol `authenticated` **no tiene `EXECUTE`** sobre ella, por lo que Postgres rechaza cualquier evaluación de política y bloquea las lecturas/escrituras del usuario recién registrado (aunque su fila en `usuarios_staff` sí exista).
+
+Verificado vía:
+```sql
+SELECT has_function_privilege('authenticated', 'public.current_user_negocio()', 'EXECUTE'); -- f
+```
+
+## Cambio (una sola migración SQL)
+
+Otorgar `EXECUTE` sobre la función a los roles que la consumen desde PostgREST:
+
+```sql
+GRANT EXECUTE ON FUNCTION public.current_user_negocio() TO authenticated, anon;
+```
+
+No se modifican tablas, políticas, ni código del frontend. Tras aplicar la migración, `useCurrentNegocio` recibirá el `id_negocio` y la vista de Proveedores e Insumos cargará normalmente.
 
 ## Fuera de alcance
-- Recuperación de contraseña (`/reset-password`).
-- OAuth (Google, etc.).
-- Cambios en guards de ruta o en `__root.tsx`.
+
+- Cambios en `/register`, `/login`, `/dashboard` o cualquier componente de Bodega.
+- Cambios en la definición de la función `current_user_negocio` o en las políticas RLS existentes.
