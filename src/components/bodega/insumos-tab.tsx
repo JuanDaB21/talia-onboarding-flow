@@ -88,7 +88,15 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
             ) : (
               items.map((i) => (
                 <TableRow key={i.id_insumo}>
-                  <TableCell className="font-medium">{i.nombre_insumo}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      to="/bodega/insumos/$id"
+                      params={{ id: i.id_insumo }}
+                      className="hover:underline"
+                    >
+                      {i.nombre_insumo}
+                    </Link>
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell">{i.unidad_medida}</TableCell>
                   <TableCell className="text-right">
                     {Number(i.costo_promedio).toLocaleString()}
