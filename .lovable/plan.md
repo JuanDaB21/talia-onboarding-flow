@@ -1,31 +1,44 @@
-# Fix: "No se encontró un negocio asociado a tu usuario"
+# Unificar detalle con el modal existente (Bodega)
 
-## Diagnóstico
+## Objetivo
 
-La consulta a `usuarios_staff` devuelve **403** con el mensaje:
+Reemplazar las páginas de detalle (`/bodega/proveedores/$id`, `/bodega/insumos/$id`) por el mismo `ResponsiveSheet` que ya se usa para "Nuevo". El sheet servirá tanto para crear como para editar/eliminar, mostrando el botón **Guardar cambios** sólo cuando haya cambios reales, y un botón **Eliminar** dentro del modal.
 
-```
-permission denied for function current_user_negocio
-```
+## Cambios
 
-Todas las políticas RLS de `usuarios_staff`, `negocio`, `proveedores` e `insumos` usan `public.current_user_negocio()` en sus expresiones `USING` / `WITH CHECK`. Esa función existe y es `SECURITY DEFINER`, pero el rol `authenticated` **no tiene `EXECUTE`** sobre ella, por lo que Postgres rechaza cualquier evaluación de política y bloquea las lecturas/escrituras del usuario recién registrado (aunque su fila en `usuarios_staff` sí exista).
+### 1. Formularios (lógica reutilizable)
 
-Verificado vía:
-```sql
-SELECT has_function_privilege('authenticated', 'public.current_user_negocio()', 'EXECUTE'); -- f
-```
+- `src/components/bodega/proveedor-form.tsx` y `insumo-form.tsx`
+  - Agregar prop opcional `onDelete?: () => void`.
+  - Usar `formState.isDirty` de react-hook-form para deshabilitar el botón principal cuando no haya cambios (sólo en modo edición).
+  - Cuando `isEdit && onDelete`, renderizar un botón **Eliminar** (variant `destructive`, ghost o secundario) dentro del footer del form, envuelto en `AlertDialog` de confirmación.
+  - Conservar la lógica actual de insert/update.
 
-## Cambio (una sola migración SQL)
+### 2. Tabs (orquestación)
 
-Otorgar `EXECUTE` sobre la función a los roles que la consumen desde PostgREST:
+- `src/components/bodega/proveedores-tab.tsx` e `insumos-tab.tsx`
+  - Quitar `useNavigate` y la navegación al detalle.
+  - Estado `selected: Item | null` además de `open`.
+  - Click en una fila → `setSelected(item); setOpen(true)`.
+  - El `ResponsiveSheet` cambia título/descripcion según `selected` (Nuevo vs Editar).
+  - Pasar `initialValues`, `idProveedor`/`idInsumo` y `onDelete` (que ejecuta `supabase.delete()` + cierra sheet + recarga) al form.
 
-```sql
-GRANT EXECUTE ON FUNCTION public.current_user_negocio() TO authenticated, anon;
-```
+### 3. Eliminar rutas de detalle
 
-No se modifican tablas, políticas, ni código del frontend. Tras aplicar la migración, `useCurrentNegocio` recibirá el `id_negocio` y la vista de Proveedores e Insumos cargará normalmente.
+- Borrar `src/routes/bodega.proveedores.$id.tsx`.
+- Borrar `src/routes/bodega.insumos.$id.tsx`.
+- TanStack Router regenerará `routeTree.gen.ts` automáticamente.
+
+## Detalles técnicos
+
+- `isDirty` se obtiene de `useForm({ defaultValues })`. Como los `defaultValues` provienen de `initialValues` (mismo objeto), `isDirty` será `false` hasta que el usuario edite un campo.
+- El botón submit:
+  - Crear: siempre habilitado (salvo `isSubmitting`).
+  - Editar: `disabled={!isDirty || isSubmitting}`.
+- La confirmación de borrado se mantiene con `AlertDialog` de shadcn dentro del form para no acoplar el tab a esa lógica.
+- No se tocan migraciones, esquemas Zod, ni RLS.
 
 ## Fuera de alcance
 
-- Cambios en `/register`, `/login`, `/dashboard` o cualquier componente de Bodega.
-- Cambios en la definición de la función `current_user_negocio` o en las políticas RLS existentes.
+- Cambios en `login`, `register`, `dashboard` o el resto de Bodega.
+- Cambios visuales más allá de los necesarios para acomodar el botón Eliminar.
