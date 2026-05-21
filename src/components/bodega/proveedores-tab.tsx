@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +84,15 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
             ) : (
               items.map((p) => (
                 <TableRow key={p.id_proveedor}>
-                  <TableCell className="font-medium">{p.razon_social}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      to="/bodega/proveedores/$id"
+                      params={{ id: p.id_proveedor }}
+                      className="hover:underline"
+                    >
+                      {p.razon_social}
+                    </Link>
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell">{p.documento_tributario}</TableCell>
                   <TableCell className="hidden md:table-cell">{p.nombre_contacto}</TableCell>
                   <TableCell className="hidden md:table-cell">{p.telefono}</TableCell>

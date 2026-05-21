@@ -9,38 +9,61 @@ import { Label } from "@/components/ui/label";
 
 interface Props {
   idNegocio: string;
+  idInsumo?: string;
+  initialValues?: InsumoInput;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function InsumoForm({ idNegocio, onSuccess, onCancel }: Props) {
+const EMPTY: InsumoInput = {
+  nombre_insumo: "",
+  unidad_medida: "",
+  costo_promedio: 0,
+  stock_minimo: 0,
+  unidad_compra: "",
+  unidad_receta: "",
+  factor_conversion: 1,
+};
+
+export function InsumoForm({
+  idNegocio,
+  idInsumo,
+  initialValues,
+  onSuccess,
+  onCancel,
+}: Props) {
+  const isEdit = Boolean(idInsumo);
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<InsumoInput>({
     resolver: zodResolver(insumoSchema),
-    defaultValues: {
-      nombre_insumo: "",
-      unidad_medida: "",
-      costo_promedio: 0,
-      stock_minimo: 0,
-      unidad_compra: "",
-      unidad_receta: "",
-      factor_conversion: 1,
-    },
+    defaultValues: initialValues ?? EMPTY,
   });
 
   const onSubmit = async (values: InsumoInput) => {
-    const { error } = await supabase.from("insumos").insert({
-      id_negocio: idNegocio,
-      ...values,
-    });
-    if (error) {
-      toast.error("No se pudo crear el insumo", { description: error.message });
-      return;
+    if (isEdit && idInsumo) {
+      const { error } = await supabase
+        .from("insumos")
+        .update(values)
+        .eq("id_insumo", idInsumo);
+      if (error) {
+        toast.error("No se pudo actualizar", { description: error.message });
+        return;
+      }
+      toast.success("Insumo actualizado");
+    } else {
+      const { error } = await supabase.from("insumos").insert({
+        id_negocio: idNegocio,
+        ...values,
+      });
+      if (error) {
+        toast.error("No se pudo crear el insumo", { description: error.message });
+        return;
+      }
+      toast.success("Insumo creado");
     }
-    toast.success("Insumo creado");
     onSuccess();
   };
 
@@ -122,7 +145,7 @@ export function InsumoForm({ idNegocio, onSuccess, onCancel }: Props) {
           Cancelar
         </Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
-          {isSubmitting ? "Guardando…" : "Guardar"}
+          {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
       </div>
     </form>
