@@ -309,22 +309,15 @@ type FieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
 };
 
-const Field = (function FieldFactory() {
-  // forwardRef so react-hook-form's register() ref reaches the input
-  return Object.assign(
-    // eslint-disable-next-line react/display-name
-    require("react").forwardRef<HTMLInputElement, FieldProps>(
-      ({ id, label, error, ...props }: FieldProps, ref) => (
-        <div className="space-y-1.5">
-          <Label htmlFor={id}>{label}</Label>
-          <Input id={id} ref={ref} aria-invalid={!!error} {...props} />
-          {error ? (
-            <p className="text-xs text-destructive">{error}</p>
-          ) : null}
-        </div>
-      ),
-    ),
+const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
+  { id, label, error, ...props },
+  ref,
+) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} ref={ref} aria-invalid={!!error} {...props} />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
   );
-})() as unknown as React.ForwardRefExoticComponent<
-  FieldProps & React.RefAttributes<HTMLInputElement>
->;
+});
