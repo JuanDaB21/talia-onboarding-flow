@@ -16,6 +16,7 @@ import { Route as BodegaRouteImport } from './routes/bodega'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BodegaIndexRouteImport } from './routes/bodega.index'
 import { Route as BodegaProveedoresInsumosRouteImport } from './routes/bodega.proveedores-insumos'
+import { Route as BodegaInventarioRouteImport } from './routes/bodega.inventario'
 import { Route as BodegaComprasRouteImport } from './routes/bodega.compras'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -54,6 +55,11 @@ const BodegaProveedoresInsumosRoute =
     path: '/proveedores-insumos',
     getParentRoute: () => BodegaRoute,
   } as any)
+const BodegaInventarioRoute = BodegaInventarioRouteImport.update({
+  id: '/inventario',
+  path: '/inventario',
+  getParentRoute: () => BodegaRoute,
+} as any)
 const BodegaComprasRoute = BodegaComprasRouteImport.update({
   id: '/compras',
   path: '/compras',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/bodega/compras': typeof BodegaComprasRoute
+  '/bodega/inventario': typeof BodegaInventarioRoute
   '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
   '/bodega/': typeof BodegaIndexRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/bodega/compras': typeof BodegaComprasRoute
+  '/bodega/inventario': typeof BodegaInventarioRoute
   '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
   '/bodega': typeof BodegaIndexRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/bodega/compras': typeof BodegaComprasRoute
+  '/bodega/inventario': typeof BodegaInventarioRoute
   '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
   '/bodega/': typeof BodegaIndexRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/bodega/compras'
+    | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
     | '/bodega/'
   fileRoutesByTo: FileRoutesByTo
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/bodega/compras'
+    | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
     | '/bodega'
   id:
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/bodega/compras'
+    | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
     | '/bodega/'
   fileRoutesById: FileRoutesById
@@ -181,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BodegaProveedoresInsumosRouteImport
       parentRoute: typeof BodegaRoute
     }
+    '/bodega/inventario': {
+      id: '/bodega/inventario'
+      path: '/inventario'
+      fullPath: '/bodega/inventario'
+      preLoaderRoute: typeof BodegaInventarioRouteImport
+      parentRoute: typeof BodegaRoute
+    }
     '/bodega/compras': {
       id: '/bodega/compras'
       path: '/compras'
@@ -193,12 +212,14 @@ declare module '@tanstack/react-router' {
 
 interface BodegaRouteChildren {
   BodegaComprasRoute: typeof BodegaComprasRoute
+  BodegaInventarioRoute: typeof BodegaInventarioRoute
   BodegaProveedoresInsumosRoute: typeof BodegaProveedoresInsumosRoute
   BodegaIndexRoute: typeof BodegaIndexRoute
 }
 
 const BodegaRouteChildren: BodegaRouteChildren = {
   BodegaComprasRoute: BodegaComprasRoute,
+  BodegaInventarioRoute: BodegaInventarioRoute,
   BodegaProveedoresInsumosRoute: BodegaProveedoresInsumosRoute,
   BodegaIndexRoute: BodegaIndexRoute,
 }
