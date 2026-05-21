@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      insumos: {
+        Row: {
+          costo_promedio: number
+          created_at: string
+          factor_conversion: number
+          id_insumo: string
+          id_negocio: string
+          nombre_insumo: string
+          stock_minimo: number
+          unidad_compra: string
+          unidad_medida: string
+          unidad_receta: string
+        }
+        Insert: {
+          costo_promedio?: number
+          created_at?: string
+          factor_conversion?: number
+          id_insumo?: string
+          id_negocio: string
+          nombre_insumo: string
+          stock_minimo?: number
+          unidad_compra: string
+          unidad_medida: string
+          unidad_receta: string
+        }
+        Update: {
+          costo_promedio?: number
+          created_at?: string
+          factor_conversion?: number
+          id_insumo?: string
+          id_negocio?: string
+          nombre_insumo?: string
+          stock_minimo?: number
+          unidad_compra?: string
+          unidad_medida?: string
+          unidad_receta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insumos_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       negocio: {
         Row: {
           created_at: string
@@ -49,6 +96,47 @@ export type Database = {
           url_logo?: string | null
         }
         Relationships: []
+      }
+      proveedores: {
+        Row: {
+          created_at: string
+          documento_tributario: string
+          estado: boolean
+          id_negocio: string
+          id_proveedor: string
+          nombre_contacto: string
+          razon_social: string
+          telefono: string
+        }
+        Insert: {
+          created_at?: string
+          documento_tributario: string
+          estado?: boolean
+          id_negocio: string
+          id_proveedor?: string
+          nombre_contacto: string
+          razon_social: string
+          telefono: string
+        }
+        Update: {
+          created_at?: string
+          documento_tributario?: string
+          estado?: boolean
+          id_negocio?: string
+          id_proveedor?: string
+          nombre_contacto?: string
+          razon_social?: string
+          telefono?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proveedores_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
       }
       usuarios_staff: {
         Row: {
