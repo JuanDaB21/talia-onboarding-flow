@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.current_user_negocio() TO authenticated, anon;
