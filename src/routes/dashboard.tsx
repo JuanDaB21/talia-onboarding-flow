@@ -41,8 +41,21 @@ function DashboardStub() {
         <h1 className="text-2xl font-bold">Panel SUPERADMIN</h1>
         <p className="text-sm text-muted-foreground">
           Sesión iniciada como <span className="font-medium">{email}</span>.
-          Próximamente: gestión de menú, mesas, pedidos y staff.
         </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/bodega"
+            className="flex items-start gap-3 rounded-lg border bg-card p-4 hover:bg-muted transition-colors"
+          >
+            <Warehouse className="h-5 w-5 mt-0.5" />
+            <div>
+              <p className="font-medium">Bodega</p>
+              <p className="text-xs text-muted-foreground">
+                Proveedores, insumos, compras e inventario.
+              </p>
+            </div>
+          </Link>
+        </div>
         <Button
           variant="outline"
           onClick={async () => {
