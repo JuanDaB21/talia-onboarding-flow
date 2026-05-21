@@ -14,16 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      negocio: {
+        Row: {
+          created_at: string
+          direccion: string
+          documento_tributario: string
+          estado: boolean
+          id_negocio: string
+          nombre_comercial: string
+          razon_social: string
+          telefono_contacto: string
+          url_logo: string | null
+        }
+        Insert: {
+          created_at?: string
+          direccion: string
+          documento_tributario: string
+          estado?: boolean
+          id_negocio?: string
+          nombre_comercial: string
+          razon_social: string
+          telefono_contacto: string
+          url_logo?: string | null
+        }
+        Update: {
+          created_at?: string
+          direccion?: string
+          documento_tributario?: string
+          estado?: boolean
+          id_negocio?: string
+          nombre_comercial?: string
+          razon_social?: string
+          telefono_contacto?: string
+          url_logo?: string | null
+        }
+        Relationships: []
+      }
+      usuarios_staff: {
+        Row: {
+          correo: string
+          created_at: string
+          esta_en_turno: boolean
+          estado: Database["public"]["Enums"]["estado_staff"]
+          id_negocio: string
+          id_usuario: string
+          nombre: string
+          rol: Database["public"]["Enums"]["rol_staff"]
+        }
+        Insert: {
+          correo: string
+          created_at?: string
+          esta_en_turno?: boolean
+          estado?: Database["public"]["Enums"]["estado_staff"]
+          id_negocio: string
+          id_usuario: string
+          nombre: string
+          rol: Database["public"]["Enums"]["rol_staff"]
+        }
+        Update: {
+          correo?: string
+          created_at?: string
+          esta_en_turno?: boolean
+          estado?: Database["public"]["Enums"]["estado_staff"]
+          id_negocio?: string
+          id_usuario?: string
+          nombre?: string
+          rol?: Database["public"]["Enums"]["rol_staff"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_staff_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_negocio: { Args: never; Returns: string }
+      registrar_negocio_y_admin: {
+        Args: {
+          p_correo: string
+          p_direccion: string
+          p_documento_tributario: string
+          p_nombre: string
+          p_nombre_comercial: string
+          p_razon_social: string
+          p_telefono: string
+          p_user_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
+      rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +240,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
+      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA"],
+    },
   },
 } as const
