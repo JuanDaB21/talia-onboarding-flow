@@ -31,10 +31,10 @@ export type RecetaInput = z.infer<typeof recetaSchema>;
 export const productoSchema = z.object({
   descripcion_producto: z.string().trim().max(1000).optional(),
   precio_venta: z.coerce.number().min(0, "Debe ser ≥ 0"),
-  url_imagen: z.string().trim().url("URL inválida").or(z.literal("")).optional(),
   activo: z.boolean(),
 });
 export type ProductoInput = z.infer<typeof productoSchema>;
+
 
 export const extraSchema = z.object({
   id_insumo_extra: z.string().uuid(),
