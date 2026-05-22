@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { proveedorSchema, type ProveedorInput } from "@/lib/bodega-schemas";
@@ -7,6 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   idNegocio: string;
@@ -14,6 +27,7 @@ interface Props {
   initialValues?: ProveedorInput;
   onSuccess: () => void;
   onCancel: () => void;
+  onDeleted?: () => void;
 }
 
 const EMPTY: ProveedorInput = {
@@ -30,14 +44,16 @@ export function ProveedorForm({
   initialValues,
   onSuccess,
   onCancel,
+  onDeleted,
 }: Props) {
   const isEdit = Boolean(idProveedor);
+  const [deleting, setDeleting] = useState(false);
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProveedorInput>({
     resolver: zodResolver(proveedorSchema),
     defaultValues: initialValues ?? EMPTY,
@@ -68,6 +84,22 @@ export function ProveedorForm({
       toast.success("Proveedor creado");
     }
     onSuccess();
+  };
+
+  const handleDelete = async () => {
+    if (!idProveedor) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("proveedores")
+      .delete()
+      .eq("id_proveedor", idProveedor);
+    setDeleting(false);
+    if (error) {
+      toast.error("No se pudo eliminar", { description: error.message });
+      return;
+    }
+    toast.success("Proveedor eliminado");
+    onDeleted?.();
   };
 
   return (
@@ -108,17 +140,48 @@ export function ProveedorForm({
         <Switch
           id="estado"
           checked={estado}
-          onCheckedChange={(v) => setValue("estado", v)}
+          onCheckedChange={(v) => setValue("estado", v, { shouldDirty: true })}
         />
       </div>
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={isSubmitting || (isEdit && !isDirty)}
+        >
           {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
       </div>
+      {isEdit && onDeleted && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Eliminar proveedor
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar proveedor?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. El registro será eliminado de forma permanente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Eliminando…" : "Eliminar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </form>
   );
 }
