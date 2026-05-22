@@ -182,7 +182,22 @@ export type Database = {
           id_negocio?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventario_actual_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: true
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
+            foreignKeyName: "inventario_actual_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
       }
       movimientos_inventario: {
         Row: {
@@ -224,7 +239,22 @@ export type Database = {
           referencia_id?: string | null
           tipo_movimiento?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_inventario_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
+            foreignKeyName: "movimientos_inventario_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
       }
       negocio: {
         Row: {
