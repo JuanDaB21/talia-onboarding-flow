@@ -8,6 +8,9 @@ import {
   ChevronUp,
   LogOut,
   User as UserIcon,
+  FolderTree,
+  BookOpen,
+  Package,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -40,6 +43,12 @@ const BODEGA_NAV = [
   },
   { to: "/bodega/compras", label: "Compras", icon: ShoppingCart },
   { to: "/bodega/inventario", label: "Inventario", icon: Warehouse },
+] as const;
+
+const MENU_NAV = [
+  { to: "/menu/categorias", label: "Categorías", icon: FolderTree },
+  { to: "/menu/recetas", label: "Recetas", icon: BookOpen },
+  { to: "/menu/productos", label: "Productos y Extras", icon: Package },
 ] as const;
 
 export function AppSidebar() {
