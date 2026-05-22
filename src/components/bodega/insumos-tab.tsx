@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,8 +25,8 @@ interface Insumo {
 }
 
 export function InsumosTab({ idNegocio }: { idNegocio: string }) {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Insumo | null>(null);
   const [items, setItems] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +46,21 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
     load();
   }, [idNegocio]);
 
+  const openNew = () => {
+    setSelected(null);
+    setOpen(true);
+  };
+
+  const openEdit = (i: Insumo) => {
+    setSelected(i);
+    setOpen(true);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSelected(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -56,7 +70,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
             Productos base que usas en tus recetas o reventas.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} size="sm">
+        <Button onClick={openNew} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Nuevo
         </Button>
       </div>
@@ -91,12 +105,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
                 <TableRow
                   key={i.id_insumo}
                   className="cursor-pointer"
-                  onClick={() =>
-                    navigate({
-                      to: "/bodega/insumos/$id",
-                      params: { id: i.id_insumo },
-                    })
-                  }
+                  onClick={() => openEdit(i)}
                 >
                   <TableCell className="font-medium">{i.nombre_insumo}</TableCell>
                   <TableCell className="hidden sm:table-cell">{i.unidad_medida}</TableCell>
@@ -121,17 +130,44 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
 
       <ResponsiveSheet
         open={open}
-        onOpenChange={setOpen}
-        title="Nuevo insumo"
-        description="Define las unidades de compra, receta y factor de conversión."
+        onOpenChange={handleOpenChange}
+        title={selected ? "Editar insumo" : "Nuevo insumo"}
+        description={
+          selected
+            ? "Actualiza los datos del insumo."
+            : "Define las unidades de compra, receta y factor de conversión."
+        }
       >
         <InsumoForm
+          key={selected?.id_insumo ?? "new"}
           idNegocio={idNegocio}
+          idInsumo={selected?.id_insumo}
+          initialValues={
+            selected
+              ? {
+                  nombre_insumo: selected.nombre_insumo,
+                  unidad_medida: selected.unidad_medida,
+                  costo_promedio: selected.costo_promedio,
+                  stock_minimo: selected.stock_minimo,
+                  unidad_compra: selected.unidad_compra,
+                  unidad_receta: selected.unidad_receta,
+                  factor_conversion: selected.factor_conversion,
+                }
+              : undefined
+          }
           onSuccess={() => {
-            setOpen(false);
+            handleOpenChange(false);
             load();
           }}
-          onCancel={() => setOpen(false)}
+          onCancel={() => handleOpenChange(false)}
+          onDeleted={
+            selected
+              ? () => {
+                  handleOpenChange(false);
+                  load();
+                }
+              : undefined
+          }
         />
       </ResponsiveSheet>
     </div>

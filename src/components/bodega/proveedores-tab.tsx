@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +24,8 @@ interface Proveedor {
 }
 
 export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Proveedor | null>(null);
   const [items, setItems] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +43,21 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
     load();
   }, [idNegocio]);
 
+  const openNew = () => {
+    setSelected(null);
+    setOpen(true);
+  };
+
+  const openEdit = (p: Proveedor) => {
+    setSelected(p);
+    setOpen(true);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSelected(null);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -53,7 +67,7 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
             Personas o empresas a las que compras insumos.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} size="sm">
+        <Button onClick={openNew} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Nuevo
         </Button>
       </div>
@@ -87,12 +101,7 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
                 <TableRow
                   key={p.id_proveedor}
                   className="cursor-pointer"
-                  onClick={() =>
-                    navigate({
-                      to: "/bodega/proveedores/$id",
-                      params: { id: p.id_proveedor },
-                    })
-                  }
+                  onClick={() => openEdit(p)}
                 >
                   <TableCell className="font-medium">{p.razon_social}</TableCell>
                   <TableCell className="hidden sm:table-cell">{p.documento_tributario}</TableCell>
@@ -112,17 +121,42 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
 
       <ResponsiveSheet
         open={open}
-        onOpenChange={setOpen}
-        title="Nuevo proveedor"
-        description="Registra a una persona o empresa que te suministra insumos."
+        onOpenChange={handleOpenChange}
+        title={selected ? "Editar proveedor" : "Nuevo proveedor"}
+        description={
+          selected
+            ? "Actualiza los datos del proveedor."
+            : "Registra a una persona o empresa que te suministra insumos."
+        }
       >
         <ProveedorForm
+          key={selected?.id_proveedor ?? "new"}
           idNegocio={idNegocio}
+          idProveedor={selected?.id_proveedor}
+          initialValues={
+            selected
+              ? {
+                  razon_social: selected.razon_social,
+                  documento_tributario: selected.documento_tributario,
+                  nombre_contacto: selected.nombre_contacto,
+                  telefono: selected.telefono,
+                  estado: selected.estado,
+                }
+              : undefined
+          }
           onSuccess={() => {
-            setOpen(false);
+            handleOpenChange(false);
             load();
           }}
-          onCancel={() => setOpen(false)}
+          onCancel={() => handleOpenChange(false)}
+          onDeleted={
+            selected
+              ? () => {
+                  handleOpenChange(false);
+                  load();
+                }
+              : undefined
+          }
         />
       </ResponsiveSheet>
     </div>
