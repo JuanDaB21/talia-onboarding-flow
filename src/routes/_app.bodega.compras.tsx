@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
 
-export const Route = createFileRoute("/bodega/compras")({
+export const Route = createFileRoute("/_app/bodega/compras")({
   head: () => ({ meta: [{ title: "Compras — Bodega" }] }),
   component: ComprasPage,
 });

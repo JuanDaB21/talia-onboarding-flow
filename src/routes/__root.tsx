@@ -22,10 +22,10 @@ function NotFoundComponent() {
         </p>
         <div className="mt-6">
           <Link
-            to="/login"
+            to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Ir al login
+            Ir al inicio
           </Link>
         </div>
       </div>
@@ -57,10 +57,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             Try again
           </button>
           <a
-            href="/login"
+            href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Ir al login
+            Ir al inicio
           </a>
         </div>
       </div>

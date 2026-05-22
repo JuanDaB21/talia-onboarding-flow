@@ -15,7 +15,7 @@ import {
 } from "@/components/bodega/historial-compras-table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
 
-export const Route = createFileRoute("/bodega/inventario/$id")({
+export const Route = createFileRoute("/_app/bodega/inventario/$id")({
   head: () => ({ meta: [{ title: "Detalle de inventario — Bodega" }] }),
   component: InventarioDetailPage,
 });

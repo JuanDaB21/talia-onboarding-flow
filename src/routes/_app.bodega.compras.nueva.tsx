@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/bodega/combobox";
 
-export const Route = createFileRoute("/bodega/compras/nueva")({
+export const Route = createFileRoute("/_app/bodega/compras/nueva")({
   head: () => ({ meta: [{ title: "Registrar compra — Bodega" }] }),
   component: NuevaCompraPage,
 });

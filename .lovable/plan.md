@@ -1,75 +1,64 @@
-# Módulo Inventario — Bodega
+## Objetivo
 
-Implementación de la vista de Inventario, búsqueda/filtros, ruta dedicada de detalle por insumo con historial de compras multi-proveedor, y ajuste manual de stock con auditoría.
+Reestructurar la navegación de la app: la ruta `/` ahora será el login (si no hay sesión) o un dashboard inicial (si ya estás logeado), y todo el área autenticada compartirá un layout con un sidebar persistente al estilo ShadCN.
 
-## Backend (migración Supabase)
+## Cambios
 
-Las tablas `inventario_actual`, `compras`, `detalle_compra` y `movimientos_inventario` aún no existen. Se crean con RLS por `id_negocio` (mismo patrón que `insumos`/`proveedores`).
+### 1. Ruta raíz `/` — `src/routes/index.tsx` (NUEVA)
+- Comprueba sesión con `supabase.auth.getUser()`.
+- Sin sesión → `<Navigate to="/login" replace />`.
+- Con sesión → `<Navigate to="/dashboard" replace />`.
+- Muestra un loader mientras chequea.
 
-- **inventario_actual**: `id_insumo` (PK), `id_negocio`, `cantidad_actual`, `ultima_actualizacion`. Trigger para auto-insertar fila al crear un insumo.
-- **compras**: `id_compra` (PK), `id_negocio`, `id_proveedor`, `numero_factura`, `fecha_compra`, `estado`, `total`.
-- **detalle_compra**: `id_detalle` (PK), `id_compra`, `id_insumo`, `cantidad`, `precio_unitario_compra`, `subtotal`.
-- **movimientos_inventario**: `id_movimiento`, `id_negocio`, `id_insumo`, `tipo_movimiento` (enum: `COMPRA`, `AJUSTE_MANUAL`, `CONSUMO`, `MERMA`), `cantidad`, `cantidad_anterior`, `cantidad_nueva`, `motivo`, `id_usuario`, `created_at`.
-- **RPC `ajustar_stock_manual(id_insumo, nueva_cantidad, motivo)`**: actualiza `inventario_actual.cantidad_actual` e inserta movimiento de auditoría en una sola transacción.
-- Datos seed mínimos (opcional): filas de `inventario_actual` para insumos existentes vía backfill en la migración.
+### 2. Layout autenticado pathless — `src/routes/_app.tsx` (NUEVO)
+- Hace el chequeo de sesión una sola vez (mueve la lógica que hoy vive en `bodega.tsx`).
+- Renderiza `SidebarProvider` + `AppSidebar` + `<Outlet/>` para todos los hijos.
+- Header superior mínimo con `SidebarTrigger` (para colapsar) en mobile/desktop.
 
-## Frontend
+### 3. Sidebar — `src/components/app-sidebar.tsx` (NUEVO)
+Usa el componente ShadCN `Sidebar` (`collapsible="icon"`).
 
-Toda la UI se queda dentro de `src/components/bodega/` y `src/routes/bodega.*`. Reutiliza `ResponsiveSheet`, `InsumoForm` y los componentes de tabla ya existentes.
+- **Header (arriba):** logo + texto "Talia". El logo es un placeholder simple (ícono `ChefHat` de lucide dentro de un cuadro con `bg-primary`) hasta que se suba un asset real.
+- **Content:** un único `SidebarGroup` con `SidebarGroupLabel="Bodega"` (no interactivo) y tres `SidebarMenuItem`:
+  - Proveedores e Insumos → `/bodega/proveedores-insumos` (icon `Boxes`)
+  - Compras → `/bodega/compras` (icon `ShoppingCart`)
+  - Inventario → `/bodega/inventario` (icon `Warehouse`)
+- Estado activo con `useRouterState` + `data-status="active"`.
+- **Footer (abajo):** `SidebarMenuButton` con avatar + email + chevron, que abre un `DropdownMenu` con:
+  - Email del usuario (header del menú, no clickeable).
+  - "Cerrar sesión" → `supabase.auth.signOut()` y navega a `/login`.
 
-### 1. Tabla de Inventario — `/bodega/inventario`
+### 4. Dashboard inicial — `src/routes/_app/dashboard.tsx` (NUEVO)
+- Placeholder: título "Dashboard" + texto "Próximamente verás aquí un resumen de tu operación".
+- Sin lógica de datos por ahora.
 
-Reemplaza el placeholder de `src/routes/bodega.inventario.tsx` por un nuevo componente `InventarioTab`:
+### 5. Mover rutas de Bodega bajo el layout `_app`
+Renombrar (sin tocar contenido interno) para que hereden el sidebar:
+- `bodega.tsx` → `_app/bodega.tsx` (eliminar el sidebar interno y el chequeo de auth; queda solo como wrapper con `<Outlet/>`, o se elimina y se aplanan los hijos).
+- `bodega.index.tsx` → `_app/bodega.index.tsx`
+- `bodega.proveedores-insumos.tsx` → `_app/bodega.proveedores-insumos.tsx`
+- `bodega.compras.tsx` → `_app/bodega.compras.tsx`
+- `bodega.compras.nueva.tsx` → `_app/bodega.compras.nueva.tsx`
+- `bodega.inventario.tsx` → `_app/bodega.inventario.tsx`
+- `bodega.inventario.$id.tsx` → `_app/bodega.inventario.$id.tsx`
 
-- Consulta `inventario_actual` con JOIN a `insumos` (`select("cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_medida, stock_minimo)")`).
-- **Buscador**: `<Input>` con filtrado en tiempo real por `nombre_insumo` (lower-case includes).
-- **Filtros** (`<Select>` shadcn):
-  - Unidad de medida (opciones derivadas de los datos cargados).
-  - Estado de stock: Todos / Stock bajo (`cantidad_actual <= stock_minimo`) / Sin alerta.
-- **Columnas**: Insumo · Cantidad actual · Unidad · Stock mínimo · Badge "Alerta" cuando aplica.
-- Click en fila → `navigate({ to: "/bodega/inventario/$id", params: { id: id_insumo } })`.
-- Misma estética de tabla que `InsumosTab` / `ProveedoresTab`.
+Propuesta: eliminar el componente layout interno de `bodega.tsx` (ya no aporta porque el sidebar global cubre todo) y dejar `_app/bodega.tsx` solo como `() => <Outlet/>`. Las URLs públicas no cambian: siguen siendo `/bodega/proveedores-insumos`, etc.
 
-### 2. Navegación cruzada Insumo → Inventario
+### 6. `login.tsx` y `register.tsx`
+- Tras login exitoso → navega a `/dashboard` (en lugar de `/bodega`).
+- El chequeo "si ya hay sesión, redirige" pasa a `/dashboard`.
 
-En `InsumoForm` (modal de edición), agregar botón secundario **"Ver en Inventario"** (solo en modo edición) que navega a `/bodega/inventario/$id` y cierra el sheet.
+### 7. `__root.tsx`
+- Solo ajustar los enlaces de los componentes 404/Error: `to="/"` en vez de `to="/login"` (la raíz ya decide).
 
-### 3. Ruta dedicada de detalle — `/bodega/inventario/$id`
+## Fuera de alcance
 
-Nuevo archivo `src/routes/bodega.inventario.$id.tsx` con loader que trae insumo + inventario.
+- No se tocan migraciones, esquemas de DB, ni los formularios/CRUD de Proveedores, Insumos, Compras o Inventario.
+- No se construye el contenido real del dashboard (solo placeholder).
+- No se sube un logo real — se usa un ícono de lucide como placeholder.
 
-Layout:
-- **Header**: nombre del insumo + breadcrumb "Inventario / {nombre}".
-- **Hero**: `cantidad_actual` en tamaño gigante (e.g. `text-7xl font-bold`) con `unidad_medida` al lado. Badge de alerta si `<= stock_minimo`.
-- **Acciones rápidas** (dos botones):
-  - "Editar insumo" → abre `ResponsiveSheet` con `InsumoForm` precargado (reutilizando el componente existente).
-  - "Modificar stock actual" → abre `ResponsiveSheet` con nuevo `AjustarStockForm` (campos: modo *Nueva cantidad* o *Diferencial*, motivo). Llama al RPC `ajustar_stock_manual`.
-- **Historial de compras** (tabla): consulta a `detalle_compra` filtrada por `id_insumo`, con JOIN a `compras` y `proveedores`. Orden cronológico descendente. Columnas: Fecha · # Factura · Proveedor · Cantidad · Valor unitario. Click en fila → abre Sheet de detalle de compra.
+## Detalles técnicos
 
-### 4. Sheet de Detalle de Compra (nivel final)
-
-Nuevo componente `CompraDetailSheet` montado en la página de detalle. Usa `ResponsiveSheet` existente (ya maneja `side="right"` en desktop y `side="bottom"` en mobile).
-
-Contenido: cabecera de compra (proveedor, fecha, # factura, estado, total) + tabla de todos los `detalle_compra` de esa compra. Al cerrar, el usuario permanece en `/bodega/inventario/$id`.
-
-## Componentes nuevos / modificados
-
-| Archivo | Acción |
-|---|---|
-| `src/components/bodega/inventario-tab.tsx` | nuevo |
-| `src/components/bodega/ajustar-stock-form.tsx` | nuevo |
-| `src/components/bodega/compra-detail-sheet.tsx` | nuevo |
-| `src/components/bodega/historial-compras-table.tsx` | nuevo |
-| `src/routes/bodega.inventario.tsx` | reemplazar placeholder → renderiza `InventarioTab` |
-| `src/routes/bodega.inventario.$id.tsx` | nuevo (página de detalle) |
-| `src/components/bodega/insumo-form.tsx` | agregar botón "Ver en Inventario" en modo edición |
-
-No se tocan: rutas de auth, `__root.tsx`, componentes de Proveedores ni CRUD de Insumos (solo se extiende `InsumoForm` con un botón).
-
-## Orden de ejecución
-
-1. Migración Supabase (tablas + RLS + RPC + trigger backfill).
-2. Componentes de tabla y filtros (`InventarioTab`).
-3. Ruta de detalle + hero + acciones.
-4. Historial de compras + Sheet de detalle de compra.
-5. Botón cruzado en `InsumoForm`.
+- TanStack Router file-based: el guion bajo en `_app.tsx` lo convierte en pathless layout route; los hijos quedan en `src/routes/_app/*.tsx` y conservan sus URLs.
+- El chequeo de auth se hace en el componente con `supabase.auth.getUser()` + estado local (mismo patrón que el `bodega.tsx` actual) para mantener consistencia con la app existente. No se introduce `beforeLoad`/router context para no expandir el alcance.
+- `routeTree.gen.ts` se regenera automáticamente, no se edita a mano.
