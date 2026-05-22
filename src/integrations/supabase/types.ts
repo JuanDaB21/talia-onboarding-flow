@@ -48,7 +48,22 @@ export type Database = {
           observaciones?: string | null
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "compras_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "compras_id_proveedor_fkey"
+            columns: ["id_proveedor"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id_proveedor"]
+          },
+        ]
       }
       detalle_compra: {
         Row: {
@@ -85,6 +100,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "compras"
             referencedColumns: ["id_compra"]
+          },
+          {
+            foreignKeyName: "detalle_compra_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
           },
         ]
       }
