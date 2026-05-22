@@ -13,6 +13,10 @@ import {
   HistorialComprasTable,
   type HistorialRow,
 } from "@/components/bodega/historial-compras-table";
+import {
+  HistorialMovimientosTable,
+  type MovimientoRow,
+} from "@/components/bodega/historial-movimientos-table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
 
 export const Route = createFileRoute("/_app/bodega/inventario/$id")({
