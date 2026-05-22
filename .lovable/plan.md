@@ -1,64 +1,43 @@
-## Objetivo
+## Diagnóstico
 
-Reestructurar la navegación de la app: la ruta `/` ahora será el login (si no hay sesión) o un dashboard inicial (si ya estás logeado), y todo el área autenticada compartirá un layout con un sidebar persistente al estilo ShadCN.
+Al inspeccionar la base de datos detecté dos problemas:
 
-## Cambios
+1. **Trigger faltante**: La función `crear_inventario_para_insumo()` existe, pero **no hay ningún trigger** que la ejecute (lista de triggers vacía en `information_schema`). Por eso los insumos nuevos no obtienen una fila inicial en `inventario_actual`. El RPC `registrar_compra` ya tiene una defensa que inserta la fila si falta, pero el modelo previsto no se está cumpliendo.
 
-### 1. Ruta raíz `/` — `src/routes/index.tsx` (NUEVA)
-- Comprueba sesión con `supabase.auth.getUser()`.
-- Sin sesión → `<Navigate to="/login" replace />`.
-- Con sesión → `<Navigate to="/dashboard" replace />`.
-- Muestra un loader mientras chequea.
+2. **Falta refresco en UI**: `InventarioTab` solo consulta `inventario_actual` una vez (en `useEffect` con dependencias vacías). Si el usuario registra una compra desde el modal en `/bodega/compras` y luego cambia a `/bodega/inventario`, normalmente remonta y refresca; pero no hay garantía de actualización en vivo ni invalidación cross-route, lo que produce la sensación de que la compra "no se ve" en inventario.
 
-### 2. Layout autenticado pathless — `src/routes/_app.tsx` (NUEVO)
-- Hace el chequeo de sesión una sola vez (mueve la lógica que hoy vive en `bodega.tsx`).
-- Renderiza `SidebarProvider` + `AppSidebar` + `<Outlet/>` para todos los hijos.
-- Header superior mínimo con `SidebarTrigger` (para colapsar) en mobile/desktop.
+Confirmé también que los datos sí están correctos en la BD: la única compra existente (Tomate, cantidad 20) se reflejó como `cantidad_actual = 20` en `inventario_actual`. El problema percibido es por falta de refresco automático y por el trigger ausente que debería respaldar la consistencia.
 
-### 3. Sidebar — `src/components/app-sidebar.tsx` (NUEVO)
-Usa el componente ShadCN `Sidebar` (`collapsible="icon"`).
+## Cambios propuestos
 
-- **Header (arriba):** logo + texto "Talia". El logo es un placeholder simple (ícono `ChefHat` de lucide dentro de un cuadro con `bg-primary`) hasta que se suba un asset real.
-- **Content:** un único `SidebarGroup` con `SidebarGroupLabel="Bodega"` (no interactivo) y tres `SidebarMenuItem`:
-  - Proveedores e Insumos → `/bodega/proveedores-insumos` (icon `Boxes`)
-  - Compras → `/bodega/compras` (icon `ShoppingCart`)
-  - Inventario → `/bodega/inventario` (icon `Warehouse`)
-- Estado activo con `useRouterState` + `data-status="active"`.
-- **Footer (abajo):** `SidebarMenuButton` con avatar + email + chevron, que abre un `DropdownMenu` con:
-  - Email del usuario (header del menú, no clickeable).
-  - "Cerrar sesión" → `supabase.auth.signOut()` y navega a `/login`.
+### 1. Base de datos (migración)
 
-### 4. Dashboard inicial — `src/routes/_app/dashboard.tsx` (NUEVO)
-- Placeholder: título "Dashboard" + texto "Próximamente verás aquí un resumen de tu operación".
-- Sin lógica de datos por ahora.
+Crear el trigger faltante sobre `public.insumos` para que cada nuevo insumo genere automáticamente su fila en `inventario_actual`:
 
-### 5. Mover rutas de Bodega bajo el layout `_app`
-Renombrar (sin tocar contenido interno) para que hereden el sidebar:
-- `bodega.tsx` → `_app/bodega.tsx` (eliminar el sidebar interno y el chequeo de auth; queda solo como wrapper con `<Outlet/>`, o se elimina y se aplanan los hijos).
-- `bodega.index.tsx` → `_app/bodega.index.tsx`
-- `bodega.proveedores-insumos.tsx` → `_app/bodega.proveedores-insumos.tsx`
-- `bodega.compras.tsx` → `_app/bodega.compras.tsx`
-- `bodega.compras.nueva.tsx` → `_app/bodega.compras.nueva.tsx`
-- `bodega.inventario.tsx` → `_app/bodega.inventario.tsx`
-- `bodega.inventario.$id.tsx` → `_app/bodega.inventario.$id.tsx`
+```sql
+CREATE TRIGGER trg_crear_inventario_para_insumo
+AFTER INSERT ON public.insumos
+FOR EACH ROW EXECUTE FUNCTION public.crear_inventario_para_insumo();
+```
 
-Propuesta: eliminar el componente layout interno de `bodega.tsx` (ya no aporta porque el sidebar global cubre todo) y dejar `_app/bodega.tsx` solo como `() => <Outlet/>`. Las URLs públicas no cambian: siguen siendo `/bodega/proveedores-insumos`, etc.
+(No se crean foreign keys nuevas: las relaciones `inventario_actual.id_insumo → insumos`, `compras.id_proveedor → proveedores`, `detalle_compra.id_compra → compras` y `detalle_compra.id_insumo → insumos` ya fueron añadidas en migraciones previas. La lógica transaccional de actualización de stock vive en el RPC `registrar_compra`, que ya recalcula `cantidad_actual` aplicando `factor_conversion` y registra en `movimientos_inventario`.)
 
-### 6. `login.tsx` y `register.tsx`
-- Tras login exitoso → navega a `/dashboard` (en lugar de `/bodega`).
-- El chequeo "si ya hay sesión, redirige" pasa a `/dashboard`.
+### 2. Frontend — refresco automático del Inventario
 
-### 7. `__root.tsx`
-- Solo ajustar los enlaces de los componentes 404/Error: `to="/"` en vez de `to="/login"` (la raíz ya decide).
+En `src/components/bodega/inventario-tab.tsx`:
 
-## Fuera de alcance
+- Extraer la consulta a una función `fetchRows()` reutilizable.
+- Suscribirse vía **Supabase Realtime** a cambios en `inventario_actual` filtrados por el negocio del usuario (`id_negocio=eq.<idNegocio>`) y refrescar la tabla automáticamente.
+- Habilitar realtime para la tabla en la migración: `ALTER PUBLICATION supabase_realtime ADD TABLE public.inventario_actual;` y `ALTER TABLE public.inventario_actual REPLICA IDENTITY FULL;`.
 
-- No se tocan migraciones, esquemas de DB, ni los formularios/CRUD de Proveedores, Insumos, Compras o Inventario.
-- No se construye el contenido real del dashboard (solo placeholder).
-- No se sube un logo real — se usa un ícono de lucide como placeholder.
+Resultado: al registrar una compra desde cualquier pestaña, el inventario se actualiza en vivo sin necesidad de recargar.
 
-## Detalles técnicos
+### 3. Frontend — feedback inmediato al registrar compra
 
-- TanStack Router file-based: el guion bajo en `_app.tsx` lo convierte en pathless layout route; los hijos quedan en `src/routes/_app/*.tsx` y conservan sus URLs.
-- El chequeo de auth se hace en el componente con `supabase.auth.getUser()` + estado local (mismo patrón que el `bodega.tsx` actual) para mantener consistencia con la app existente. No se introduce `beforeLoad`/router context para no expandir el alcance.
-- `routeTree.gen.ts` se regenera automáticamente, no se edita a mano.
+En `src/routes/_app.bodega.compras.tsx` (donde se monta `CompraForm` dentro del modal): tras `onSuccess`, además de cerrar el modal y refrescar el historial de compras local, mostrar un toast con enlace "Ver en inventario" que navegue a `/bodega/inventario`.
+
+## Verificación
+
+1. Crear un insumo nuevo → confirmar que aparece automáticamente en `/bodega/inventario` con cantidad 0 (gracias al trigger).
+2. Registrar una compra de ese insumo → el inventario en `/bodega/inventario` debe incrementarse en vivo (gracias a realtime), aplicando `factor_conversion`.
+3. Revisar `movimientos_inventario` para confirmar la auditoría del movimiento tipo `COMPRA`.
