@@ -11,6 +11,9 @@ import {
   FolderTree,
   BookOpen,
   Package,
+  Settings,
+  Users,
+  Utensils,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -48,7 +51,12 @@ const BODEGA_NAV = [
 const MENU_NAV = [
   { to: "/menu/categorias", label: "Categorías", icon: FolderTree },
   { to: "/menu/recetas", label: "Recetas", icon: BookOpen },
-  { to: "/menu/productos", label: "Productos y Extras", icon: Package },
+  { to: "/menu/productos", label: "Productos", icon: Package },
+] as const;
+
+const CONFIG_NAV = [
+  { to: "/configuracion/usuarios", label: "Usuarios", icon: Users },
+  { to: "/configuracion/mesas", label: "Mesas", icon: Utensils },
 ] as const;
 
 export function AppSidebar() {
