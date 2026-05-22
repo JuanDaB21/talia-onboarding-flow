@@ -267,6 +267,33 @@ export type Database = {
           },
         ]
       }
+      mesas: {
+        Row: {
+          created_at: string
+          estado: string
+          id_mesa: string
+          id_negocio: string
+          identificador: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id_mesa?: string
+          id_negocio: string
+          identificador: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id_mesa?: string
+          id_negocio?: string
+          identificador?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       movimientos_inventario: {
         Row: {
           cantidad: number
