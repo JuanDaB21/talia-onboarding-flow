@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,9 +161,18 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
             load();
           }}
           onCancel={() => handleOpenChange(false)}
-          onDeleted={
+          onDelete={
             selected
-              ? () => {
+              ? async () => {
+                  const { error } = await supabase
+                    .from("insumos")
+                    .delete()
+                    .eq("id_insumo", selected.id_insumo);
+                  if (error) {
+                    toast.error("No se pudo eliminar", { description: error.message });
+                    return;
+                  }
+                  toast.success("Insumo eliminado");
                   handleOpenChange(false);
                   load();
                 }

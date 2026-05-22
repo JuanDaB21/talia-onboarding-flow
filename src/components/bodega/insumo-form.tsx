@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
@@ -26,7 +26,7 @@ interface Props {
   initialValues?: InsumoInput;
   onSuccess: () => void;
   onCancel: () => void;
-  onDeleted?: () => void;
+  onDelete?: () => void | Promise<void>;
 }
 
 const EMPTY: InsumoInput = {
@@ -45,18 +45,23 @@ export function InsumoForm({
   initialValues,
   onSuccess,
   onCancel,
-  onDeleted,
+  onDelete,
 }: Props) {
   const isEdit = Boolean(idInsumo);
   const [deleting, setDeleting] = useState(false);
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<InsumoInput>({
     resolver: zodResolver(insumoSchema),
     defaultValues: initialValues ?? EMPTY,
   });
+
+  useEffect(() => {
+    reset(initialValues ?? EMPTY);
+  }, [initialValues, reset]);
 
   const onSubmit = async (values: InsumoInput) => {
     if (isEdit && idInsumo) {
@@ -84,16 +89,13 @@ export function InsumoForm({
   };
 
   const handleDelete = async () => {
-    if (!idInsumo) return;
+    if (!onDelete) return;
     setDeleting(true);
-    const { error } = await supabase.from("insumos").delete().eq("id_insumo", idInsumo);
-    setDeleting(false);
-    if (error) {
-      toast.error("No se pudo eliminar", { description: error.message });
-      return;
+    try {
+      await onDelete();
+    } finally {
+      setDeleting(false);
     }
-    toast.success("Insumo eliminado");
-    onDeleted?.();
   };
 
   return (
@@ -169,45 +171,46 @@ export function InsumoForm({
           <p className="text-xs text-destructive">{errors.factor_conversion.message}</p>
         )}
       </div>
-      <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
           Cancelar
         </Button>
+        {isEdit && onDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar insumo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. El registro será eliminado de forma permanente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                  {deleting ? "Eliminando…" : "Eliminar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <Button
           type="submit"
-          className="flex-1"
+          className="w-full sm:flex-1"
           disabled={isSubmitting || (isEdit && !isDirty)}
         >
           {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
       </div>
-      {isEdit && onDeleted && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4 mr-1" /> Eliminar insumo
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar insumo?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. El registro será eliminado de forma permanente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Eliminando…" : "Eliminar"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </form>
   );
 }
