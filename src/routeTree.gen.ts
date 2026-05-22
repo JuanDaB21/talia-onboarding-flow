@@ -11,13 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as BodegaRouteImport } from './routes/bodega'
-import { Route as BodegaIndexRouteImport } from './routes/bodega.index'
-import { Route as BodegaProveedoresInsumosRouteImport } from './routes/bodega.proveedores-insumos'
-import { Route as BodegaInventarioRouteImport } from './routes/bodega.inventario'
-import { Route as BodegaComprasRouteImport } from './routes/bodega.compras'
-import { Route as BodegaInventarioIdRouteImport } from './routes/bodega.inventario.$id'
-import { Route as BodegaComprasNuevaRouteImport } from './routes/bodega.compras.nueva'
+import { Route as AppBodegaIndexRouteImport } from './routes/_app.bodega.index'
+import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.bodega.proveedores-insumos'
+import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.inventario'
+import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
+import { Route as AppBodegaInventarioIdRouteImport } from './routes/_app.bodega.inventario.$id'
+import { Route as AppBodegaComprasNuevaRouteImport } from './routes/_app.bodega.compras.nueva'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -29,80 +28,72 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BodegaRoute = BodegaRouteImport.update({
-  id: '/bodega',
-  path: '/bodega',
+const AppBodegaIndexRoute = AppBodegaIndexRouteImport.update({
+  id: '/_app/bodega/',
+  path: '/bodega/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BodegaIndexRoute = BodegaIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => BodegaRoute,
-} as any)
-const BodegaProveedoresInsumosRoute =
-  BodegaProveedoresInsumosRouteImport.update({
-    id: '/proveedores-insumos',
-    path: '/proveedores-insumos',
-    getParentRoute: () => BodegaRoute,
+const AppBodegaProveedoresInsumosRoute =
+  AppBodegaProveedoresInsumosRouteImport.update({
+    id: '/_app/bodega/proveedores-insumos',
+    path: '/bodega/proveedores-insumos',
+    getParentRoute: () => rootRouteImport,
   } as any)
-const BodegaInventarioRoute = BodegaInventarioRouteImport.update({
-  id: '/inventario',
-  path: '/inventario',
-  getParentRoute: () => BodegaRoute,
+const AppBodegaInventarioRoute = AppBodegaInventarioRouteImport.update({
+  id: '/_app/bodega/inventario',
+  path: '/bodega/inventario',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const BodegaComprasRoute = BodegaComprasRouteImport.update({
-  id: '/compras',
-  path: '/compras',
-  getParentRoute: () => BodegaRoute,
+const AppBodegaComprasRoute = AppBodegaComprasRouteImport.update({
+  id: '/_app/bodega/compras',
+  path: '/bodega/compras',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const BodegaInventarioIdRoute = BodegaInventarioIdRouteImport.update({
+const AppBodegaInventarioIdRoute = AppBodegaInventarioIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => BodegaInventarioRoute,
+  getParentRoute: () => AppBodegaInventarioRoute,
 } as any)
-const BodegaComprasNuevaRoute = BodegaComprasNuevaRouteImport.update({
+const AppBodegaComprasNuevaRoute = AppBodegaComprasNuevaRouteImport.update({
   id: '/nueva',
   path: '/nueva',
-  getParentRoute: () => BodegaComprasRoute,
+  getParentRoute: () => AppBodegaComprasRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/bodega': typeof BodegaRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/bodega/compras': typeof BodegaComprasRouteWithChildren
-  '/bodega/inventario': typeof BodegaInventarioRouteWithChildren
-  '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
-  '/bodega/': typeof BodegaIndexRoute
-  '/bodega/compras/nueva': typeof BodegaComprasNuevaRoute
-  '/bodega/inventario/$id': typeof BodegaInventarioIdRoute
+  '/bodega/compras': typeof AppBodegaComprasRouteWithChildren
+  '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
+  '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
+  '/bodega/': typeof AppBodegaIndexRoute
+  '/bodega/compras/nueva': typeof AppBodegaComprasNuevaRoute
+  '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/bodega/compras': typeof BodegaComprasRouteWithChildren
-  '/bodega/inventario': typeof BodegaInventarioRouteWithChildren
-  '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
-  '/bodega': typeof BodegaIndexRoute
-  '/bodega/compras/nueva': typeof BodegaComprasNuevaRoute
-  '/bodega/inventario/$id': typeof BodegaInventarioIdRoute
+  '/bodega/compras': typeof AppBodegaComprasRouteWithChildren
+  '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
+  '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
+  '/bodega': typeof AppBodegaIndexRoute
+  '/bodega/compras/nueva': typeof AppBodegaComprasNuevaRoute
+  '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/bodega': typeof BodegaRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/bodega/compras': typeof BodegaComprasRouteWithChildren
-  '/bodega/inventario': typeof BodegaInventarioRouteWithChildren
-  '/bodega/proveedores-insumos': typeof BodegaProveedoresInsumosRoute
-  '/bodega/': typeof BodegaIndexRoute
-  '/bodega/compras/nueva': typeof BodegaComprasNuevaRoute
-  '/bodega/inventario/$id': typeof BodegaInventarioIdRoute
+  '/_app/bodega/compras': typeof AppBodegaComprasRouteWithChildren
+  '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
+  '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
+  '/_app/bodega/': typeof AppBodegaIndexRoute
+  '/_app/bodega/compras/nueva': typeof AppBodegaComprasNuevaRoute
+  '/_app/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/bodega'
     | '/login'
     | '/register'
     | '/bodega/compras'
@@ -123,21 +114,23 @@ export interface FileRouteTypes {
     | '/bodega/inventario/$id'
   id:
     | '__root__'
-    | '/bodega'
     | '/login'
     | '/register'
-    | '/bodega/compras'
-    | '/bodega/inventario'
-    | '/bodega/proveedores-insumos'
-    | '/bodega/'
-    | '/bodega/compras/nueva'
-    | '/bodega/inventario/$id'
+    | '/_app/bodega/compras'
+    | '/_app/bodega/inventario'
+    | '/_app/bodega/proveedores-insumos'
+    | '/_app/bodega/'
+    | '/_app/bodega/compras/nueva'
+    | '/_app/bodega/inventario/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  BodegaRoute: typeof BodegaRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  AppBodegaComprasRoute: typeof AppBodegaComprasRouteWithChildren
+  AppBodegaInventarioRoute: typeof AppBodegaInventarioRouteWithChildren
+  AppBodegaProveedoresInsumosRoute: typeof AppBodegaProveedoresInsumosRoute
+  AppBodegaIndexRoute: typeof AppBodegaIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -156,103 +149,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bodega': {
-      id: '/bodega'
+    '/_app/bodega/': {
+      id: '/_app/bodega/'
       path: '/bodega'
-      fullPath: '/bodega'
-      preLoaderRoute: typeof BodegaRouteImport
+      fullPath: '/bodega/'
+      preLoaderRoute: typeof AppBodegaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bodega/': {
-      id: '/bodega/'
-      path: '/'
-      fullPath: '/bodega/'
-      preLoaderRoute: typeof BodegaIndexRouteImport
-      parentRoute: typeof BodegaRoute
-    }
-    '/bodega/proveedores-insumos': {
-      id: '/bodega/proveedores-insumos'
-      path: '/proveedores-insumos'
+    '/_app/bodega/proveedores-insumos': {
+      id: '/_app/bodega/proveedores-insumos'
+      path: '/bodega/proveedores-insumos'
       fullPath: '/bodega/proveedores-insumos'
-      preLoaderRoute: typeof BodegaProveedoresInsumosRouteImport
-      parentRoute: typeof BodegaRoute
+      preLoaderRoute: typeof AppBodegaProveedoresInsumosRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/bodega/inventario': {
-      id: '/bodega/inventario'
-      path: '/inventario'
+    '/_app/bodega/inventario': {
+      id: '/_app/bodega/inventario'
+      path: '/bodega/inventario'
       fullPath: '/bodega/inventario'
-      preLoaderRoute: typeof BodegaInventarioRouteImport
-      parentRoute: typeof BodegaRoute
+      preLoaderRoute: typeof AppBodegaInventarioRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/bodega/compras': {
-      id: '/bodega/compras'
-      path: '/compras'
+    '/_app/bodega/compras': {
+      id: '/_app/bodega/compras'
+      path: '/bodega/compras'
       fullPath: '/bodega/compras'
-      preLoaderRoute: typeof BodegaComprasRouteImport
-      parentRoute: typeof BodegaRoute
+      preLoaderRoute: typeof AppBodegaComprasRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/bodega/inventario/$id': {
-      id: '/bodega/inventario/$id'
+    '/_app/bodega/inventario/$id': {
+      id: '/_app/bodega/inventario/$id'
       path: '/$id'
       fullPath: '/bodega/inventario/$id'
-      preLoaderRoute: typeof BodegaInventarioIdRouteImport
-      parentRoute: typeof BodegaInventarioRoute
+      preLoaderRoute: typeof AppBodegaInventarioIdRouteImport
+      parentRoute: typeof AppBodegaInventarioRoute
     }
-    '/bodega/compras/nueva': {
-      id: '/bodega/compras/nueva'
+    '/_app/bodega/compras/nueva': {
+      id: '/_app/bodega/compras/nueva'
       path: '/nueva'
       fullPath: '/bodega/compras/nueva'
-      preLoaderRoute: typeof BodegaComprasNuevaRouteImport
-      parentRoute: typeof BodegaComprasRoute
+      preLoaderRoute: typeof AppBodegaComprasNuevaRouteImport
+      parentRoute: typeof AppBodegaComprasRoute
     }
   }
 }
 
-interface BodegaComprasRouteChildren {
-  BodegaComprasNuevaRoute: typeof BodegaComprasNuevaRoute
+interface AppBodegaComprasRouteChildren {
+  AppBodegaComprasNuevaRoute: typeof AppBodegaComprasNuevaRoute
 }
 
-const BodegaComprasRouteChildren: BodegaComprasRouteChildren = {
-  BodegaComprasNuevaRoute: BodegaComprasNuevaRoute,
+const AppBodegaComprasRouteChildren: AppBodegaComprasRouteChildren = {
+  AppBodegaComprasNuevaRoute: AppBodegaComprasNuevaRoute,
 }
 
-const BodegaComprasRouteWithChildren = BodegaComprasRoute._addFileChildren(
-  BodegaComprasRouteChildren,
-)
+const AppBodegaComprasRouteWithChildren =
+  AppBodegaComprasRoute._addFileChildren(AppBodegaComprasRouteChildren)
 
-interface BodegaInventarioRouteChildren {
-  BodegaInventarioIdRoute: typeof BodegaInventarioIdRoute
+interface AppBodegaInventarioRouteChildren {
+  AppBodegaInventarioIdRoute: typeof AppBodegaInventarioIdRoute
 }
 
-const BodegaInventarioRouteChildren: BodegaInventarioRouteChildren = {
-  BodegaInventarioIdRoute: BodegaInventarioIdRoute,
+const AppBodegaInventarioRouteChildren: AppBodegaInventarioRouteChildren = {
+  AppBodegaInventarioIdRoute: AppBodegaInventarioIdRoute,
 }
 
-const BodegaInventarioRouteWithChildren =
-  BodegaInventarioRoute._addFileChildren(BodegaInventarioRouteChildren)
-
-interface BodegaRouteChildren {
-  BodegaComprasRoute: typeof BodegaComprasRouteWithChildren
-  BodegaInventarioRoute: typeof BodegaInventarioRouteWithChildren
-  BodegaProveedoresInsumosRoute: typeof BodegaProveedoresInsumosRoute
-  BodegaIndexRoute: typeof BodegaIndexRoute
-}
-
-const BodegaRouteChildren: BodegaRouteChildren = {
-  BodegaComprasRoute: BodegaComprasRouteWithChildren,
-  BodegaInventarioRoute: BodegaInventarioRouteWithChildren,
-  BodegaProveedoresInsumosRoute: BodegaProveedoresInsumosRoute,
-  BodegaIndexRoute: BodegaIndexRoute,
-}
-
-const BodegaRouteWithChildren =
-  BodegaRoute._addFileChildren(BodegaRouteChildren)
+const AppBodegaInventarioRouteWithChildren =
+  AppBodegaInventarioRoute._addFileChildren(AppBodegaInventarioRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  BodegaRoute: BodegaRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  AppBodegaComprasRoute: AppBodegaComprasRouteWithChildren,
+  AppBodegaInventarioRoute: AppBodegaInventarioRouteWithChildren,
+  AppBodegaProveedoresInsumosRoute: AppBodegaProveedoresInsumosRoute,
+  AppBodegaIndexRoute: AppBodegaIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
