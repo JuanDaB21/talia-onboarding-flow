@@ -32,6 +32,7 @@ interface CompraRow {
 }
 
 function ComprasPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<CompraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
