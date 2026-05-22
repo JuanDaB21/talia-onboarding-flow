@@ -21,7 +21,7 @@ export type IngredienteInput = z.infer<typeof ingredienteSchema>;
 
 export const recetaSchema = z.object({
   nombre_receta: z.string().trim().min(1, "Requerido").max(200),
-  descripcion: z.string().trim().max(1000).optional().default(""),
+  descripcion: z.string().trim().max(1000).optional(),
   id_categoria: z.string().uuid("Selecciona una categoría"),
   id_subcategoria: z.string().uuid("Selecciona una subcategoría"),
   ingredientes: z.array(ingredienteSchema).min(1, "Agrega al menos un ingrediente"),
@@ -29,7 +29,7 @@ export const recetaSchema = z.object({
 export type RecetaInput = z.infer<typeof recetaSchema>;
 
 export const productoSchema = z.object({
-  descripcion_producto: z.string().trim().max(1000).optional().default(""),
+  descripcion_producto: z.string().trim().max(1000).optional(),
   precio_venta: z.coerce.number().min(0, "Debe ser ≥ 0"),
   url_imagen: z.string().trim().url("URL inválida").or(z.literal("")).optional(),
   activo: z.boolean(),

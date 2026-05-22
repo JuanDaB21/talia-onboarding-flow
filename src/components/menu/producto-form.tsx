@@ -95,7 +95,7 @@ export function ProductoForm({
 
     const { error: eErr } = await supabase.rpc("guardar_extras_producto", {
       p_id_producto: producto.id_producto,
-      p_extras: lista,
+      p_extras: lista as unknown as never,
     });
     if (eErr) return toast.error("Producto guardado, pero los extras fallaron", { description: eErr.message });
 
