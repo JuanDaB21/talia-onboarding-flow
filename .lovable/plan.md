@@ -1,47 +1,21 @@
-## Detalle de Inventario — agregar historial de movimientos
+## Problema
 
-Sobre la vista actual de `/bodega/inventario/$id` (que ya muestra cantidad actual, datos del insumo, editar y ajustar stock, e historial de compras), añadir una nueva sección de **Historial de movimientos** que consolide todo lo que entra y sale del stock con su origen.
+La ruta `/bodega/inventario/:id` ya existe y matchea, pero la página de detalle no se ve. La causa es que `src/routes/_app.bodega.inventario.tsx` se comporta como **ruta padre** del archivo hijo `_app.bodega.inventario.$id.tsx` (convención de TanStack con puntos), y su componente renderiza directamente `<InventarioTab />` sin un `<Outlet />`. Resultado: al navegar al detalle, el padre sigue mostrando el listado y el hijo nunca tiene dónde montarse.
 
-### Qué se construye
+## Solución
 
-1. **Nuevo componente `historial-movimientos-table.tsx`** en `src/components/bodega/`:
-   - Tabla con columnas: Fecha, Tipo (badge), Cantidad (+/- coloreado), Anterior → Nuevo, Motivo, Usuario.
-   - Tipos soportados con badges semánticas:
-     - `COMPRA` → verde "Compra" (entrada)
-     - `AJUSTE_MANUAL` → ámbar "Ajuste" (suma o merma según signo)
-     - `VENTA` / `CONSUMO` / `MERMA` → rojo (salida) — preparado por si el backend los introduce
-   - Cantidad con signo: positivo en verde con `+`, negativo en rojo con `-`.
-   - Estado vacío y skeleton de carga consistente con `historial-compras-table.tsx`.
-   - Si el movimiento es de tipo `COMPRA` y tiene `referencia_id`, la fila es clicable y abre el `CompraDetailSheet` existente.
+Separar el layout del listado:
 
-2. **Integración en `_app.bodega.inventario.$id.tsx`**:
-   - Nuevo `loadMovimientos()` que consulta `movimientos_inventario` filtrado por `id_insumo`, ordenado por `created_at desc`, con join embebido a `usuarios_staff` para obtener el nombre del usuario:
-     ```
-     id_movimiento, created_at, tipo_movimiento, cantidad,
-     cantidad_anterior, cantidad_nueva, motivo, referencia_id,
-     usuarios_staff:id_usuario(nombre)
-     ```
-   - Nueva sección entre el bloque de stock y el historial de compras:
-     - Título "Historial de movimientos" + subtítulo "Entradas, salidas y ajustes de este insumo".
-     - Renderiza `<HistorialMovimientosTable />`.
-   - Mantener el historial de compras como sección secundaria debajo (vista filtrada solo de compras, útil para precios y proveedores).
-   - Refrescar `loadMovimientos()` también cuando el usuario ajuste stock (`setStockOpen` `onSuccess`) o edite el insumo.
+1. **Convertir `src/routes/_app.bodega.inventario.tsx` en un layout vacío** que solo renderice `<Outlet />` (sin header ni `<InventarioTab />`). Mantiene el `head()` con el título de la sección.
 
-3. **Realtime opcional (en la misma vista)**: suscribirse a `postgres_changes` sobre `movimientos_inventario` filtrado por `id_insumo` para que nuevas compras/ajustes aparezcan sin recargar. Limpieza del channel al desmontar.
+2. **Crear `src/routes/_app.bodega.inventario.index.tsx`** con el contenido actual de la página de inventario: header "Inventario" + descripción + `<InventarioTab />`. Esto pasa a responder en `/bodega/inventario` exacto.
 
-### Backend
+3. **El detalle `_app.bodega.inventario.$id.tsx`** queda sin cambios; ahora sí se montará dentro del `<Outlet />` del padre cuando la URL sea `/bodega/inventario/:id`.
 
-No requiere cambios de schema. La tabla `movimientos_inventario` ya registra `COMPRA` (vía `registrar_compra`) y `AJUSTE_MANUAL` (vía `ajustar_stock_manual`) con `cantidad_anterior`, `cantidad_nueva`, `motivo`, `id_usuario` y `referencia_id`. Falta solo la FK `movimientos_inventario.id_usuario → usuarios_staff.id_usuario` para que el join embebido resuelva — se añadirá en una migración corta (idempotente, `NOTIFY pgrst`).
+## Resultado
 
-### Lo que NO cambia
+- `/bodega/inventario` → muestra el listado (como ahora).
+- `/bodega/inventario/:id` → muestra el detalle con stock, historial de movimientos y compras.
+- Click en una fila del inventario navega correctamente al detalle.
 
-- Stock grande, breadcrumb, botones Editar/Modificar stock.
-- Modal de detalle de compra (`CompraDetailSheet`) se reutiliza tal cual.
-- Tabla actual de "Historial de compras" se conserva debajo de movimientos.
-
-### Verificación
-
-- Abrir `/bodega/inventario/<id de Tomate>`: debe aparecer la sección "Historial de movimientos" con las 2 compras previas (filas verdes `+`) y cualquier ajuste manual.
-- Hacer un ajuste manual desde el botón → la fila aparece al instante encima.
-- Registrar una nueva compra desde `/bodega/compras` que incluya este insumo → la fila `COMPRA` aparece sin recargar.
-- Hacer clic en una fila `COMPRA` → abre el `CompraDetailSheet` con el detalle.
+No hay cambios de schema ni de backend. Solo reestructuración de archivos de ruta.

@@ -19,6 +19,7 @@ import { Route as AppBodegaIndexRouteImport } from './routes/_app.bodega.index'
 import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.bodega.proveedores-insumos'
 import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.inventario'
 import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
+import { Route as AppBodegaInventarioIndexRouteImport } from './routes/_app.bodega.inventario.index'
 import { Route as AppBodegaInventarioIdRouteImport } from './routes/_app.bodega.inventario.$id'
 
 const RegisterRoute = RegisterRouteImport.update({
@@ -71,6 +72,12 @@ const AppBodegaComprasRoute = AppBodegaComprasRouteImport.update({
   path: '/compras',
   getParentRoute: () => AppBodegaRoute,
 } as any)
+const AppBodegaInventarioIndexRoute =
+  AppBodegaInventarioIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppBodegaInventarioRoute,
+  } as any)
 const AppBodegaInventarioIdRoute = AppBodegaInventarioIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/bodega/': typeof AppBodegaIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
+  '/bodega/inventario/': typeof AppBodegaInventarioIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -95,10 +103,10 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/dashboard': typeof AppDashboardRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
-  '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/bodega': typeof AppBodegaIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
+  '/bodega/inventario': typeof AppBodegaInventarioIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/_app/bodega/': typeof AppBodegaIndexRoute
   '/_app/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
+  '/_app/bodega/inventario/': typeof AppBodegaInventarioIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/bodega/proveedores-insumos'
     | '/bodega/'
     | '/bodega/inventario/$id'
+    | '/bodega/inventario/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -134,10 +144,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/dashboard'
     | '/bodega/compras'
-    | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
     | '/bodega'
     | '/bodega/inventario/$id'
+    | '/bodega/inventario'
   id:
     | '__root__'
     | '/'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/_app/bodega/proveedores-insumos'
     | '/_app/bodega/'
     | '/_app/bodega/inventario/$id'
+    | '/_app/bodega/inventario/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -232,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBodegaComprasRouteImport
       parentRoute: typeof AppBodegaRoute
     }
+    '/_app/bodega/inventario/': {
+      id: '/_app/bodega/inventario/'
+      path: '/'
+      fullPath: '/bodega/inventario/'
+      preLoaderRoute: typeof AppBodegaInventarioIndexRouteImport
+      parentRoute: typeof AppBodegaInventarioRoute
+    }
     '/_app/bodega/inventario/$id': {
       id: '/_app/bodega/inventario/$id'
       path: '/$id'
@@ -244,10 +262,12 @@ declare module '@tanstack/react-router' {
 
 interface AppBodegaInventarioRouteChildren {
   AppBodegaInventarioIdRoute: typeof AppBodegaInventarioIdRoute
+  AppBodegaInventarioIndexRoute: typeof AppBodegaInventarioIndexRoute
 }
 
 const AppBodegaInventarioRouteChildren: AppBodegaInventarioRouteChildren = {
   AppBodegaInventarioIdRoute: AppBodegaInventarioIdRoute,
+  AppBodegaInventarioIndexRoute: AppBodegaInventarioIndexRoute,
 }
 
 const AppBodegaInventarioRouteWithChildren =
