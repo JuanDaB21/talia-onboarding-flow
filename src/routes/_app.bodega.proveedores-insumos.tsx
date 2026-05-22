@@ -4,7 +4,7 @@ import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { ProveedoresTab } from "@/components/bodega/proveedores-tab";
 import { InsumosTab } from "@/components/bodega/insumos-tab";
 
-export const Route = createFileRoute("/bodega/proveedores-insumos")({
+export const Route = createFileRoute("/_app/bodega/proveedores-insumos")({
   head: () => ({
     meta: [{ title: "Proveedores e Insumos — Bodega" }],
   }),

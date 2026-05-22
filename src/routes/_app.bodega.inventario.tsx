@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { InventarioTab } from "@/components/bodega/inventario-tab";
 
-export const Route = createFileRoute("/bodega/inventario")({
+export const Route = createFileRoute("/_app/bodega/inventario")({
   head: () => ({ meta: [{ title: "Inventario — Bodega" }] }),
   component: InventarioPage,
 });
