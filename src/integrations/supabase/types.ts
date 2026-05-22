@@ -254,6 +254,13 @@ export type Database = {
             referencedRelation: "negocio"
             referencedColumns: ["id_negocio"]
           },
+          {
+            foreignKeyName: "movimientos_inventario_id_usuario_fkey"
+            columns: ["id_usuario"]
+            isOneToOne: false
+            referencedRelation: "usuarios_staff"
+            referencedColumns: ["id_usuario"]
+          },
         ]
       }
       negocio: {

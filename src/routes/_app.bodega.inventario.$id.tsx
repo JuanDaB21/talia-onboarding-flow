@@ -13,6 +13,10 @@ import {
   HistorialComprasTable,
   type HistorialRow,
 } from "@/components/bodega/historial-compras-table";
+import {
+  HistorialMovimientosTable,
+  type MovimientoRow,
+} from "@/components/bodega/historial-movimientos-table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
 
 export const Route = createFileRoute("/_app/bodega/inventario/$id")({
@@ -39,8 +43,10 @@ function InventarioDetailPage() {
   const [insumo, setInsumo] = useState<Insumo | null>(null);
   const [cantidad, setCantidad] = useState<number>(0);
   const [historial, setHistorial] = useState<HistorialRow[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingHist, setLoadingHist] = useState(true);
+  const [loadingMov, setLoadingMov] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
@@ -84,10 +90,46 @@ function InventarioDetailPage() {
     setLoadingHist(false);
   }, [id]);
 
+  const loadMovimientos = useCallback(async () => {
+    setLoadingMov(true);
+    const { data } = await supabase
+      .from("movimientos_inventario")
+      .select(
+        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, usuarios_staff:id_usuario(nombre)"
+      )
+      .eq("id_insumo", id)
+      .order("created_at", { ascending: false });
+    setMovimientos((data as unknown as MovimientoRow[]) ?? []);
+    setLoadingMov(false);
+  }, [id]);
+
   useEffect(() => {
     load();
     loadHistorial();
-  }, [load, loadHistorial]);
+    loadMovimientos();
+  }, [load, loadHistorial, loadMovimientos]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`mov-insumo-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "movimientos_inventario",
+          filter: `id_insumo=eq.${id}`,
+        },
+        () => {
+          loadMovimientos();
+          load();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, loadMovimientos, load]);
 
   if (loading || negocioLoading) {
     return <p className="text-sm text-muted-foreground">Cargando…</p>;
@@ -153,6 +195,21 @@ function InventarioDetailPage() {
             </Button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Historial de movimientos</h2>
+          <p className="text-sm text-muted-foreground">
+            Entradas, salidas y ajustes de este insumo.
+          </p>
+        </div>
+        <HistorialMovimientosTable
+          rows={movimientos}
+          loading={loadingMov}
+          unidad={insumo.unidad_medida}
+          onSelectCompra={(idCompra) => setCompraSel(idCompra)}
+        />
       </section>
 
       <section className="space-y-3">
