@@ -140,6 +140,12 @@ function ComprasPage() {
             onSuccess={() => {
               setNuevaOpen(false);
               load();
+              toast.success("Inventario actualizado", {
+                action: {
+                  label: "Ver inventario",
+                  onClick: () => navigate({ to: "/bodega/inventario" }),
+                },
+              });
             }}
           />
         )}
