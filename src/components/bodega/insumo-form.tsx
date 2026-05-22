@@ -49,6 +49,7 @@ export function InsumoForm({
   onDelete,
 }: Props) {
   const isEdit = Boolean(idInsumo);
+  const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const {
     register,
