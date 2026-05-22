@@ -199,6 +199,21 @@ function InventarioDetailPage() {
 
       <section className="space-y-3">
         <div>
+          <h2 className="text-lg font-semibold">Historial de movimientos</h2>
+          <p className="text-sm text-muted-foreground">
+            Entradas, salidas y ajustes de este insumo.
+          </p>
+        </div>
+        <HistorialMovimientosTable
+          rows={movimientos}
+          loading={loadingMov}
+          unidad={insumo.unidad_medida}
+          onSelectCompra={(idCompra) => setCompraSel(idCompra)}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <div>
           <h2 className="text-lg font-semibold">Historial de compras</h2>
           <p className="text-sm text-muted-foreground">
             Compras de este insumo a distintos proveedores.
