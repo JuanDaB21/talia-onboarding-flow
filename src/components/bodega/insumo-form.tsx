@@ -1,14 +1,33 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { insumoSchema, type InsumoInput } from "@/lib/bodega-schemas";
+import {
+  UNIDADES,
+  getFamilia,
+  unidadesDeFamilia,
+  unidadBaseDeFamilia,
+  calcularFactor,
+  requiereFactorManual,
+  getUnidad,
+  labelDe,
+} from "@/lib/unidades";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,12 +51,18 @@ interface Props {
 
 const EMPTY: InsumoInput = {
   nombre_insumo: "",
-  unidad_medida: "",
   costo_promedio: 0,
   stock_minimo: 0,
-  unidad_compra: "",
-  unidad_receta: "",
-  factor_conversion: 1,
+  unidad_compra: "Kilogramo",
+  unidad_receta: "Gramo",
+  factor_conversion: 1000,
+};
+
+const FAMILIAS = ["PESO", "VOLUMEN", "UNIDAD"] as const;
+const FAMILIA_LABEL: Record<(typeof FAMILIAS)[number], string> = {
+  PESO: "Peso",
+  VOLUMEN: "Volumen",
+  UNIDAD: "Unidad",
 };
 
 export function InsumoForm({
@@ -55,6 +80,9 @@ export function InsumoForm({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
+    control,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<InsumoInput>({
     resolver: zodResolver(insumoSchema),
@@ -64,6 +92,59 @@ export function InsumoForm({
   useEffect(() => {
     reset(initialValues ?? EMPTY);
   }, [initialValues, reset]);
+
+  const unidadCompra = watch("unidad_compra");
+  const unidadReceta = watch("unidad_receta");
+  const familiaCompra = getFamilia(unidadCompra);
+
+  const recetaOptions = useMemo(
+    () => (familiaCompra ? unidadesDeFamilia(familiaCompra) : []),
+    [familiaCompra]
+  );
+
+  const manual = requiereFactorManual(unidadCompra);
+  const factorAuto = !manual ? calcularFactor(unidadCompra, unidadReceta) : null;
+
+  // Si cambia la unidad de compra y la unidad de receta queda fuera de la familia, autosetear.
+  useEffect(() => {
+    if (!familiaCompra) return;
+    const recetaFam = getFamilia(unidadReceta);
+    if (recetaFam !== familiaCompra) {
+      setValue("unidad_receta", unidadBaseDeFamilia(familiaCompra).code, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [familiaCompra, unidadReceta, setValue]);
+
+  // Sincronizar factor automático cuando aplica.
+  useEffect(() => {
+    if (factorAuto != null) {
+      setValue("factor_conversion", factorAuto, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      return;
+    }
+    // Caso manual: si compra = "Unidad" (no manualFactor) y receta = "Unidad" => 1
+    const uc = getUnidad(unidadCompra);
+    if (uc && !uc.manualFactor && uc.familia === "UNIDAD") {
+      setValue("factor_conversion", 1, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [factorAuto, unidadCompra, setValue]);
+
+  // Prellenar defaultFactor al elegir una unidad manual con sugerencia (ej. Docena = 12)
+  useEffect(() => {
+    if (!manual) return;
+    const uc = getUnidad(unidadCompra);
+    if (uc?.defaultFactor) {
+      setValue("factor_conversion", uc.defaultFactor, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadCompra]);
 
   const onSubmit = async (values: InsumoInput) => {
     if (isEdit && idInsumo) {
@@ -100,6 +181,16 @@ export function InsumoForm({
     }
   };
 
+  const factorHelp = (() => {
+    if (factorAuto != null && unidadCompra && unidadReceta) {
+      return `Calculado automáticamente: 1 ${labelDe(unidadCompra)} = ${factorAuto.toLocaleString()} ${labelDe(unidadReceta)}`;
+    }
+    if (manual) {
+      return `¿Cuántas unidades trae 1 ${labelDe(unidadCompra)}? (depende del proveedor)`;
+    }
+    return "1 unidad de compra equivale a 1 unidad de receta.";
+  })();
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
@@ -109,13 +200,7 @@ export function InsumoForm({
           <p className="text-xs text-destructive">{errors.nombre_insumo.message}</p>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="unidad_medida">Unidad de medida</Label>
-        <Input id="unidad_medida" placeholder="Gramos" {...register("unidad_medida")} />
-        {errors.unidad_medida && (
-          <p className="text-xs text-destructive">{errors.unidad_medida.message}</p>
-        )}
-      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="costo_promedio">Costo promedio</Label>
@@ -142,37 +227,81 @@ export function InsumoForm({
           )}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="unidad_compra">Unidad de compra</Label>
-          <Input id="unidad_compra" placeholder="KILOS" {...register("unidad_compra")} />
+          <Label>Unidad de compra</Label>
+          <Controller
+            control={control}
+            name="unidad_compra"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FAMILIAS.map((fam) => (
+                    <SelectGroup key={fam}>
+                      <SelectLabel>{FAMILIA_LABEL[fam]}</SelectLabel>
+                      {UNIDADES.filter((u) => u.familia === fam).map((u) => (
+                        <SelectItem key={u.code} value={u.code}>
+                          {u.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
           {errors.unidad_compra && (
             <p className="text-xs text-destructive">{errors.unidad_compra.message}</p>
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="unidad_receta">Unidad de receta</Label>
-          <Input id="unidad_receta" placeholder="GRAMOS" {...register("unidad_receta")} />
+          <Label>Unidad de receta</Label>
+          <Controller
+            control={control}
+            name="unidad_receta"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recetaOptions.map((u) => (
+                    <SelectItem key={u.code} value={u.code}>
+                      {u.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            Unidad usada en recetas e inventario.
+          </p>
           {errors.unidad_receta && (
             <p className="text-xs text-destructive">{errors.unidad_receta.message}</p>
           )}
         </div>
       </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="factor_conversion">Factor de conversión</Label>
         <Input
           id="factor_conversion"
           type="number"
           step="0.0001"
+          disabled={factorAuto != null}
           {...register("factor_conversion")}
         />
-        <p className="text-xs text-muted-foreground">
-          Cuántas unidades de receta equivalen a una unidad de compra. Ej: 1000 g por kilo.
-        </p>
+        <p className="text-xs text-muted-foreground">{factorHelp}</p>
         {errors.factor_conversion && (
           <p className="text-xs text-destructive">{errors.factor_conversion.message}</p>
         )}
       </div>
+
       <div className="flex flex-col sm:flex-row gap-2 pt-2">
         <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
           Cancelar

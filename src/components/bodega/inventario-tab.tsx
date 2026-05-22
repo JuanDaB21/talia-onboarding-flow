@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
+import { labelDe } from "@/lib/unidades";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,7 +27,7 @@ interface Row {
   insumos: {
     id_insumo: string;
     nombre_insumo: string;
-    unidad_medida: string;
+    unidad_receta: string;
     stock_minimo: number;
   };
 }
@@ -46,7 +47,7 @@ export function InventarioTab() {
     const { data } = await supabase
       .from("inventario_actual")
       .select(
-        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_medida, stock_minimo)"
+        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, stock_minimo)"
       );
     setRows((data as unknown as Row[]) ?? []);
     setLoading(false);
@@ -81,7 +82,7 @@ export function InventarioTab() {
 
   const unidades = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => r.insumos?.unidad_medida && set.add(r.insumos.unidad_medida));
+    rows.forEach((r) => r.insumos?.unidad_receta && set.add(r.insumos.unidad_receta));
     return Array.from(set).sort();
   }, [rows]);
 
@@ -90,7 +91,7 @@ export function InventarioTab() {
     return rows.filter((r) => {
       if (!r.insumos) return false;
       if (term && !r.insumos.nombre_insumo.toLowerCase().includes(term)) return false;
-      if (unidad !== "all" && r.insumos.unidad_medida !== unidad) return false;
+      if (unidad !== "all" && r.insumos.unidad_receta !== unidad) return false;
       const low = Number(r.cantidad_actual) <= Number(r.insumos.stock_minimo);
       if (stockFilter === "low" && !low) return false;
       if (stockFilter === "ok" && low) return false;
@@ -118,7 +119,7 @@ export function InventarioTab() {
             <SelectItem value="all">Todas las unidades</SelectItem>
             {unidades.map((u) => (
               <SelectItem key={u} value={u}>
-                {u}
+                {labelDe(u)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -178,7 +179,7 @@ export function InventarioTab() {
                       {Number(r.cantidad_actual).toLocaleString()}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      {r.insumos.unidad_medida}
+                      {labelDe(r.insumos.unidad_receta)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-right tabular-nums">
                       {Number(r.insumos.stock_minimo).toLocaleString()}

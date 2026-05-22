@@ -191,7 +191,6 @@ export type Database = {
           nombre_insumo: string
           stock_minimo: number
           unidad_compra: string
-          unidad_medida: string
           unidad_receta: string
         }
         Insert: {
@@ -203,7 +202,6 @@ export type Database = {
           nombre_insumo: string
           stock_minimo?: number
           unidad_compra: string
-          unidad_medida: string
           unidad_receta: string
         }
         Update: {
@@ -215,7 +213,6 @@ export type Database = {
           nombre_insumo?: string
           stock_minimo?: number
           unidad_compra?: string
-          unidad_medida?: string
           unidad_receta?: string
         }
         Relationships: [

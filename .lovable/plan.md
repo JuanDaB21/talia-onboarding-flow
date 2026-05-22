@@ -1,96 +1,106 @@
-# Módulo Menú — Plan de implementación
+## Objetivo
 
-Construye el módulo "Menú" como cuarta sección del sidebar, respetando la arquitectura de Bodega que ya existe (rutas TanStack `_app.menu.*`, tablas con RLS por `current_user_negocio()`, RPCs para transacciones, formularios con `responsive-sheet` + Zod, tablas con vista "card" en móvil).
+Simplificar el formulario de **Insumos** para que el usuario no tenga que pensar en factores de conversión. Unificar `unidad_medida` con `unidad_receta` y usar selects con un catálogo cerrado de unidades + cálculo automático del factor.
 
-## 1. Backend (Supabase)
+## 1. Catálogo de unidades (en código, no en DB)
 
-### Nuevas tablas
+Tres familias, cada unidad pertenece a una y tiene un valor base:
 
-- **`categorias`**: `id_categoria`, `id_negocio`, `nombre`, `created_at`. Único `(id_negocio, nombre)`.
-- **`subcategorias`**: `id_subcategoria`, `id_categoria`, `id_negocio`, `nombre`, `created_at`. Único `(id_categoria, nombre)`. ON DELETE RESTRICT desde categorías (no borrar si tiene subcategorías).
-- **`receta_master`**: `id_receta`, `id_negocio`, `id_categoria`, `id_subcategoria` (ambas NOT NULL), `nombre_receta` (único por negocio), `descripcion`, `created_at`, `updated_at`.
-- **`receta_detalle`**: `id_detalle`, `id_receta`, `id_insumo`, `cantidad` (en `unidad_receta` del insumo), `created_at`.
-- **`productos`**: `id_producto`, `id_negocio`, `id_receta` (UNIQUE — 1:1 con receta), `nombre_producto`, `descripcion_producto`, `precio_venta` (default 0), `url_imagen`, `activo` (default true), `created_at`, `updated_at`.
-- **`extras_permitidos`**: `id_extra`, `id_producto`, `id_insumo_extra`, `cantidad_porcion` (en `unidad_receta`), `precio_extra`. Único `(id_producto, id_insumo_extra)`.
+```text
+PESO        Kilogramo (kg)   = 1000 g    base: Gramo (g)
+            Libra (lb)       = 453.592 g
+            Onza (oz)        = 28.3495 g
+            Gramo (g)        = 1 g
 
-Todas con RLS por `id_negocio = current_user_negocio()` (las dependientes vía EXISTS sobre el padre, como `detalle_compra`).
+VOLUMEN     Litro (L)        = 1000 ml   base: Mililitro (ml)
+            Mililitro (ml)   = 1 ml
+            Galón (gal)      = 3785.41 ml
+            Onza líq. (fl oz)= 29.5735 ml
 
-### RPCs (transaccionales)
-
-- **`crear_receta(p_id_categoria, p_id_subcategoria, p_nombre, p_descripcion, p_ingredientes jsonb)`** → `uuid`
-  - Valida categoría/subcategoría pertenecen al negocio y que subcategoría es hija de categoría.
-  - Valida cada insumo pertenece al negocio y `cantidad > 0`.
-  - Inserta `receta_master`, inserta filas en `receta_detalle`.
-  - Inserta automáticamente en `productos` con `nombre_producto = nombre_receta`, `activo = true`, `precio_venta = 0`.
-  - Retorna `id_receta`.
-- **`actualizar_receta(p_id_receta, ...)`**: reemplaza detalle (delete + insert) y propaga `nombre_receta` al producto vinculado.
-- **`duplicar_receta(p_id_receta)`**: copia receta + detalle con sufijo "(copia)" y dispara la auto-creación de producto.
-- **`eliminar_receta(p_id_receta)`**: borra producto vinculado (cascade), detalle, master. Bloquea si el producto tuviera ventas (futuro).
-
-Se prefiere RPC en vez de trigger para mantener visibilidad y errores claros al cliente (mismo patrón que `registrar_compra`).
-
-### Lo que NO se toca
-
-- Tabla `insumos`: solo lectura desde Menú.
-- Tablas y funciones de Compras / Inventario / Proveedores.
-
-## 2. Rutas (TanStack)
-
-```
-src/routes/
-  _app.menu.tsx                          (layout vacío, head)
-  _app.menu.index.tsx                    (redirect a /menu/categorias)
-  _app.menu.categorias.tsx               (master-detalle cat/subcat)
-  _app.menu.recetas.tsx                  (layout con <Outlet />)
-  _app.menu.recetas.index.tsx            (listado de recetas)
-  _app.menu.recetas.nueva.tsx            (creación gamificada, página completa)
-  _app.menu.recetas.$id.tsx              (edición/detalle, página completa)
-  _app.menu.productos.tsx                (Tabs Productos / Extras)
+UNIDAD      Caja             = N unidades (manual)
+            Docena           = 12 unidades
+            Paquete          = N unidades (manual)
+            Bandeja          = N unidades (manual)
+            Unidad (u)       = 1 unidad
 ```
 
-Sidebar (`app-sidebar.tsx`): nuevo grupo "Menú" con ítems Categorías, Recetas, Productos.
+**Regla:** `unidad_compra` y `unidad_receta` deben pertenecer a la **misma familia**. El select de `unidad_receta` se filtra según la familia de `unidad_compra`.
 
-## 3. Componentes nuevos (`src/components/menu/`)
+## 2. Cálculo automático del factor de conversión
 
-- `categoria-form.tsx`, `subcategoria-form.tsx` (usan `ResponsiveSheet` + Zod, igual que `proveedor-form`).
-- `categorias-master-detail.tsx`: panel izquierdo con lista de categorías, panel derecho con subcategorías de la seleccionada. En móvil, vista apilada con back.
-- `recetas-table.tsx`: tabla en desktop + cards apiladas en móvil. Acciones: editar, duplicar, eliminar.
-- `receta-builder.tsx` (gamificado, página completa):
-  - **Paso 1**: selección Categoría → Subcategoría (dos selects encadenados, opción "+ Crear nueva" inline).
-  - **Paso 2**: campo `nombre_receta` con `Tooltip` shadcn permanente: *"El nombre de esta receta será el mismo nombre del producto final"*.
-  - **Paso 3**: buscador "Spotlight" grande (Command de shadcn, autofocus) sobre `insumos`. Resultados como tarjetas grandes. Click → se añade al "carrito" lateral/inferior con `cantidad` editable + chip de `unidad_receta`.
-  - Lista de ingredientes: animación `animate-scale-in` al agregar, `animate-fade-out` al quitar. Contador "X ingredientes" estilo carrito.
-  - Botón "Guardar receta" → llama RPC `crear_receta`. Toast de éxito y navega a `/menu/productos` (Tab Productos) para que vean el producto auto-creado.
-- `productos-tab.tsx`: tabla/cards de productos. Toggle `activo`. Editar abre `producto-form`.
-- `producto-form.tsx` (Sheet grande):
-  - Solo lectura: `nombre_producto` (proviene de receta) con leyenda "Para cambiar el nombre, edita la receta".
-  - Editable: `descripcion_producto`, `precio_venta`, `url_imagen` (input URL por ahora; storage bucket queda fuera de alcance salvo que se pida).
-  - Sección "Extras permitidos": lista de checkboxes con todos los `insumos` del negocio. Al marcar uno, se expande inline con inputs `cantidad_porcion` y `precio_extra`, mostrando dinámicamente la `unidad_receta` del insumo (ej. "gramos"). Guardar persiste en `extras_permitidos` (delete-insert).
-- `extras-tab.tsx`: vista global de todos los extras configurados agrupados por producto. Permite editar/eliminar rápidamente. (Misma data, vista distinta.)
+Cuando ambas unidades vienen del catálogo PESO o VOLUMEN, el factor sale solo:
 
-## 4. Schemas Zod (`src/lib/menu-schemas.ts`)
+```text
+factor_conversion = valor_base(unidad_compra) / valor_base(unidad_receta)
+```
 
-`categoriaSchema`, `subcategoriaSchema`, `recetaSchema` (con array de ingredientes mínimo 1), `productoSchema`, `extraSchema`.
+Ej: compra en **Kilogramo**, receta en **Gramo** → factor = 1000 / 1 = **1000**.
+Ej: compra en **Libra**, receta en **Onza** → factor = 453.592 / 28.3495 ≈ **16**.
 
-## 5. UX / responsive
+El campo se muestra **deshabilitado** con el valor calculado y un texto: "Calculado automáticamente: 1 kg = 1000 g".
 
-- Mobile-first: todas las tablas con componente `<DataView>` que renderiza `<table>` en `md:` y cards apiladas debajo (mismo patrón que `inventario-tab`).
-- Animaciones: `animate-fade-in`, `animate-scale-in`, `hover-scale` ya disponibles en `styles.css`.
-- Tooltip: `<Tooltip>` shadcn con `defaultOpen` o ícono `Info` con `TooltipProvider`.
+## 3. Entrada manual solo para UNIDAD
 
-## 6. Orden de ejecución
+Cuando la familia es **UNIDAD** y la unidad de compra NO es "Unidad" (ej. Caja, Paquete, Bandeja), el factor es ingresado por el usuario porque depende del proveedor (ej. "1 caja = 24 unidades").
 
-1. Migración: tablas + RLS + RPCs.
-2. Sidebar + rutas base + layouts.
-3. CRUD Categorías/Subcategorías (master-detalle).
-4. Listado Recetas + creación gamificada + edición/duplicado/eliminación.
-5. Productos (Tab) + edición con Extras.
-6. Extras (Tab) — vista global.
-7. QA responsive (móvil 375, tablet 768, desktop 1280).
+- Compra = "Unidad" y receta = "Unidad" → factor fijo en 1, deshabilitado.
+- Compra = "Caja/Paquete/Bandeja/Docena" → input manual habilitado (Docena puede prellenarse en 12 pero editable).
+
+## 4. Cambios de esquema (DB)
+
+Migración:
+- En `insumos`: eliminar la columna `unidad_medida`.
+- Mantener `unidad_compra`, `unidad_receta`, `factor_conversion` tal como están (siguen siendo `text`/`numeric` — el catálogo vive en el frontend, así RLS/RPCs no se tocan).
+
+No hay impacto en `compras`, `receta_detalle`, `inventario_actual`, `extras_permitidos` ni en ninguna RPC.
+
+## 5. Cambios en frontend
+
+**Nuevo archivo** `src/lib/unidades.ts`:
+- Constantes del catálogo (familias, unidades con valor base y label).
+- Helpers: `getFamilia(unidad)`, `getUnidadesDeFamilia(familia)`, `calcularFactor(compra, receta)`, `requiereFactorManual(compra, receta)`.
+
+**`src/lib/bodega-schemas.ts`:**
+- Quitar `unidad_medida` de `insumoSchema`.
+- `unidad_compra` y `unidad_receta` ahora son `z.enum([...])` validando contra el catálogo.
+- Validación cruzada: misma familia.
+
+**`src/components/bodega/insumo-form.tsx`:**
+- Reemplazar los 3 inputs (`unidad_medida`, `unidad_compra`, `unidad_receta`) por:
+  - Select **Unidad de compra** (agrupado por familia con `<SelectGroup>`).
+  - Select **Unidad de receta** (opciones filtradas por familia de la unidad de compra; se autoselecciona la unidad base por defecto).
+  - Input **Factor de conversión**: deshabilitado y autocalculado para PESO/VOLUMEN; habilitado para UNIDAD con compra ≠ "Unidad"; helper text explicativo en ambos casos.
+- Eliminar el campo "Unidad de medida".
+
+**Componentes que mostraban `unidad_medida`** (reemplazar por `unidad_receta`, que ahora es la única unidad operativa):
+- `src/components/bodega/insumos-tab.tsx` (columna tabla + edición).
+- `src/components/bodega/inventario-tab.tsx` (filtro + display de stock).
+- `src/components/bodega/compra-detail-sheet.tsx` (display cantidades).
+- `src/routes/_app.bodega.inventario.$id.tsx` (header, stock mínimo, ajustar-stock).
+
+Esto mantiene la lógica intacta: el stock siempre se mide en `unidad_receta` (consistente con compras que ya convierten con `factor_conversion`).
+
+## 6. Migración de datos existentes
+
+Antes del DROP de la columna, copiar `unidad_medida → unidad_receta` solo si quedó vacía:
+
+```text
+UPDATE insumos SET unidad_receta = unidad_medida
+WHERE coalesce(trim(unidad_receta),'') = '';
+```
+
+(En la práctica `unidad_receta` ya está poblada porque era required, así que es solo defensa.)
+
+## 7. Orden de implementación
+
+1. Migración SQL (DROP `unidad_medida`).
+2. `src/lib/unidades.ts` con catálogo + helpers.
+3. Actualizar `insumoSchema` y `InsumoForm` con selects + factor auto.
+4. Reemplazar referencias a `unidad_medida` → `unidad_receta` en los 4 componentes/rutas listadas.
+5. QA: crear insumo de PESO (kg→g auto), de VOLUMEN (L→ml auto), de UNIDAD/Caja (manual), y verificar tabla Insumos, Inventario, detalle de Compra, ajuste de stock.
 
 ## Notas técnicas
 
-- Se respeta la convención de rutas con puntos (`_app.menu.recetas.tsx` como layout con `<Outlet />`, `_app.menu.recetas.index.tsx` como listado) — mismo fix aplicado a `bodega.inventario`.
-- Toda escritura desde el cliente usa `supabase.rpc(...)` cuando hay transacción multi-tabla; lecturas usan `.from(...).select(...)`.
-- Sin cambios en `insumos`, `compras`, `inventario_actual`, `movimientos_inventario`.
-- `client.ts`, `types.ts` no se editan (los regenera Lovable tras la migración).
+- `Select` de shadcn ya está disponible.
+- El catálogo vive en el cliente; si más adelante se quiere multi-idioma o unidades custom por negocio, se puede mover a una tabla `unidades` sin romper API.
+- No se tocan RPCs (`registrar_compra`, `crear_receta`, etc.) porque siguen leyendo `factor_conversion` desde `insumos`.
