@@ -54,7 +54,7 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
 
   if (!mesa) return null;
 
-  const url = `${window.location.origin}/menu?mesa=${mesa.id_mesa}`;
+  const url = `${window.location.origin}/carta/${mesa.id_mesa}`;
 
   const getCanvas = () =>
     canvasWrapperRef.current?.querySelector("canvas") as HTMLCanvasElement | null;

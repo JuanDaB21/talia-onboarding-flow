@@ -1,66 +1,86 @@
-## Sección Mesas — Gestión + QR autónomos
 
-Reutiliza el patrón existente (`proveedores-tab` / `ResponsiveSheet`) pero con vista tipo grid de tarjetas y un `Dialog` para detalle/edición con QR en vivo. No se tocan Compras, Inventario ni Recetas.
+# Plan: Menú público por mesa (Paso 6.1)
 
-### 1. Base de datos (migración nueva)
+## Decisión clave de ruta
 
-Tabla `mesas` con:
-- `id_mesa` UUID PK (gen_random_uuid)
-- `id_negocio` UUID NOT NULL
-- `identificador` VARCHAR NOT NULL
-- `estado` VARCHAR NOT NULL DEFAULT 'LIBRE' (preparado para 'OCUPADA' a futuro)
-- `created_at`, `updated_at` timestamps
-- Índice único por (`id_negocio`, `identificador`) para evitar duplicados
+La URL `/menu?mesa=…` propuesta en el prompt **choca** con las rutas admin existentes (`/menu/categorias`, `/menu/productos`, `/menu/recetas`) que viven bajo `_app/menu` y exigen sesión. Para mantenerlas intactas, la vista pública vivirá en una ruta nueva y aislada:
 
-RLS (mismo patrón que el resto de tablas multi-tenant):
-- `mesas_select_own` / `mesas_insert_own` / `mesas_update_own` / `mesas_delete_own` usando `current_user_negocio()`
+- **Pública (nueva):** `/carta/$idMesa` → `src/routes/carta.$idMesa.tsx`
+- Se actualizará la URL que codifica el QR en `MesaDetailDialog` de `${origin}/menu?mesa=...` a `${origin}/carta/${id_mesa}` (cambio mínimo, una sola línea). Los QR aún no impresos no se ven afectados; los ya generados se reimprimen al editar la mesa.
 
-Realtime habilitado vía `ALTER PUBLICATION supabase_realtime ADD TABLE public.mesas`.
+## Backend (acceso público sin sesión)
 
-### 2. Dependencias
+Las tablas `productos`, `categorias`, `mesas` tienen RLS basada en `current_user_negocio()`, que devuelve `null` para anónimos. No abriremos RLS al rol `anon`. En su lugar, dos **server functions públicas** que usan `supabaseAdmin` con filtros estrictos por `id_mesa`:
 
-- Instalar `qrcode.react` (renderiza `<QRCodeCanvas>` en cliente, sin guardar imágenes).
+1. `getMenuPublico({ idMesa })` en `src/lib/menu-publico.functions.ts`
+   - Valida `idMesa` con Zod (uuid).
+   - Lee `mesas` (id_negocio, identificador, estado) — si no existe, 404.
+   - Lee `productos` activos del negocio (`id_producto, nombre_producto, descripcion_producto, precio_venta, url_imagen, id_receta`) y deriva categoría/subcategoría vía `receta_master` → `categorias` / `subcategorias`.
+   - Devuelve `{ mesa, categorias: [{id, nombre}], productos: [{...campos seguros + id_categoria + nombre_categoria}] }`. Solo columnas seguras; no se filtra ningún dato de otros negocios ni PII.
 
-### 3. Rutas / Navegación
+2. `llamarMesero({ idMesa })` en el mismo módulo
+   - Valida uuid.
+   - `UPDATE mesas SET estado='OCUPADA' WHERE id_mesa = :id` (admin client, scoped por id). Devuelve `{ ok: true }`.
 
-- Reutilizar la ruta ya existente `src/routes/_app.configuracion.mesas.tsx` (hoy es placeholder "Próximamente"). Pasará a renderizar `<MesasTab idNegocio={...} />` usando `useCurrentNegocio`.
-- No tocar el sidebar (la entrada "Mesas" ya existe en `CONFIG_NAV`).
+Ambas son `createServerFn` (sin `requireSupabaseAuth`) llamadas desde el componente cliente — no se invocan en `loader` para evitar problemas de SSR/prerender.
 
-### 4. Componentes (en carpeta dedicada `src/components/configuracion/mesas/`)
+## Frontend
 
-- `mesas-tab.tsx` — contenedor, carga y suscripción realtime.
-- `mesa-card.tsx` — tarjeta del grid con identificador, badge de estado y mini-preview QR.
-- `mesa-detail-dialog.tsx` — Dialog ShadCN con:
-  - Input editable de "Identificador" (botón Guardar habilitado solo en `isDirty`).
-  - `<QRCodeCanvas>` grande (~260px) con `value = ${window.location.origin}/menu?mesa=${id_mesa}`.
-  - Botones (con `lucide-react`): "Copiar imagen", "Compartir", "Eliminar mesa" (con AlertDialog de confirmación).
-- `nueva-mesa-dialog.tsx` — Dialog simple para crear (input identificador + crear).
-- `src/lib/mesas-schemas.ts` — Zod schema (identificador 1–80 chars).
+**Archivo nuevo:** `src/routes/carta.$idMesa.tsx`
 
-Comportamiento del grid: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4`, botón flotante/header "Nueva mesa".
+Estructura:
+- `Route.useParams()` para `idMesa`.
+- `useQuery(['carta', idMesa], () => getMenuPublico({ data: { idMesa } }))` para cargar el menú.
+- Estado local `fase: 'onboarding' | 'menu'`.
+- `useMutation` para `llamarMesero`.
 
-### 5. Acciones nativas del QR
+### Fase 1 — Onboarding
+Modal centrado mobile-first (no usa `Dialog` modal pesado; pantalla completa con tarjeta) con:
+- Identificador de la mesa ("Mesa 5").
+- Texto: *"Revisa nuestro menú y cuando tengas claro qué vas a pedir llama a tu mesero, te atenderemos con gusto"*.
+- Botón "Continuar" → `setFase('menu')`.
 
-- **Copiar imagen**: leer el `<canvas>` renderizado por `QRCodeCanvas` (ref), `canvas.toBlob()` → `navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])`. Fallback toast si el navegador no soporta `ClipboardItem`.
-- **Compartir**: detección de capacidades:
-  - Si `navigator.canShare({ files: [...] })` → compartir PNG como archivo.
-  - Else si `navigator.share` → compartir `{ title, text, url }` con la URL de la mesa.
-  - Else → fallback: copiar URL al portapapeles + toast.
-- Toda acción usa `toast` (sonner) para feedback.
+### Fase 2 — Catálogo tipo Rappi
+- **Header sticky superior**: nombre/identificador de mesa + pills horizontales de categorías (`overflow-x-auto`, scroll suave, pill activa destacada con `bg-primary`).
+- **Lista de productos** agrupados o filtrados por categoría activa (filtro client-side sobre la respuesta). Tarjetas con:
+  - `url_imagen` (con fallback `ImageIcon` si null).
+  - `nombre_producto` (font-medium).
+  - `descripcion_producto` truncada a 2 líneas (`line-clamp-2`).
+  - `precio_venta` formateado `Intl.NumberFormat` ($ COP/local).
+- **Sticky Bottom Bar** (`fixed bottom-0 inset-x-0`) con padding seguro (`pb-[env(safe-area-inset-bottom)]`), botón grande primario con icono `Bell` de `lucide-react`: **"Llamar mesero"**.
+  - Estado deshabilitado mientras la mutación corre.
+  - Si `mesa.estado === 'OCUPADA'` al cargar o tras el click, muestra estado "Mesero notificado" (botón secundario, deshabilitado) — sin re-llamadas accidentales.
+  - Al éxito: `toast.success("¡Tu mesero va en camino!")` y refresca la query.
+- Padding inferior en la lista (`pb-28`) para que el último producto no quede bajo la barra.
 
-### 6. Datos y realtime
+### Estados
+- Loading: skeletons de tarjetas.
+- Error / mesa no encontrada: pantalla con mensaje claro ("Mesa no válida, pide ayuda al personal").
+- Sin productos: vacío amable.
 
-- `load()` inicial con `supabase.from('mesas').select().order('created_at')`.
-- Suscripción `supabase.channel('mesas-<idNegocio>').on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: 'id_negocio=eq.<idNegocio>' }, ...)` → refetch local.
-- Mutaciones directas (`insert`, `update`, `delete`) vía cliente Supabase del navegador (RLS aplica). No requiere serverFn.
+## Diseño y tokens
+- Mobile-first estricto, sin scroll horizontal (excepto pills).
+- Solo tokens semánticos de `src/styles.css` (primary, muted, card, etc.). Sin colores hardcodeados.
+- Tipografía y `Toaster` ya están globales en `__root.tsx`.
 
-### 7. Restricciones
+## Archivos a crear / modificar
 
-- No se modifican archivos de bodega ni menú.
-- Solo se edita `_app.configuracion.mesas.tsx` (ya placeholder) + nuevos archivos.
-- QR siempre client-side, jamás se sube imagen a Storage.
+Crear:
+- `src/lib/menu-publico.functions.ts` — server fns públicas.
+- `src/routes/carta.$idMesa.tsx` — vista pública.
+- (Opcional) `src/components/carta/producto-card.tsx`, `category-pills.tsx`, `llamar-mesero-bar.tsx` para mantener el route file simple.
 
-### Notas técnicas
-- `QRCodeCanvas` expone el canvas vía `ref`, lo cual es necesario para `toBlob`. Alternativa: ubicar el canvas dentro de un wrapper y query por `canvas` tag.
-- El `id_mesa` se conoce al crear (Supabase devuelve la fila insertada); el QR se construye sólo después de persistir.
-- `estado` se muestra como Badge ("Libre"/"Ocupada") aunque por ahora solo existirá 'LIBRE'.
+Modificar (mínimo):
+- `src/components/configuracion/mesas/mesa-detail-dialog.tsx` — cambiar la URL del QR a `${origin}/carta/${mesa.id_mesa}`.
+
+## Restricciones honradas
+- No se tocan rutas `/menu/*` (admin), ni `_app`, ni sidebar, ni Compras/Inventario/Recetas.
+- No se modifica el esquema de productos. Solo se hace `UPDATE` a `mesas.estado` (campo ya existente).
+- Vista 100% lectura sobre productos: sin carrito, sin editar, sin eliminar.
+- Sin mock data: lectura real vía server fn → Supabase.
+
+## QA antes de cerrar
+1. Generar mesa, abrir QR del modal, verificar que el QR apunta a `/carta/<uuid>`.
+2. Abrir esa URL en modo incógnito (sin sesión): se ve onboarding → menú → llamar mesero.
+3. Verificar en `supabase--read_query` que `mesas.estado` cambió a `OCUPADA`.
+4. Probar viewport móvil (~390px): sin scroll horizontal, CTA siempre visible, pills scrolleables.
