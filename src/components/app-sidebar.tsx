@@ -11,7 +11,6 @@ import {
   FolderTree,
   BookOpen,
   Package,
-  Settings,
   Users,
   Utensils,
 } from "lucide-react";
