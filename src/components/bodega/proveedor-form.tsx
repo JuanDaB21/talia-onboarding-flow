@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
@@ -27,7 +27,7 @@ interface Props {
   initialValues?: ProveedorInput;
   onSuccess: () => void;
   onCancel: () => void;
-  onDeleted?: () => void;
+  onDelete?: () => void | Promise<void>;
 }
 
 const EMPTY: ProveedorInput = {
@@ -44,7 +44,7 @@ export function ProveedorForm({
   initialValues,
   onSuccess,
   onCancel,
-  onDeleted,
+  onDelete,
 }: Props) {
   const isEdit = Boolean(idProveedor);
   const [deleting, setDeleting] = useState(false);
@@ -53,11 +53,16 @@ export function ProveedorForm({
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<ProveedorInput>({
     resolver: zodResolver(proveedorSchema),
     defaultValues: initialValues ?? EMPTY,
   });
+
+  useEffect(() => {
+    reset(initialValues ?? EMPTY);
+  }, [initialValues, reset]);
 
   const estado = watch("estado");
 
@@ -87,19 +92,13 @@ export function ProveedorForm({
   };
 
   const handleDelete = async () => {
-    if (!idProveedor) return;
+    if (!onDelete) return;
     setDeleting(true);
-    const { error } = await supabase
-      .from("proveedores")
-      .delete()
-      .eq("id_proveedor", idProveedor);
-    setDeleting(false);
-    if (error) {
-      toast.error("No se pudo eliminar", { description: error.message });
-      return;
+    try {
+      await onDelete();
+    } finally {
+      setDeleting(false);
     }
-    toast.success("Proveedor eliminado");
-    onDeleted?.();
   };
 
   return (
@@ -143,45 +142,46 @@ export function ProveedorForm({
           onCheckedChange={(v) => setValue("estado", v, { shouldDirty: true })}
         />
       </div>
-      <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
           Cancelar
         </Button>
+        {isEdit && onDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar proveedor?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. El registro será eliminado de forma permanente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                  {deleting ? "Eliminando…" : "Eliminar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <Button
           type="submit"
-          className="flex-1"
+          className="w-full sm:flex-1"
           disabled={isSubmitting || (isEdit && !isDirty)}
         >
           {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
       </div>
-      {isEdit && onDeleted && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4 mr-1" /> Eliminar proveedor
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar proveedor?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. El registro será eliminado de forma permanente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Eliminando…" : "Eliminar"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </form>
   );
 }
