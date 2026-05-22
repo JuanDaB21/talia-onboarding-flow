@@ -1,73 +1,66 @@
-## Nueva sección: Configuración → Usuarios (Mesas pendiente)
+## Sección Mesas — Gestión + QR autónomos
 
-### 1. Sidebar
-**`src/components/app-sidebar.tsx`**
-- Agregar nuevo grupo "Configuración" con dos entradas:
-  - `Usuarios` → `/configuracion/usuarios` (icono `Users`)
-  - `Mesas` → `/configuracion/mesas` (icono `Utensils` o `LayoutGrid`)
+Reutiliza el patrón existente (`proveedores-tab` / `ResponsiveSheet`) pero con vista tipo grid de tarjetas y un `Dialog` para detalle/edición con QR en vivo. No se tocan Compras, Inventario ni Recetas.
 
-### 2. Rutas
-- **`src/routes/_app.configuracion.tsx`** — layout con `<Outlet />` (igual a `_app.bodega.tsx`/`_app.menu.tsx`).
-- **`src/routes/_app.configuracion.index.tsx`** — redirige a `/configuracion/usuarios`.
-- **`src/routes/_app.configuracion.usuarios.tsx`** — header "Usuarios" + `<UsuariosTab idNegocio={...} />`. Usa `useCurrentNegocio`.
-- **`src/routes/_app.configuracion.mesas.tsx`** — placeholder "Próximamente".
+### 1. Base de datos (migración nueva)
 
-### 3. Migración SQL
-- `ALTER TYPE rol_staff ADD VALUE IF NOT EXISTS 'BARRA';` (roles permitidos en UI: ADMIN, MESERO, COCINA, BARRA — **SUPERADMIN nunca seleccionable**).
-- Permitir DELETE en `usuarios_staff` solo para el mismo negocio y solo si el target NO es SUPERADMIN:
-  ```sql
-  CREATE POLICY staff_delete_own_negocio ON usuarios_staff
-    FOR DELETE TO authenticated
-    USING (id_negocio = current_user_negocio() AND rol <> 'SUPERADMIN');
-  ```
-- Ampliar `staff_update_self` o añadir `staff_update_own_negocio` para que un ADMIN/SUPERADMIN pueda cambiar `rol` y `estado` de otros usuarios del mismo negocio (excluyendo modificar SUPERADMIN).
+Tabla `mesas` con:
+- `id_mesa` UUID PK (gen_random_uuid)
+- `id_negocio` UUID NOT NULL
+- `identificador` VARCHAR NOT NULL
+- `estado` VARCHAR NOT NULL DEFAULT 'LIBRE' (preparado para 'OCUPADA' a futuro)
+- `created_at`, `updated_at` timestamps
+- Índice único por (`id_negocio`, `identificador`) para evitar duplicados
 
-### 4. Server functions (crear/eliminar usuario requieren service role)
-**`src/lib/usuarios.functions.ts`** (con `requireSupabaseAuth` + `supabaseAdmin`):
-- `crearUsuarioStaff({ nombre, correo, password, rol })`:
-  1. Verificar que el caller pertenece a un negocio y que `rol ∈ {ADMIN, MESERO, COCINA, BARRA}`.
-  2. `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })`.
-  3. `INSERT INTO usuarios_staff (id_usuario, id_negocio, nombre, correo, rol, estado='ACTIVO')`.
-  4. Rollback (`auth.admin.deleteUser`) si el insert falla.
-- `eliminarUsuarioStaff({ id_usuario })`:
-  1. Verificar que el target pertenece al mismo `id_negocio` del caller y no es SUPERADMIN.
-  2. `DELETE FROM usuarios_staff WHERE id_usuario = ...`.
-  3. `supabaseAdmin.auth.admin.deleteUser(id_usuario)`.
-- `actualizarUsuarioStaff({ id_usuario, nombre, rol, estado, password? })`:
-  1. Verificar mismo negocio + target no SUPERADMIN + rol válido.
-  2. `UPDATE usuarios_staff SET nombre, rol, estado WHERE id_usuario`.
-  3. Si `password` no vacío → `supabaseAdmin.auth.admin.updateUserById(id_usuario, { password })`.
+RLS (mismo patrón que el resto de tablas multi-tenant):
+- `mesas_select_own` / `mesas_insert_own` / `mesas_update_own` / `mesas_delete_own` usando `current_user_negocio()`
 
-Validación con Zod (nombre 2–80, correo email, password ≥8 con may/min/num — reusar reglas de `register-schemas`).
+Realtime habilitado vía `ALTER PUBLICATION supabase_realtime ADD TABLE public.mesas`.
 
-### 5. UI — espejo de Proveedores
-**`src/lib/configuracion-schemas.ts`** (nuevo)
-- `rolStaffUiSchema = z.enum(['ADMIN','MESERO','COCINA','BARRA'])`.
-- `usuarioCreateSchema`: nombre, correo, password (con reglas fuertes), rol, estado(bool→ACTIVO/INACTIVO).
-- `usuarioUpdateSchema`: nombre, rol, estado, password opcional (vacío = no cambiar; si tiene valor aplicar reglas).
+### 2. Dependencias
 
-**`src/components/configuracion/usuarios-tab.tsx`** (espejo de `proveedores-tab.tsx`)
-- Tabla con columnas: Nombre, Correo, Rol (Badge), Estado (Badge Activo/Inactivo).
-- **Filtra SUPERADMIN del listado** (no se muestra).
-- Botón "Nuevo" → abre `ResponsiveSheet` con `UsuarioForm`.
-- Click en fila → editar.
-- `load()` consulta `usuarios_staff` filtrando `rol <> 'SUPERADMIN'` y `order by created_at desc`.
+- Instalar `qrcode.react` (renderiza `<QRCodeCanvas>` en cliente, sin guardar imágenes).
 
-**`src/components/configuracion/usuario-form.tsx`** (espejo de `proveedor-form.tsx`)
-- Campos:
-  - Nombre (input)
-  - Correo (input, **readonly en modo edit**)
-  - Password (input password) — requerido en create, opcional en edit con placeholder "Dejar en blanco para no cambiar"
-  - Rol (`Select` con ADMIN/MESERO/COCINA/BARRA)
-  - Switch "Estado activo" (mapea a ACTIVO/INACTIVO)
-- Botones idénticos a proveedor-form: Cancelar / Eliminar (solo edit) / Guardar.
-- Botón Guardar se habilita sólo si `isDirty` en modo edit (mismo patrón que proveedores).
-- Llama a `crearUsuarioStaff` / `actualizarUsuarioStaff` / `eliminarUsuarioStaff` vía `useServerFn`.
+### 3. Rutas / Navegación
 
-### 6. Wiring serverFn
-Confirmar que `src/start.ts` ya incluye `attachSupabaseAuth` (necesario para `requireSupabaseAuth`). Si no, agregarlo.
+- Reutilizar la ruta ya existente `src/routes/_app.configuracion.mesas.tsx` (hoy es placeholder "Próximamente"). Pasará a renderizar `<MesasTab idNegocio={...} />` usando `useCurrentNegocio`.
+- No tocar el sidebar (la entrada "Mesas" ya existe en `CONFIG_NAV`).
+
+### 4. Componentes (en carpeta dedicada `src/components/configuracion/mesas/`)
+
+- `mesas-tab.tsx` — contenedor, carga y suscripción realtime.
+- `mesa-card.tsx` — tarjeta del grid con identificador, badge de estado y mini-preview QR.
+- `mesa-detail-dialog.tsx` — Dialog ShadCN con:
+  - Input editable de "Identificador" (botón Guardar habilitado solo en `isDirty`).
+  - `<QRCodeCanvas>` grande (~260px) con `value = ${window.location.origin}/menu?mesa=${id_mesa}`.
+  - Botones (con `lucide-react`): "Copiar imagen", "Compartir", "Eliminar mesa" (con AlertDialog de confirmación).
+- `nueva-mesa-dialog.tsx` — Dialog simple para crear (input identificador + crear).
+- `src/lib/mesas-schemas.ts` — Zod schema (identificador 1–80 chars).
+
+Comportamiento del grid: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4`, botón flotante/header "Nueva mesa".
+
+### 5. Acciones nativas del QR
+
+- **Copiar imagen**: leer el `<canvas>` renderizado por `QRCodeCanvas` (ref), `canvas.toBlob()` → `navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])`. Fallback toast si el navegador no soporta `ClipboardItem`.
+- **Compartir**: detección de capacidades:
+  - Si `navigator.canShare({ files: [...] })` → compartir PNG como archivo.
+  - Else si `navigator.share` → compartir `{ title, text, url }` con la URL de la mesa.
+  - Else → fallback: copiar URL al portapapeles + toast.
+- Toda acción usa `toast` (sonner) para feedback.
+
+### 6. Datos y realtime
+
+- `load()` inicial con `supabase.from('mesas').select().order('created_at')`.
+- Suscripción `supabase.channel('mesas-<idNegocio>').on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: 'id_negocio=eq.<idNegocio>' }, ...)` → refetch local.
+- Mutaciones directas (`insert`, `update`, `delete`) vía cliente Supabase del navegador (RLS aplica). No requiere serverFn.
+
+### 7. Restricciones
+
+- No se modifican archivos de bodega ni menú.
+- Solo se edita `_app.configuracion.mesas.tsx` (ya placeholder) + nuevos archivos.
+- QR siempre client-side, jamás se sube imagen a Storage.
 
 ### Notas técnicas
-- No se permite que el usuario edite su propio rol/estado desde esta UI (la lista se filtra ocultando al caller para evitar auto-degradación). Pequeña salvaguarda; opcional pero recomendada.
-- La opción "Mesas" queda como ruta con placeholder; se implementará después.
-- No se introducen cambios en módulos existentes (bodega/menu).
+- `QRCodeCanvas` expone el canvas vía `ref`, lo cual es necesario para `toBlob`. Alternativa: ubicar el canvas dentro de un wrapper y query por `canvas` tag.
+- El `id_mesa` se conoce al crear (Supabase devuelve la fila insertada); el QR se construye sólo después de persistir.
+- `estado` se muestra como Badge ("Libre"/"Ocupada") aunque por ahora solo existirá 'LIBRE'.
