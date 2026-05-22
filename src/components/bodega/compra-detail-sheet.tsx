@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveSheet } from "./responsive-sheet";
 import { Badge } from "@/components/ui/badge";
+import { labelDe } from "@/lib/unidades";
 import {
   Table,
   TableBody,
@@ -32,7 +33,7 @@ interface Detalle {
   cantidad: number;
   precio_unitario_compra: number;
   subtotal: number;
-  insumos: { nombre_insumo: string; unidad_medida: string } | null;
+  insumos: { nombre_insumo: string; unidad_compra: string } | null;
 }
 
 export function CompraDetailSheet({ idCompra, open, onOpenChange }: Props) {
@@ -55,7 +56,7 @@ export function CompraDetailSheet({ idCompra, open, onOpenChange }: Props) {
         supabase
           .from("detalle_compra")
           .select(
-            "id_detalle, cantidad, precio_unitario_compra, subtotal, insumos:id_insumo(nombre_insumo, unidad_medida)"
+            "id_detalle, cantidad, precio_unitario_compra, subtotal, insumos:id_insumo(nombre_insumo, unidad_compra)"
           )
           .eq("id_compra", idCompra),
       ]);
@@ -131,7 +132,7 @@ export function CompraDetailSheet({ idCompra, open, onOpenChange }: Props) {
                         {d.insumos?.nombre_insumo ?? "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {Number(d.cantidad).toLocaleString()} {d.insumos?.unidad_medida ?? ""}
+                        {Number(d.cantidad).toLocaleString()} {labelDe(d.insumos?.unidad_compra)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {Number(d.precio_unitario_compra).toLocaleString()}

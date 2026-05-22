@@ -19,6 +19,7 @@ import {
   type MovimientoRow,
 } from "@/components/bodega/historial-movimientos-table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
+import { labelDe } from "@/lib/unidades";
 
 export const Route = createFileRoute("/_app/bodega/inventario/$id")({
   head: () => ({ meta: [{ title: "Detalle de inventario — Bodega" }] }),
@@ -28,7 +29,6 @@ export const Route = createFileRoute("/_app/bodega/inventario/$id")({
 interface Insumo {
   id_insumo: string;
   nombre_insumo: string;
-  unidad_medida: string;
   costo_promedio: number;
   stock_minimo: number;
   unidad_compra: string;
@@ -58,11 +58,11 @@ function InventarioDetailPage() {
     const { data: ins } = await supabase
       .from("insumos")
       .select(
-        "id_insumo, nombre_insumo, unidad_medida, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
+        "id_insumo, nombre_insumo, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
       )
       .eq("id_insumo", id)
       .maybeSingle();
-    setInsumo((ins as Insumo) ?? null);
+    setInsumo((ins as unknown as Insumo) ?? null);
 
     const { data: inv } = await supabase
       .from("inventario_actual")
@@ -165,7 +165,7 @@ function InventarioDetailPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">{insumo.nombre_insumo}</h1>
         <p className="text-sm text-muted-foreground">
-          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()} {insumo.unidad_medida}
+          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()} {labelDe(insumo.unidad_receta)}
         </p>
       </header>
 
@@ -179,7 +179,7 @@ function InventarioDetailPage() {
               <span className="text-6xl sm:text-7xl font-bold tabular-nums leading-none">
                 {cantidad.toLocaleString()}
               </span>
-              <span className="text-2xl text-muted-foreground">{insumo.unidad_medida}</span>
+              <span className="text-2xl text-muted-foreground">{labelDe(insumo.unidad_receta)}</span>
             </div>
             {low && (
               <Badge variant="destructive" className="mt-3 gap-1">
@@ -210,7 +210,7 @@ function InventarioDetailPage() {
           <HistorialMovimientosTable
             rows={movimientos}
             loading={loadingMov}
-            unidad={insumo.unidad_medida}
+            unidad={labelDe(insumo.unidad_receta)}
             onSelectCompra={(idCompra) => setCompraSel(idCompra)}
           />
         </TabsContent>
@@ -240,7 +240,6 @@ function InventarioDetailPage() {
             idInsumo={insumo.id_insumo}
             initialValues={{
               nombre_insumo: insumo.nombre_insumo,
-              unidad_medida: insumo.unidad_medida,
               costo_promedio: insumo.costo_promedio,
               stock_minimo: insumo.stock_minimo,
               unidad_compra: insumo.unidad_compra,
@@ -278,7 +277,7 @@ function InventarioDetailPage() {
         <AjustarStockForm
           idInsumo={insumo.id_insumo}
           cantidadActual={cantidad}
-          unidadMedida={insumo.unidad_medida}
+          unidadMedida={labelDe(insumo.unidad_receta)}
           onSuccess={() => {
             setStockOpen(false);
             load();

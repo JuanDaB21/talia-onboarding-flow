@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/table";
 import { ResponsiveSheet } from "./responsive-sheet";
 import { InsumoForm } from "./insumo-form";
+import { labelDe } from "@/lib/unidades";
 
 interface Insumo {
   id_insumo: string;
   nombre_insumo: string;
-  unidad_medida: string;
   costo_promedio: number;
   stock_minimo: number;
   unidad_compra: string;
@@ -36,10 +36,10 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
     const { data } = await supabase
       .from("insumos")
       .select(
-        "id_insumo, nombre_insumo, unidad_medida, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
+        "id_insumo, nombre_insumo, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
       )
       .order("created_at", { ascending: false });
-    setItems((data as Insumo[]) ?? []);
+    setItems((data as unknown as Insumo[]) ?? []);
     setLoading(false);
   };
 
@@ -81,10 +81,10 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Insumo</TableHead>
-              <TableHead className="hidden sm:table-cell">U. medida</TableHead>
+              <TableHead className="hidden sm:table-cell">Unidad</TableHead>
               <TableHead className="text-right">Costo prom.</TableHead>
               <TableHead className="hidden md:table-cell text-right">Stock mín.</TableHead>
-              <TableHead className="hidden lg:table-cell">Compra / Receta</TableHead>
+              <TableHead className="hidden lg:table-cell">Compra → Receta</TableHead>
               <TableHead className="hidden lg:table-cell text-right">Factor</TableHead>
             </TableRow>
           </TableHeader>
@@ -109,7 +109,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
                   onClick={() => openEdit(i)}
                 >
                   <TableCell className="font-medium">{i.nombre_insumo}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{i.unidad_medida}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{labelDe(i.unidad_receta)}</TableCell>
                   <TableCell className="text-right">
                     {Number(i.costo_promedio).toLocaleString()}
                   </TableCell>
@@ -117,7 +117,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
                     {Number(i.stock_minimo).toLocaleString()}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    {i.unidad_compra} → {i.unidad_receta}
+                    {labelDe(i.unidad_compra)} → {labelDe(i.unidad_receta)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-right">
                     {Number(i.factor_conversion).toLocaleString()}
@@ -147,7 +147,6 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
             selected
               ? {
                   nombre_insumo: selected.nombre_insumo,
-                  unidad_medida: selected.unidad_medida,
                   costo_promedio: selected.costo_promedio,
                   stock_minimo: selected.stock_minimo,
                   unidad_compra: selected.unidad_compra,
