@@ -190,6 +190,7 @@ export function InsumoForm({
             <Warehouse className="h-4 w-4 mr-1" /> Ver en Inventario
           </Button>
         )}
+        {isEdit && onDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
