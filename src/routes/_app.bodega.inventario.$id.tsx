@@ -43,8 +43,10 @@ function InventarioDetailPage() {
   const [insumo, setInsumo] = useState<Insumo | null>(null);
   const [cantidad, setCantidad] = useState<number>(0);
   const [historial, setHistorial] = useState<HistorialRow[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingHist, setLoadingHist] = useState(true);
+  const [loadingMov, setLoadingMov] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
@@ -88,10 +90,46 @@ function InventarioDetailPage() {
     setLoadingHist(false);
   }, [id]);
 
+  const loadMovimientos = useCallback(async () => {
+    setLoadingMov(true);
+    const { data } = await supabase
+      .from("movimientos_inventario")
+      .select(
+        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, usuarios_staff:id_usuario(nombre)"
+      )
+      .eq("id_insumo", id)
+      .order("created_at", { ascending: false });
+    setMovimientos((data as unknown as MovimientoRow[]) ?? []);
+    setLoadingMov(false);
+  }, [id]);
+
   useEffect(() => {
     load();
     loadHistorial();
-  }, [load, loadHistorial]);
+    loadMovimientos();
+  }, [load, loadHistorial, loadMovimientos]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`mov-insumo-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "movimientos_inventario",
+          filter: `id_insumo=eq.${id}`,
+        },
+        () => {
+          loadMovimientos();
+          load();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, loadMovimientos, load]);
 
   if (loading || negocioLoading) {
     return <p className="text-sm text-muted-foreground">Cargando…</p>;
