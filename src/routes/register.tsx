@@ -134,7 +134,7 @@ function RegisterPage() {
       toast.success("¡Cuenta creada!", {
         description: "Bienvenido a Talia.",
       });
-      navigate({ to: "/bodega" });
+      navigate({ to: "/dashboard" });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "No se pudo completar el registro.";

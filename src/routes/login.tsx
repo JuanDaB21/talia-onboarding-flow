@@ -50,7 +50,7 @@ function LoginPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
-        navigate({ to: "/bodega" });
+        navigate({ to: "/dashboard" });
       }
     });
   }, [navigate]);
@@ -79,7 +79,7 @@ function LoginPage() {
       }
 
       toast.success("Bienvenido de vuelta");
-      navigate({ to: "/bodega" });
+      navigate({ to: "/dashboard" });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Ocurrió un error inesperado.";
