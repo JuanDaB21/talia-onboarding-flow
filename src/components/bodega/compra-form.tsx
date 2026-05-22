@@ -3,8 +3,8 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { Plus, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/bodega/combobox";
-
-export const Route = createFileRoute("/_app/bodega/compras/nueva")({
-  head: () => ({ meta: [{ title: "Registrar compra — Bodega" }] }),
-  component: NuevaCompraPage,
-});
 
 const itemSchema = z.object({
   id_insumo: z.string().uuid("Selecciona insumo"),
@@ -47,8 +42,12 @@ interface Insumo {
   costo_promedio: number;
 }
 
-function NuevaCompraPage() {
-  const navigate = useNavigate();
+interface CompraFormProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
   const { idNegocio, loading: negocioLoading } = useCurrentNegocio();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
@@ -131,7 +130,6 @@ function NuevaCompraPage() {
   );
 
   const onSubmit = async (values: CompraInput) => {
-    // Duplicate insumo check
     const ids = values.items.map((i) => i.id_insumo);
     if (new Set(ids).size !== ids.length) {
       toast.error("No repitas el mismo insumo en líneas distintas");
@@ -158,7 +156,7 @@ function NuevaCompraPage() {
     toast.success("Compra registrada", {
       description: `ID: ${String(data).slice(0, 8)}…`,
     });
-    navigate({ to: "/bodega/compras" });
+    onSuccess?.();
   };
 
   if (negocioLoading || loadingCatalogos) {
@@ -168,11 +166,10 @@ function NuevaCompraPage() {
   if (proveedores.length === 0) {
     return (
       <div className="space-y-3">
-        <h1 className="text-2xl font-bold">Registrar compra</h1>
         <p className="text-sm text-muted-foreground">
           Necesitas al menos un proveedor activo. Crea uno antes de registrar una compra.
         </p>
-        <Button asChild>
+        <Button asChild size="sm">
           <Link to="/bodega/proveedores-insumos">Ir a Proveedores</Link>
         </Button>
       </div>
@@ -182,11 +179,10 @@ function NuevaCompraPage() {
   if (insumos.length === 0) {
     return (
       <div className="space-y-3">
-        <h1 className="text-2xl font-bold">Registrar compra</h1>
         <p className="text-sm text-muted-foreground">
           Necesitas al menos un insumo para registrar una compra.
         </p>
-        <Button asChild>
+        <Button asChild size="sm">
           <Link to="/bodega/proveedores-insumos">Ir a Insumos</Link>
         </Button>
       </div>
@@ -194,64 +190,49 @@ function NuevaCompraPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate({ to: "/bodega/compras" })}
-          aria-label="Volver"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-2xl font-bold">Registrar compra</h1>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* Encabezado */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Proveedor</Label>
+          <Controller
+            control={control}
+            name="id_proveedor"
+            render={({ field }) => (
+              <Combobox
+                options={proveedorOpts}
+                value={field.value || null}
+                onChange={field.onChange}
+                placeholder="Selecciona proveedor"
+                searchPlaceholder="Buscar proveedor…"
+              />
+            )}
+          />
+          {errors.id_proveedor && (
+            <p className="text-xs text-destructive">{errors.id_proveedor.message}</p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="numero_factura">N.º de factura</Label>
+          <Input id="numero_factura" placeholder="F-0001" {...register("numero_factura")} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="fecha_compra">Fecha</Label>
+          <Input id="fecha_compra" type="date" {...register("fecha_compra")} />
+          {errors.fecha_compra && (
+            <p className="text-xs text-destructive">{errors.fecha_compra.message}</p>
+          )}
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="observaciones">Observaciones</Label>
+          <Textarea id="observaciones" rows={2} {...register("observaciones")} />
+        </div>
       </div>
 
-      {/* Encabezado */}
-      <Card>
-        <CardContent className="pt-6 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Proveedor</Label>
-            <Controller
-              control={control}
-              name="id_proveedor"
-              render={({ field }) => (
-                <Combobox
-                  options={proveedorOpts}
-                  value={field.value || null}
-                  onChange={field.onChange}
-                  placeholder="Selecciona proveedor"
-                  searchPlaceholder="Buscar proveedor…"
-                />
-              )}
-            />
-            {errors.id_proveedor && (
-              <p className="text-xs text-destructive">{errors.id_proveedor.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="numero_factura">N.º de factura</Label>
-            <Input id="numero_factura" placeholder="F-0001" {...register("numero_factura")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="fecha_compra">Fecha</Label>
-            <Input id="fecha_compra" type="date" {...register("fecha_compra")} />
-            {errors.fecha_compra && (
-              <p className="text-xs text-destructive">{errors.fecha_compra.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="observaciones">Observaciones</Label>
-            <Textarea id="observaciones" rows={2} {...register("observaciones")} />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Detalle */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Detalle</h2>
+          <h3 className="text-sm font-semibold">Detalle</h3>
           <Button
             type="button"
             variant="outline"
@@ -260,7 +241,7 @@ function NuevaCompraPage() {
               append({ id_insumo: "", cantidad: 1, precio_unitario_compra: 0 })
             }
           >
-            <Plus className="h-4 w-4 mr-1" /> Agregar insumo
+            <Plus className="h-4 w-4 mr-1" /> Agregar
           </Button>
         </div>
 
@@ -268,7 +249,7 @@ function NuevaCompraPage() {
           <p className="text-xs text-destructive">{errors.items.message}</p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {fields.map((field, index) => {
             const row = items[index] ?? { cantidad: 0, precio_unitario_compra: 0 };
             const subtotal =
@@ -276,51 +257,47 @@ function NuevaCompraPage() {
             const insumoSel = insumos.find((i) => i.id_insumo === row.id_insumo);
             return (
               <Card key={field.id}>
-                <CardContent className="pt-4 space-y-3">
-                  <div className="grid gap-3 md:grid-cols-[1fr_120px_140px_140px_auto] md:items-end">
-                    <div className="space-y-1.5">
-                      <Label className="md:hidden">Insumo</Label>
-                      <Label className="hidden md:block">
-                        {index === 0 ? "Insumo" : <span className="invisible">.</span>}
-                      </Label>
-                      <Controller
-                        control={control}
-                        name={`items.${index}.id_insumo` as const}
-                        render={({ field: f }) => (
-                          <Combobox
-                            options={insumoOpts}
-                            value={f.value || null}
-                            onChange={(v) => {
-                              f.onChange(v);
-                              const ins = insumos.find((x) => x.id_insumo === v);
-                              if (
-                                ins &&
-                                (!row.precio_unitario_compra ||
-                                  Number(row.precio_unitario_compra) === 0)
-                              ) {
-                                setValue(
-                                  `items.${index}.precio_unitario_compra`,
-                                  Number(ins.costo_promedio) || 0,
-                                  { shouldDirty: true }
-                                );
-                              }
-                            }}
-                            placeholder="Selecciona insumo"
-                            searchPlaceholder="Buscar insumo…"
-                          />
-                        )}
-                      />
-                      {errors.items?.[index]?.id_insumo && (
-                        <p className="text-xs text-destructive">
-                          {errors.items[index]?.id_insumo?.message}
-                        </p>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Insumo</Label>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.id_insumo` as const}
+                      render={({ field: f }) => (
+                        <Combobox
+                          options={insumoOpts}
+                          value={f.value || null}
+                          onChange={(v) => {
+                            f.onChange(v);
+                            const ins = insumos.find((x) => x.id_insumo === v);
+                            if (
+                              ins &&
+                              (!row.precio_unitario_compra ||
+                                Number(row.precio_unitario_compra) === 0)
+                            ) {
+                              setValue(
+                                `items.${index}.precio_unitario_compra`,
+                                Number(ins.costo_promedio) || 0,
+                                { shouldDirty: true }
+                              );
+                            }
+                          }}
+                          placeholder="Selecciona insumo"
+                          searchPlaceholder="Buscar insumo…"
+                        />
                       )}
-                    </div>
+                    />
+                    {errors.items?.[index]?.id_insumo && (
+                      <p className="text-xs text-destructive">
+                        {errors.items[index]?.id_insumo?.message}
+                      </p>
+                    )}
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
-                      <Label className="md:hidden">Cantidad</Label>
-                      <Label className="hidden md:block">
-                        {index === 0 ? "Cantidad" : <span className="invisible">.</span>}
+                      <Label className="text-xs">
+                        Cantidad {insumoSel ? `(${insumoSel.unidad_compra})` : ""}
                       </Label>
                       <Input
                         type="number"
@@ -328,23 +305,14 @@ function NuevaCompraPage() {
                         min="0"
                         {...register(`items.${index}.cantidad` as const)}
                       />
-                      {insumoSel && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {insumoSel.unidad_compra}
-                        </p>
-                      )}
                       {errors.items?.[index]?.cantidad && (
                         <p className="text-xs text-destructive">
                           {errors.items[index]?.cantidad?.message}
                         </p>
                       )}
                     </div>
-
                     <div className="space-y-1.5">
-                      <Label className="md:hidden">V. unitario</Label>
-                      <Label className="hidden md:block">
-                        {index === 0 ? "V. unitario" : <span className="invisible">.</span>}
-                      </Label>
+                      <Label className="text-xs">V. unitario</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -357,29 +325,25 @@ function NuevaCompraPage() {
                         </p>
                       )}
                     </div>
+                  </div>
 
-                    <div className="space-y-1.5">
-                      <Label className="md:hidden">Subtotal</Label>
-                      <Label className="hidden md:block">
-                        {index === 0 ? "Subtotal" : <span className="invisible">.</span>}
-                      </Label>
-                      <div className="h-9 flex items-center justify-end px-3 rounded-md bg-muted/50 tabular-nums text-sm font-medium">
-                        {subtotal.toLocaleString()}
-                      </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="text-xs text-muted-foreground">
+                      Subtotal:{" "}
+                      <span className="font-medium text-foreground tabular-nums">
+                        {subtotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </span>
                     </div>
-
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => remove(index)}
-                        disabled={fields.length === 1}
-                        aria-label="Eliminar línea"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      aria-label="Eliminar línea"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -388,29 +352,25 @@ function NuevaCompraPage() {
         </div>
       </div>
 
-      {/* Total + acciones */}
-      <Card>
-        <CardContent className="pt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Total factura</p>
-            <p className="text-3xl font-bold tabular-nums">
-              {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate({ to: "/bodega/compras" })}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Registrando…" : "Registrar compra"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Total */}
+      <div className="flex items-center justify-between rounded-md border bg-muted/50 px-4 py-3">
+        <span className="text-xs text-muted-foreground">Total factura</span>
+        <span className="text-xl font-bold tabular-nums">
+          {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </span>
+      </div>
+
+      {/* Acciones */}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancelar
+          </Button>
+        )}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Registrando…" : "Registrar compra"}
+        </Button>
+      </div>
     </form>
   );
 }

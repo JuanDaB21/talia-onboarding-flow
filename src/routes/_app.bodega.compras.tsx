@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
+import { ResponsiveSheet } from "@/components/bodega/responsive-sheet";
+import { CompraForm } from "@/components/bodega/compra-form";
 
 export const Route = createFileRoute("/_app/bodega/compras")({
   head: () => ({ meta: [{ title: "Compras — Bodega" }] }),
@@ -32,6 +34,7 @@ function ComprasPage() {
   const [rows, setRows] = useState<CompraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [nuevaOpen, setNuevaOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -60,10 +63,8 @@ function ComprasPage() {
             Registro de compras y actualización de inventario.
           </p>
         </div>
-        <Button asChild>
-          <Link to="/bodega/compras/nueva">
-            <Plus className="h-4 w-4 mr-1" /> Registrar compra
-          </Link>
+        <Button onClick={() => setNuevaOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Registrar compra
         </Button>
       </div>
 
@@ -123,6 +124,24 @@ function ComprasPage() {
         open={Boolean(selected)}
         onOpenChange={(o) => !o && setSelected(null)}
       />
+
+      <ResponsiveSheet
+        open={nuevaOpen}
+        onOpenChange={setNuevaOpen}
+        title="Registrar compra"
+        description="Vincula un proveedor y registra los insumos comprados."
+        desktopWidthClass="sm:max-w-2xl"
+      >
+        {nuevaOpen && (
+          <CompraForm
+            onCancel={() => setNuevaOpen(false)}
+            onSuccess={() => {
+              setNuevaOpen(false);
+              load();
+            }}
+          />
+        )}
+      </ResponsiveSheet>
     </div>
   );
 }
