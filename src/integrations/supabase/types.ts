@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorias: {
+        Row: {
+          created_at: string
+          id_categoria: string
+          id_negocio: string
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          id_categoria?: string
+          id_negocio: string
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          id_categoria?: string
+          id_negocio?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categorias_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       compras: {
         Row: {
           created_at: string
@@ -107,6 +136,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "insumos"
             referencedColumns: ["id_insumo"]
+          },
+        ]
+      }
+      extras_permitidos: {
+        Row: {
+          cantidad_porcion: number
+          created_at: string
+          id_extra: string
+          id_insumo_extra: string
+          id_producto: string
+          precio_extra: number
+        }
+        Insert: {
+          cantidad_porcion: number
+          created_at?: string
+          id_extra?: string
+          id_insumo_extra: string
+          id_producto: string
+          precio_extra?: number
+        }
+        Update: {
+          cantidad_porcion?: number
+          created_at?: string
+          id_extra?: string
+          id_insumo_extra?: string
+          id_producto?: string
+          precio_extra?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extras_permitidos_id_insumo_extra_fkey"
+            columns: ["id_insumo_extra"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
+            foreignKeyName: "extras_permitidos_id_producto_fkey"
+            columns: ["id_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
           },
         ]
       }
@@ -299,6 +370,60 @@ export type Database = {
         }
         Relationships: []
       }
+      productos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion_producto: string | null
+          id_negocio: string
+          id_producto: string
+          id_receta: string
+          nombre_producto: string
+          precio_venta: number
+          updated_at: string
+          url_imagen: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion_producto?: string | null
+          id_negocio: string
+          id_producto?: string
+          id_receta: string
+          nombre_producto: string
+          precio_venta?: number
+          updated_at?: string
+          url_imagen?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion_producto?: string | null
+          id_negocio?: string
+          id_producto?: string
+          id_receta?: string
+          nombre_producto?: string
+          precio_venta?: number
+          updated_at?: string
+          url_imagen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "productos_id_receta_fkey"
+            columns: ["id_receta"]
+            isOneToOne: true
+            referencedRelation: "receta_master"
+            referencedColumns: ["id_receta"]
+          },
+        ]
+      }
       proveedores: {
         Row: {
           created_at: string
@@ -333,6 +458,139 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "proveedores_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
+      receta_detalle: {
+        Row: {
+          cantidad: number
+          created_at: string
+          id_detalle: string
+          id_insumo: string
+          id_receta: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          id_detalle?: string
+          id_insumo: string
+          id_receta: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          id_detalle?: string
+          id_insumo?: string
+          id_receta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receta_detalle_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
+            foreignKeyName: "receta_detalle_id_receta_fkey"
+            columns: ["id_receta"]
+            isOneToOne: false
+            referencedRelation: "receta_master"
+            referencedColumns: ["id_receta"]
+          },
+        ]
+      }
+      receta_master: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          id_categoria: string
+          id_negocio: string
+          id_receta: string
+          id_subcategoria: string
+          nombre_receta: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          id_categoria: string
+          id_negocio: string
+          id_receta?: string
+          id_subcategoria: string
+          nombre_receta: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          id_categoria?: string
+          id_negocio?: string
+          id_receta?: string
+          id_subcategoria?: string
+          nombre_receta?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receta_master_id_categoria_fkey"
+            columns: ["id_categoria"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id_categoria"]
+          },
+          {
+            foreignKeyName: "receta_master_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "receta_master_id_subcategoria_fkey"
+            columns: ["id_subcategoria"]
+            isOneToOne: false
+            referencedRelation: "subcategorias"
+            referencedColumns: ["id_subcategoria"]
+          },
+        ]
+      }
+      subcategorias: {
+        Row: {
+          created_at: string
+          id_categoria: string
+          id_negocio: string
+          id_subcategoria: string
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          id_categoria: string
+          id_negocio: string
+          id_subcategoria?: string
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          id_categoria?: string
+          id_negocio?: string
+          id_subcategoria?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcategorias_id_categoria_fkey"
+            columns: ["id_categoria"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id_categoria"]
+          },
+          {
+            foreignKeyName: "subcategorias_id_negocio_fkey"
             columns: ["id_negocio"]
             isOneToOne: false
             referencedRelation: "negocio"
@@ -386,6 +644,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      actualizar_receta: {
+        Args: {
+          p_descripcion: string
+          p_id_categoria: string
+          p_id_receta: string
+          p_id_subcategoria: string
+          p_ingredientes: Json
+          p_nombre: string
+        }
+        Returns: string
+      }
       ajustar_stock_manual: {
         Args: {
           p_id_insumo: string
@@ -394,7 +663,23 @@ export type Database = {
         }
         Returns: number
       }
+      crear_receta: {
+        Args: {
+          p_descripcion: string
+          p_id_categoria: string
+          p_id_subcategoria: string
+          p_ingredientes: Json
+          p_nombre: string
+        }
+        Returns: string
+      }
       current_user_negocio: { Args: never; Returns: string }
+      duplicar_receta: { Args: { p_id_receta: string }; Returns: string }
+      eliminar_receta: { Args: { p_id_receta: string }; Returns: undefined }
+      guardar_extras_producto: {
+        Args: { p_extras: Json; p_id_producto: string }
+        Returns: undefined
+      }
       registrar_compra: {
         Args: {
           p_fecha_compra: string
