@@ -13,6 +13,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CartaIdMesaRouteImport } from './routes/carta.$idMesa'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppConfiguracionRouteImport } from './routes/_app.configuracion'
@@ -51,6 +52,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartaIdMesaRoute = CartaIdMesaRouteImport.update({
+  id: '/carta/$idMesa',
+  path: '/carta/$idMesa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppMenuRoute = AppMenuRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof AppConfiguracionRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/menu': typeof AppMenuRouteWithChildren
+  '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/dashboard': typeof AppDashboardRoute
+  '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/_app/configuracion': typeof AppConfiguracionRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
+  '/carta/$idMesa': typeof CartaIdMesaRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/dashboard'
     | '/menu'
+    | '/carta/$idMesa'
     | '/bodega/compras'
     | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/dashboard'
+    | '/carta/$idMesa'
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
     | '/configuracion/mesas'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/_app/configuracion'
     | '/_app/dashboard'
     | '/_app/menu'
+    | '/carta/$idMesa'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
     | '/_app/bodega/proveedores-insumos'
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  CartaIdMesaRoute: typeof CartaIdMesaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -338,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carta/$idMesa': {
+      id: '/carta/$idMesa'
+      path: '/carta/$idMesa'
+      fullPath: '/carta/$idMesa'
+      preLoaderRoute: typeof CartaIdMesaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/menu': {
@@ -583,7 +603,18 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  CartaIdMesaRoute: CartaIdMesaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
