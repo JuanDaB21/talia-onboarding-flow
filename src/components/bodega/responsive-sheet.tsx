@@ -14,6 +14,8 @@ interface ResponsiveSheetProps {
   title: string;
   description?: string;
   children: ReactNode;
+  /** Tailwind classes para el ancho en desktop. Default: `sm:max-w-md`. */
+  desktopWidthClass?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function ResponsiveSheet({
   title,
   description,
   children,
+  desktopWidthClass = "sm:max-w-md",
 }: ResponsiveSheetProps) {
   const isMobile = useIsMobile();
   const side = isMobile ? "bottom" : "right";
@@ -38,7 +41,7 @@ export function ResponsiveSheet({
         className={
           isMobile
             ? "max-h-[90vh] overflow-y-auto rounded-t-2xl"
-            : "w-full sm:max-w-md overflow-y-auto"
+            : `w-full ${desktopWidthClass} overflow-y-auto`
         }
       >
         <SheetHeader className="text-left">
@@ -50,3 +53,4 @@ export function ResponsiveSheet({
     </Sheet>
   );
 }
+
