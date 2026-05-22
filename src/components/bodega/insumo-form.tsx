@@ -177,7 +177,19 @@ export function InsumoForm({
         <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
           Cancelar
         </Button>
-        {isEdit && onDelete && (
+        {isEdit && idInsumo && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onCancel();
+              navigate({ to: "/bodega/inventario/$id", params: { id: idInsumo } });
+            }}
+          >
+            <Warehouse className="h-4 w-4 mr-1" /> Ver en Inventario
+          </Button>
+        )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
