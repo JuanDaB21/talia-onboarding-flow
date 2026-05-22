@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2 } from "lucide-react";
+import { Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { insumoSchema, type InsumoInput } from "@/lib/bodega-schemas";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function InsumoForm({
   onDelete,
 }: Props) {
   const isEdit = Boolean(idInsumo);
+  const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const {
     register,
@@ -175,6 +177,19 @@ export function InsumoForm({
         <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
           Cancelar
         </Button>
+        {isEdit && idInsumo && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onCancel();
+              navigate({ to: "/bodega/inventario/$id", params: { id: idInsumo } });
+            }}
+          >
+            <Warehouse className="h-4 w-4 mr-1" /> Ver en Inventario
+          </Button>
+        )}
         {isEdit && onDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>

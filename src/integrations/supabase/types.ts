@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      compras: {
+        Row: {
+          created_at: string
+          estado: string
+          fecha_compra: string
+          id_compra: string
+          id_negocio: string
+          id_proveedor: string
+          numero_factura: string | null
+          observaciones: string | null
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          fecha_compra?: string
+          id_compra?: string
+          id_negocio: string
+          id_proveedor: string
+          numero_factura?: string | null
+          observaciones?: string | null
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          fecha_compra?: string
+          id_compra?: string
+          id_negocio?: string
+          id_proveedor?: string
+          numero_factura?: string | null
+          observaciones?: string | null
+          total?: number
+        }
+        Relationships: []
+      }
+      detalle_compra: {
+        Row: {
+          cantidad: number
+          created_at: string
+          id_compra: string
+          id_detalle: string
+          id_insumo: string
+          precio_unitario_compra: number
+          subtotal: number
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          id_compra: string
+          id_detalle?: string
+          id_insumo: string
+          precio_unitario_compra: number
+          subtotal?: number
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          id_compra?: string
+          id_detalle?: string
+          id_insumo?: string
+          precio_unitario_compra?: number
+          subtotal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detalle_compra_id_compra_fkey"
+            columns: ["id_compra"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id_compra"]
+          },
+        ]
+      }
       insumos: {
         Row: {
           costo_promedio: number
@@ -60,6 +134,75 @@ export type Database = {
             referencedColumns: ["id_negocio"]
           },
         ]
+      }
+      inventario_actual: {
+        Row: {
+          cantidad_actual: number
+          created_at: string
+          id_insumo: string
+          id_inventario: string
+          id_negocio: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad_actual?: number
+          created_at?: string
+          id_insumo: string
+          id_inventario?: string
+          id_negocio: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad_actual?: number
+          created_at?: string
+          id_insumo?: string
+          id_inventario?: string
+          id_negocio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      movimientos_inventario: {
+        Row: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          created_at: string
+          id_insumo: string
+          id_movimiento: string
+          id_negocio: string
+          id_usuario: string | null
+          motivo: string | null
+          referencia_id: string | null
+          tipo_movimiento: string
+        }
+        Insert: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          created_at?: string
+          id_insumo: string
+          id_movimiento?: string
+          id_negocio: string
+          id_usuario?: string | null
+          motivo?: string | null
+          referencia_id?: string | null
+          tipo_movimiento: string
+        }
+        Update: {
+          cantidad?: number
+          cantidad_anterior?: number
+          cantidad_nueva?: number
+          created_at?: string
+          id_insumo?: string
+          id_movimiento?: string
+          id_negocio?: string
+          id_usuario?: string | null
+          motivo?: string | null
+          referencia_id?: string | null
+          tipo_movimiento?: string
+        }
+        Relationships: []
       }
       negocio: {
         Row: {
@@ -184,6 +327,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ajustar_stock_manual: {
+        Args: {
+          p_id_insumo: string
+          p_motivo: string
+          p_nueva_cantidad: number
+        }
+        Returns: number
+      }
       current_user_negocio: { Args: never; Returns: string }
       registrar_negocio_y_admin: {
         Args: {
