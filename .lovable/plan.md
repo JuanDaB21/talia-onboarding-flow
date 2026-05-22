@@ -1,46 +1,73 @@
-## Cambios en Productos (y migración de Extras a Recetas)
+## Nueva sección: Configuración → Usuarios (Mesas pendiente)
 
-### 1. Página `/menu/productos` — Simplificar
-**Archivo:** `src/routes/_app.menu.productos.tsx`
-- Cambiar título a **"Productos"** (sin "y Extras").
-- Eliminar `<Tabs>`, `TabsList`, `TabsTrigger`, `TabsContent` y el import de `ExtrasTab`.
-- Renderizar solo `<ProductosTab>` directamente.
-- Actualizar `head().meta.title` a `"Productos — Menú"`.
+### 1. Sidebar
+**`src/components/app-sidebar.tsx`**
+- Agregar nuevo grupo "Configuración" con dos entradas:
+  - `Usuarios` → `/configuracion/usuarios` (icono `Users`)
+  - `Mesas` → `/configuracion/mesas` (icono `Utensils` o `LayoutGrid`)
 
-Eliminar archivo `src/components/menu/extras-tab.tsx` (ya no se usa).
+### 2. Rutas
+- **`src/routes/_app.configuracion.tsx`** — layout con `<Outlet />` (igual a `_app.bodega.tsx`/`_app.menu.tsx`).
+- **`src/routes/_app.configuracion.index.tsx`** — redirige a `/configuracion/usuarios`.
+- **`src/routes/_app.configuracion.usuarios.tsx`** — header "Usuarios" + `<UsuariosTab idNegocio={...} />`. Usa `useCurrentNegocio`.
+- **`src/routes/_app.configuracion.mesas.tsx`** — placeholder "Próximamente".
 
-### 2. `ProductoForm` — Subida de imagen + sin extras
-**Archivo:** `src/components/menu/producto-form.tsx`
-- **Quitar toda la sección "Extras permitidos"**: estado `extras`, `insumos`, `loadingExtras`, helpers `toggleExtra`/`setExtraField`, la query de `extras_permitidos`, la llamada RPC `guardar_extras_producto`, y el bloque JSX completo.
-- **Reemplazar input "URL imagen"** por un uploader:
-  - Input `<input type="file" accept="image/*">` con preview del archivo seleccionado o de `producto.url_imagen` actual.
-  - Botón "Quitar imagen" si hay imagen.
-  - Al guardar: si hay archivo nuevo, subir a bucket `producto-imagenes` en la ruta `{id_negocio}/{id_producto}-{timestamp}.{ext}`, obtener `publicUrl`, y persistirlo en `productos.url_imagen`.
-- Manejar estado local `imagenFile: File | null` y `imagenUrl: string | null` (inicializado desde `producto.url_imagen`).
-- Mantener el `Switch` de "Producto activo", precio, descripción y campo de nombre solo lectura.
+### 3. Migración SQL
+- `ALTER TYPE rol_staff ADD VALUE IF NOT EXISTS 'BARRA';` (roles permitidos en UI: ADMIN, MESERO, COCINA, BARRA — **SUPERADMIN nunca seleccionable**).
+- Permitir DELETE en `usuarios_staff` solo para el mismo negocio y solo si el target NO es SUPERADMIN:
+  ```sql
+  CREATE POLICY staff_delete_own_negocio ON usuarios_staff
+    FOR DELETE TO authenticated
+    USING (id_negocio = current_user_negocio() AND rol <> 'SUPERADMIN');
+  ```
+- Ampliar `staff_update_self` o añadir `staff_update_own_negocio` para que un ADMIN/SUPERADMIN pueda cambiar `rol` y `estado` de otros usuarios del mismo negocio (excluyendo modificar SUPERADMIN).
 
-### 3. `RecetaBuilder` — Nuevo Paso 4: Extras
-**Archivo:** `src/components/menu/receta-builder.tsx`
-- Agregar nueva `<section>` "Paso 4: Extras permitidos" con la **misma UX que la sección actual de extras en `ProductoForm`**: lista de insumos con checkbox, al marcar muestra inputs `cantidad_porcion` y `precio_extra`.
-- Estado local `extras: Record<string, ExtraState>`.
-- **En modo `edit`**: al cargar la receta, también cargar `productos.id_producto` correspondiente y los `extras_permitidos` actuales para prellenar.
-- **Al guardar** (`guardar()`):
-  - Modo `create`: tras `crear_receta` exitoso, obtener `id_producto` (consulta a `productos` por `id_receta`) y llamar `guardar_extras_producto`.
-  - Modo `edit`: tras `actualizar_receta`, llamar `guardar_extras_producto` con el `id_producto` ya conocido.
-- Mantener el "paso 4" deshabilitado visualmente hasta que haya ingredientes (igual estilo que pasos previos).
-- Tras guardar en modo `create`, redirigir a `/menu/recetas` (no a `/menu/productos`).
+### 4. Server functions (crear/eliminar usuario requieren service role)
+**`src/lib/usuarios.functions.ts`** (con `requireSupabaseAuth` + `supabaseAdmin`):
+- `crearUsuarioStaff({ nombre, correo, password, rol })`:
+  1. Verificar que el caller pertenece a un negocio y que `rol ∈ {ADMIN, MESERO, COCINA, BARRA}`.
+  2. `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })`.
+  3. `INSERT INTO usuarios_staff (id_usuario, id_negocio, nombre, correo, rol, estado='ACTIVO')`.
+  4. Rollback (`auth.admin.deleteUser`) si el insert falla.
+- `eliminarUsuarioStaff({ id_usuario })`:
+  1. Verificar que el target pertenece al mismo `id_negocio` del caller y no es SUPERADMIN.
+  2. `DELETE FROM usuarios_staff WHERE id_usuario = ...`.
+  3. `supabaseAdmin.auth.admin.deleteUser(id_usuario)`.
+- `actualizarUsuarioStaff({ id_usuario, nombre, rol, estado, password? })`:
+  1. Verificar mismo negocio + target no SUPERADMIN + rol válido.
+  2. `UPDATE usuarios_staff SET nombre, rol, estado WHERE id_usuario`.
+  3. Si `password` no vacío → `supabaseAdmin.auth.admin.updateUserById(id_usuario, { password })`.
 
-### 4. Schema y storage
-**Archivo:** `src/lib/menu-schemas.ts`
-- Quitar `url_imagen` del `productoSchema` (la imagen se maneja fuera del form con react-hook-form).
+Validación con Zod (nombre 2–80, correo email, password ≥8 con may/min/num — reusar reglas de `register-schemas`).
 
-**Migración SQL** (bucket público para imágenes de producto):
-- Crear bucket `producto-imagenes` (public = true).
-- RLS en `storage.objects`:
-  - SELECT público (bucket público).
-  - INSERT/UPDATE/DELETE para `authenticated` cuando el primer segmento del path coincida con `current_user_negocio()::text` (aísla por negocio).
+### 5. UI — espejo de Proveedores
+**`src/lib/configuracion-schemas.ts`** (nuevo)
+- `rolStaffUiSchema = z.enum(['ADMIN','MESERO','COCINA','BARRA'])`.
+- `usuarioCreateSchema`: nombre, correo, password (con reglas fuertes), rol, estado(bool→ACTIVO/INACTIVO).
+- `usuarioUpdateSchema`: nombre, rol, estado, password opcional (vacío = no cambiar; si tiene valor aplicar reglas).
+
+**`src/components/configuracion/usuarios-tab.tsx`** (espejo de `proveedores-tab.tsx`)
+- Tabla con columnas: Nombre, Correo, Rol (Badge), Estado (Badge Activo/Inactivo).
+- **Filtra SUPERADMIN del listado** (no se muestra).
+- Botón "Nuevo" → abre `ResponsiveSheet` con `UsuarioForm`.
+- Click en fila → editar.
+- `load()` consulta `usuarios_staff` filtrando `rol <> 'SUPERADMIN'` y `order by created_at desc`.
+
+**`src/components/configuracion/usuario-form.tsx`** (espejo de `proveedor-form.tsx`)
+- Campos:
+  - Nombre (input)
+  - Correo (input, **readonly en modo edit**)
+  - Password (input password) — requerido en create, opcional en edit con placeholder "Dejar en blanco para no cambiar"
+  - Rol (`Select` con ADMIN/MESERO/COCINA/BARRA)
+  - Switch "Estado activo" (mapea a ACTIVO/INACTIVO)
+- Botones idénticos a proveedor-form: Cancelar / Eliminar (solo edit) / Guardar.
+- Botón Guardar se habilita sólo si `isDirty` en modo edit (mismo patrón que proveedores).
+- Llama a `crearUsuarioStaff` / `actualizarUsuarioStaff` / `eliminarUsuarioStaff` vía `useServerFn`.
+
+### 6. Wiring serverFn
+Confirmar que `src/start.ts` ya incluye `attachSupabaseAuth` (necesario para `requireSupabaseAuth`). Si no, agregarlo.
 
 ### Notas técnicas
-- No se modifica ningún RPC ni tabla del dominio. `extras_permitidos` sigue ligado a `productos` (modelo de datos intacto); solo cambia **dónde se edita** en la UI.
-- Componentes `productos-tab.tsx` y `recetas-table.tsx` no requieren cambios.
-- Tras la migración, los extras existentes se preservan y se podrán editar desde la receta correspondiente.
+- No se permite que el usuario edite su propio rol/estado desde esta UI (la lista se filtra ocultando al caller para evitar auto-degradación). Pequeña salvaguarda; opcional pero recomendada.
+- La opción "Mesas" queda como ruta con placeholder; se implementará después.
+- No se introducen cambios en módulos existentes (bodega/menu).

@@ -703,7 +703,7 @@ export type Database = {
     }
     Enums: {
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
-      rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA"
+      rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -832,7 +832,7 @@ export const Constants = {
   public: {
     Enums: {
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
-      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA"],
+      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA"],
     },
   },
 } as const
