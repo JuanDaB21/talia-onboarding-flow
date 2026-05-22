@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
