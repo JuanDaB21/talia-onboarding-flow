@@ -336,6 +336,16 @@ export type Database = {
         Returns: number
       }
       current_user_negocio: { Args: never; Returns: string }
+      registrar_compra: {
+        Args: {
+          p_fecha_compra: string
+          p_id_proveedor: string
+          p_items: Json
+          p_numero_factura: string
+          p_observaciones: string
+        }
+        Returns: string
+      }
       registrar_negocio_y_admin: {
         Args: {
           p_correo: string
