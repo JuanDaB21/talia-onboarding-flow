@@ -92,10 +92,7 @@ function BodegaLayout() {
         {/* Sidebar desktop */}
         <aside className="hidden md:flex md:flex-col w-64 shrink-0 border-r bg-background min-h-screen p-4 sticky top-0">
           <div className="mb-4">
-            <Link to="/dashboard" className="text-xs text-muted-foreground hover:underline">
-              ← Dashboard
-            </Link>
-            <h2 className="text-lg font-semibold mt-1">Bodega</h2>
+            <h2 className="text-lg font-semibold">Bodega</h2>
           </div>
           <NavLinks />
         </aside>
