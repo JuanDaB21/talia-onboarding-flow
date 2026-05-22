@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ interface CompraRow {
 }
 
 function ComprasPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<CompraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -138,6 +140,12 @@ function ComprasPage() {
             onSuccess={() => {
               setNuevaOpen(false);
               load();
+              toast.success("Inventario actualizado", {
+                action: {
+                  label: "Ver inventario",
+                  onClick: () => navigate({ to: "/bodega/inventario" }),
+                },
+              });
             }}
           />
         )}

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,24 +35,49 @@ type StockFilter = "all" | "low" | "ok";
 
 export function InventarioTab() {
   const navigate = useNavigate();
+  const { idNegocio } = useCurrentNegocio();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [unidad, setUnidad] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("inventario_actual")
-        .select(
-          "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_medida, stock_minimo)"
-        );
-      setRows((data as unknown as Row[]) ?? []);
-      setLoading(false);
-    })();
+  const fetchRows = useCallback(async () => {
+    const { data } = await supabase
+      .from("inventario_actual")
+      .select(
+        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_medida, stock_minimo)"
+      );
+    setRows((data as unknown as Row[]) ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchRows();
+  }, [fetchRows]);
+
+  useEffect(() => {
+    if (!idNegocio) return;
+    const channel = supabase
+      .channel(`inventario-${idNegocio}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "inventario_actual",
+          filter: `id_negocio=eq.${idNegocio}`,
+        },
+        () => {
+          fetchRows();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [idNegocio, fetchRows]);
 
   const unidades = useMemo(() => {
     const set = new Set<string>();
