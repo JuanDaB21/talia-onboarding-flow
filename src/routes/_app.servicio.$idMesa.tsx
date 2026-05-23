@@ -222,20 +222,7 @@ function MesaEnServicio() {
       }),
   });
 
-  const [confirmPagar, setConfirmPagar] = useState(false);
-  const pagarMut = useMutation({
-    mutationFn: () => pagarFn({ data: { idMesa } }),
-    onSuccess: (r) => {
-      toast.success(`Cuenta cerrada: ${fmt.format(r.total)}`);
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
-      navigate({ to: "/servicio" });
-    },
-    onError: (e) =>
-      toast.error("No se pudo cerrar la cuenta", {
-        description: e instanceof Error ? e.message : undefined,
-      }),
-  });
+  const [pagarOpen, setPagarOpen] = useState(false);
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
