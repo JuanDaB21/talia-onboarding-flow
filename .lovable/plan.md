@@ -1,123 +1,80 @@
+# Cuentas divididas y flujo de pago
 
-# Kanban tipo comanda agrupado por mesa
+## Objetivo
+Al pulsar "Pagar cuenta" en la mesa, el mesero ve el consolidado de items, selecciona cuáles cobra en este pago (cuenta dividida por productos), elige método de pago y cierra. Cuando todos los items quedan pagados, la mesa vuelve a LIBRE y se guarda el histórico.
 
-## Cambio de modelo visual
+## Flujo UX
 
-El Kanban de cocina y barra deja de mostrar items sueltos y pasa a mostrar **comandas** (un pedido por mesa). Cada tarjeta representa la comanda de una mesa con todos sus items de esa estación.
+1. **Botón "Pagar cuenta"** en la vista de mesa abre un **Sheet de cobro** (en vez del dialog actual).
+2. **Selector de items**: lista plana de todos los items de la mesa con estado `ENTREGADO` (o ya entregables), con checkbox.
+   - Al marcar, se suma en vivo al **total a cobrar** (sticky abajo).
+   - Botones rápidos: "Seleccionar todo", "Limpiar".
+   - Items ya pagados aparecen deshabilitados con badge "Pagado".
+3. **Paso 2 — Método de pago** (después de "Continuar"):
+   - **Efectivo**: input de monto recibido (opcional) → muestra cambio.
+   - **Transferencia**: selector (Nequi / Daviplata / Bancolombia / Otro) + **subir foto del comprobante** (cámara o galería).
+   - **Datáfono**: selector (Débito / Crédito) + campo "N° voucher".
+4. **Confirmar pago** → registra el pago, marca los items seleccionados como pagados, y:
+   - Si transferencia → notifica al admin (badge realtime + toast).
+   - Si quedan items pendientes → vuelve al paso 1 con los restantes.
+   - Si no quedan items → cierra la mesa (estado `LIBRE`) y navega a `/servicio`.
+5. **Vista del admin** (`/servicio` o nueva pestaña "Pagos pendientes"): badge con transferencias sin confirmar; al abrir, ve la foto y aprueba/rechaza.
 
-### Estados de columna (comanda completa)
+## Cambios en base de datos
 
-La comanda vive en una sola columna activa, calculada a partir de los items de la estación:
+Tablas nuevas:
 
-- **En cola**: ningún item iniciado (todos `EN_COLA`).
-- **En preparación**: al menos un item está en preparación o ya listo, pero queda algo sin terminar.
-- **Listo**: todos los items están `LISTO` (ninguno entregado todavía o algunos ya entregados pero queda al menos uno listo).
-- **Entregado (recientes)**: todos los items entregados — se muestran los últimos N de la última hora para feedback visual.
+- **`pagos`**: `id_pago`, `id_mesa`, `id_negocio`, `id_mesero`, `metodo` (`EFECTIVO|TRANSFERENCIA|DATAFONO`), `subtipo` (Nequi/Daviplata/Débito/etc), `monto`, `voucher`, `url_comprobante`, `estado_confirmacion` (`CONFIRMADO|PENDIENTE|RECHAZADO`), `confirmado_por`, `confirmado_at`, `created_at`.
+- **`pago_items`**: `id_pago`, `id_item` (UNIQUE en `id_item` → un item solo se paga una vez).
 
-### Tarjeta de comanda (vista general)
+Columnas nuevas:
+- `pedido_items.pagado_at`, `pedido_items.id_pago` (derivado).
+- `pedidos.estado` añade valor `PARCIAL` (cuando algunos items pagados, otros no).
 
-```text
-┌─────────────────────────────────┐
-│ Mesa 5            🕒 12 min     │
-│ Pedido #a1b2 · hace 8 min       │
-│                                 │
-│ ▓▓▓▓▓▓░░░░  2 / 4 listos        │
-│                                 │
-│ 🍔 ×2 Hamburguesa     ✓ listo   │
-│ 🥗 ×1 Ensalada        ⏳ prep   │
-│ 🍟 ×1 Papas           ⏸ cola   │
-│                                 │
-│ ⚠ Alergia · 📝 Notas            │
-│                  [Ver comanda]  │
-└─────────────────────────────────┘
-```
+RPCs nuevas:
+- `registrar_pago(p_id_mesa, p_metodo, p_subtipo, p_monto, p_voucher, p_url_comprobante, p_item_ids[])` → crea fila en `pagos` + `pago_items`, marca items, actualiza estado del pedido, si todos los items de la mesa quedan pagados → marca pedidos como `PAGADO` y mesa como `LIBRE` (reutiliza lógica de `cerrar_cuenta_mesa`). Estado del pago = `CONFIRMADO` salvo transferencia → `PENDIENTE`.
+- `confirmar_pago_transferencia(p_id_pago, p_aprobar bool)` → solo ADMIN/SUPERADMIN; marca `CONFIRMADO` o `RECHAZADO`.
+- `listar_pagos_pendientes_confirmacion()` → ADMIN.
 
-- Cabecera: mesa, contador de tiempo del item más atrasado, badge de retraso si aplica.
-- Barra de progreso `listos / total` de items de esa estación.
-- Lista compacta de items con su estado individual.
-- Indicadores agregados: alergia (si algún item la tiene), cantidad de notas/extras/exclusiones.
-- Click en la tarjeta abre el detalle.
+Storage:
+- Bucket **`comprobantes-pago`** (privado), políticas: insert por mesero del negocio, select por staff del mismo negocio.
 
-### Detalle (Sheet lateral)
+## Server functions (`src/lib/pagos.functions.ts` nuevo)
 
-Se abre un Sheet de shadcn sobre el Kanban (no navega de ruta).
+- `listarItemsCobrables({ idMesa })` → items entregables agrupados, con flag `pagado`.
+- `subirComprobante({ base64, mime })` → sube a storage, devuelve URL firmada/pública.
+- `registrarPago({ idMesa, metodo, subtipo, monto, voucher, urlComprobante, itemIds })`.
+- `listarPagosPendientes()` (admin).
+- `confirmarPago({ idPago, aprobar })` (admin).
+- `resumenCajaTurno()` → totales por método del mesero en su turno (efectivo, transferencia confirmada, datáfono).
 
-```text
-Comanda · Mesa 5                        ✕
-Pedido confirmado hace 8 min · 2/4 listos
-─────────────────────────────────────────
-[⏸] ×2 Hamburguesa                       
-     ⚠ Alergia · sin cebolla              
-     + queso extra                        
-     "término medio"                      
-     ⏱ 18/15 min · retraso +3            
-     [ Iniciar ]                          
-─────────────────────────────────────────
-[⏳] ×1 Ensalada                          
-     ⏱ 4/10 min                          
-     [ Marcar listo ]                     
-─────────────────────────────────────────
-[✓] ×1 Papas                              
-     ⏱ listo hace 2 min                  
-     [ Entregar ]                         
-```
+## Frontend
 
-- Cada item muestra el detalle completo (extras, exclusiones, nota, alergia, tiempos).
-- Un solo botón de acción por item que **avanza un paso** en el flujo `EN_COLA → EN_PREPARACION → LISTO → ENTREGADO` usando el RPC existente `avanzar_estado_item`.
-- Acción rápida adicional: "Iniciar toda la comanda" en el header del sheet (avanza todos los items en `EN_COLA` a `EN_PREPARACION` en una sola operación).
-- Realtime mantiene el sheet sincronizado: si otra persona avanza un item, el check aparece sin recargar.
+Nuevos componentes en `src/components/servicio/`:
+- `pagar-sheet.tsx` (reemplaza el dialog de cobrar): pasos selección → método → confirmación.
+- `paso-seleccion-items.tsx`.
+- `paso-metodo-pago.tsx` con sub-componentes `forma-efectivo`, `forma-transferencia` (incluye input `<input type="file" accept="image/*" capture="environment">`), `forma-datafono`.
+- `caja-turno-card.tsx`: pequeña tarjeta en `/servicio` con totales del turno del mesero.
+- `pagos-pendientes-panel.tsx` (admin): lista con miniatura del comprobante, botones aprobar/rechazar. Se monta como sheet desde un badge en `/servicio`.
 
-## Detalles técnicos
+Cambios:
+- `_app.servicio.$idMesa.tsx`: el botón "Pagar cuenta" abre `PagarSheet` en vez de `cerrarCuentaMesa` directo.
+- `_app.servicio.index.tsx`: badge "💸 Pagos por confirmar" (solo admin) + `CajaTurnoCard` para meseros. Realtime sobre tabla `pagos` (canal por negocio).
+- Mantener `cerrarCuentaMesa` como fallback "cerrar sin cobrar" — opcional, fuera de scope.
 
-### Server function nueva: `listarComandasEstacion`
+## Histórico / analítica (solo guardar)
 
-Reemplaza/complementa `listarItemsEstacion` en `src/lib/preparacion.functions.ts`. Devuelve los items agrupados por pedido:
+Ya tenemos timestamps en `pedidos` (`confirmado_at`, `entregado_at`, `pagado_at`) y en `pedido_items` (`iniciado_at`, `listo_at`, `entregado_at`). Añadimos `pagado_at` a item y dejamos `pagos` como tabla maestra. No se construye dashboard ahora — los datos quedan listos para consultas futuras.
 
-```ts
-interface ComandaEstacion {
-  id_pedido: string;
-  mesa_identificador: string;
-  pedido_created_at: string;
-  confirmado_at: string;       // created_at o updated_at del paso a CONFIRMADO
-  items: ItemPreparacion[];    // solo de esta estación
-  // derivados en el cliente:
-  // estado_grupo, listos, total, max_retraso, tiene_alergia
-}
-```
+## Seguridad
 
-Se mantiene el filtro `pedidos.estado = 'CONFIRMADO'` y `destino = COCINA|BARRA`. Para la columna "Entregado" se hace una segunda query opcional con items entregados en la última hora (límite 20 pedidos).
+- RLS en `pagos` y `pago_items` por `id_negocio` / join al pedido.
+- `confirmar_pago_transferencia` valida rol ADMIN dentro del RPC (security definer).
+- Bucket privado; URLs firmadas con TTL corto.
+- Validación zod en todas las server functions (UUIDs, monto > 0, voucher max 50 chars, mime image/*).
 
-### Acción "iniciar toda la comanda"
-
-Nueva server function `iniciarComanda({ idPedido, destino })` que llama a `avanzar_estado_item` para cada item de esa estación que esté en `EN_COLA`. Se hace dentro de una transacción RPC nueva `iniciar_comanda_estacion(p_id_pedido, p_destino)` para evitar N round-trips.
-
-### Cálculo del estado de columna (cliente)
-
-```ts
-function estadoComanda(items): "EN_COLA" | "EN_PREPARACION" | "LISTO" | "ENTREGADO" {
-  if (items.every(i => i.estado === "ENTREGADO")) return "ENTREGADO";
-  if (items.every(i => i.estado === "LISTO" || i.estado === "ENTREGADO")) return "LISTO";
-  if (items.some(i => i.estado !== "EN_COLA")) return "EN_PREPARACION";
-  return "EN_COLA";
-}
-```
-
-### Componentes
-
-- **Refactor** `src/components/preparacion/kanban-board.tsx`: agrupa por pedido, renderiza `ComandaCard` en lugar de `ItemCard`, mantiene la suscripción realtime existente.
-- **Nuevo** `src/components/preparacion/comanda-card.tsx`: tarjeta resumen + barra de progreso + indicadores.
-- **Nuevo** `src/components/preparacion/comanda-sheet.tsx`: Sheet con la lista interactiva de items. Reutiliza la lógica de tiempos/alertas de `ItemCard` extrayéndola a un helper.
-- **Mantener** `src/components/preparacion/item-card.tsx` solo si se reutiliza dentro del sheet; si no, eliminar.
-
-### Sin cambios en BD para el flujo principal
-
-El esquema de `pedido_items` y `avanzar_estado_item` ya soporta lo necesario. Solo se añade el RPC `iniciar_comanda_estacion` como conveniencia.
-
-## Archivos afectados
-
-- `src/lib/preparacion.functions.ts` — refactor a `listarComandasEstacion` + nueva `iniciarComanda`.
-- `src/components/preparacion/kanban-board.tsx` — agrupación por mesa, render de `ComandaCard`, manejo del sheet abierto.
-- `src/components/preparacion/comanda-card.tsx` — nuevo.
-- `src/components/preparacion/comanda-sheet.tsx` — nuevo.
-- `src/components/preparacion/item-card.tsx` — se simplifica o reemplaza por filas dentro del sheet.
-- `supabase/migrations/*` — nueva RPC `iniciar_comanda_estacion`.
+## Fuera de scope (explícito)
+- Partes iguales / items compartidos entre comensales.
+- Cierre formal de caja con arqueo (solo acumulado por turno).
+- Dashboard de analítica.
+- Integración real con pasarelas (Wompi, PSE, etc).
