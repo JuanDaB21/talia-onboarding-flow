@@ -163,6 +163,21 @@ export function AppSidebar() {
       })
     : null;
 
+  const renderItem = (item: { to: string; label: string; icon: typeof Boxes }) => {
+    const Icon = item.icon;
+    const active = pathname.startsWith(item.to);
+    return (
+      <SidebarMenuItem key={item.to}>
+        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <Link to={item.to as any}>
+            <Icon className="h-4 w-4" />
+            <span>{item.label}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
   const renderGroup = (
     label: string,
     items: ReadonlyArray<{ to: string; label: string; icon: typeof Boxes }>,
@@ -170,22 +185,7 @@ export function AppSidebar() {
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = pathname.startsWith(item.to);
-            return (
-              <SidebarMenuItem key={item.to}>
-                <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                  <Link to={item.to}>
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
+        <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
   );
