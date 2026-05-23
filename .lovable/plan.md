@@ -1,86 +1,76 @@
 
-# Plan: Menú público por mesa (Paso 6.1)
+# Paso 6.2 — Asignación y Toma de Pedido (Mesero)
 
-## Decisión clave de ruta
+Ámbito acotado a esta entrega. No se tocan Compras, Inventario, Recetas ni Configuración salvo lo estrictamente necesario.
 
-La URL `/menu?mesa=…` propuesta en el prompt **choca** con las rutas admin existentes (`/menu/categorias`, `/menu/productos`, `/menu/recetas`) que viven bajo `_app/menu` y exigen sesión. Para mantenerlas intactas, la vista pública vivirá en una ruta nueva y aislada:
+## 1. Cambios de base de datos (una sola migración)
 
-- **Pública (nueva):** `/carta/$idMesa` → `src/routes/carta.$idMesa.tsx`
-- Se actualizará la URL que codifica el QR en `MesaDetailDialog` de `${origin}/menu?mesa=...` a `${origin}/carta/${id_mesa}` (cambio mínimo, una sola línea). Los QR aún no impresos no se ven afectados; los ya generados se reimprimen al editar la mesa.
+### 1.1 Asignación de mesero
+- `mesas`: añadir `id_mesero_asignado uuid NULL` + `asignada_at timestamptz NULL`.
+- Política RLS actual de `mesas` ya filtra por `id_negocio`; no cambia.
 
-## Backend (acceso público sin sesión)
+### 1.2 Ruteo cocina/barra (por categoría)
+- `categorias`: añadir `destino text NOT NULL DEFAULT 'COCINA' CHECK (destino IN ('COCINA','BARRA'))`.
+- UI mínima en pantalla **Menú → Categorías** existente: un selector COCINA/BARRA por categoría (1 dropdown extra, sin rediseño). Solo este toque a Menú.
 
-Las tablas `productos`, `categorias`, `mesas` tienen RLS basada en `current_user_negocio()`, que devuelve `null` para anónimos. No abriremos RLS al rol `anon`. En su lugar, dos **server functions públicas** que usan `supabaseAdmin` con filtros estrictos por `id_mesa`:
+### 1.3 Persistencia de la orden (4 tablas nuevas, todas con RLS `id_negocio = current_user_negocio()`)
+- `pedidos` — `id_pedido`, `id_negocio`, `id_mesa`, `id_mesero`, `estado` (`ABIERTO|CONFIRMADO|CERRADO|CANCELADO`), `total`, `created_at`, `updated_at`.
+- `pedido_items` — `id_item`, `id_pedido`, `id_producto`, `cantidad`, `precio_unitario`, `tiene_alergia bool`, `nota text`, `destino` (snapshot COCINA/BARRA al confirmar).
+- `pedido_item_extras` — `id_item` → `id_insumo_extra`, `cantidad_porcion`, `precio_extra` (snapshot tomado de `extras_permitidos`).
+- `pedido_item_exclusiones` — `id_item` → `id_insumo` (ingrediente base de la receta a omitir; validado contra `receta_detalle`).
 
-1. `getMenuPublico({ idMesa })` en `src/lib/menu-publico.functions.ts`
-   - Valida `idMesa` con Zod (uuid).
-   - Lee `mesas` (id_negocio, identificador, estado) — si no existe, 404.
-   - Lee `productos` activos del negocio (`id_producto, nombre_producto, descripcion_producto, precio_venta, url_imagen, id_receta`) y deriva categoría/subcategoría vía `receta_master` → `categorias` / `subcategorias`.
-   - Devuelve `{ mesa, categorias: [{id, nombre}], productos: [{...campos seguros + id_categoria + nombre_categoria}] }`. Solo columnas seguras; no se filtra ningún dato de otros negocios ni PII.
+### 1.4 Funciones SQL SECURITY DEFINER
+- `asignar_mesero_a_mesa(p_id_mesa)`: round-robin por carga. Selecciona staff con `rol='MESERO'`, `esta_en_turno=true`, `estado='ACTIVO'`, del mismo `id_negocio`, ordenando por `COUNT(mesas WHERE id_mesero_asignado=x AND estado='OCUPADA')` ASC y `created_at` para desempate. Si no hay meseros en turno, deja la mesa sin asignar (NULL) y retorna NULL. Setea `id_mesero_asignado` y `asignada_at`.
+- `crear_pedido_para_mesa(p_id_mesa)`: crea `pedidos` en estado `ABIERTO` para la mesa OCUPADA con `id_mesero = id_mesero_asignado`. Idempotente: si ya existe ABIERTO, lo devuelve.
+- `agregar_item_pedido(p_id_pedido, p_id_producto, p_cantidad, p_tiene_alergia, p_nota, p_extras jsonb, p_exclusiones jsonb)`: valida pertenencia al negocio, inserta item + extras (filtrados contra `extras_permitidos` del producto) + exclusiones (filtradas contra `receta_detalle` de la receta del producto). Recalcula `pedidos.total`.
+- `actualizar_item_pedido` / `eliminar_item_pedido`: mismas validaciones, recálculo de total.
+- `confirmar_pedido(p_id_pedido)`: snapshot del `destino` de cada item leyendo `categorias.destino` vía `productos → receta_master → categorias`. Pasa pedido a `CONFIRMADO`. A partir de aquí los items no se editan.
 
-2. `llamarMesero({ idMesa })` en el mismo módulo
-   - Valida uuid.
-   - `UPDATE mesas SET estado='OCUPADA' WHERE id_mesa = :id` (admin client, scoped por id). Devuelve `{ ok: true }`.
+### 1.5 Hook a `llamarMesero`
+- En `src/lib/menu-publico.functions.ts → llamarMesero`: tras el `UPDATE mesas SET estado='OCUPADA'`, llamar a `asignar_mesero_a_mesa` si la mesa no tiene mesero. Sigue siendo el mismo flujo público.
 
-Ambas son `createServerFn` (sin `requireSupabaseAuth`) llamadas desde el componente cliente — no se invocan en `loader` para evitar problemas de SSR/prerender.
+### 1.6 Realtime
+- `ALTER PUBLICATION supabase_realtime ADD TABLE mesas, pedidos, pedido_items;`
+- `REPLICA IDENTITY FULL` en `mesas` para recibir el row completo.
 
-## Frontend
+## 2. Frontend — nueva sección **Servicio (Mesas)**
 
-**Archivo nuevo:** `src/routes/carta.$idMesa.tsx`
+Sección dedicada, separada de Configuración/Mesas (esta última sigue siendo solo CRUD admin).
 
-Estructura:
-- `Route.useParams()` para `idMesa`.
-- `useQuery(['carta', idMesa], () => getMenuPublico({ data: { idMesa } }))` para cargar el menú.
-- Estado local `fase: 'onboarding' | 'menu'`.
-- `useMutation` para `llamarMesero`.
+### 2.1 Rutas nuevas (bajo `_app`)
+- `src/routes/_app.servicio.tsx` — layout con `<Outlet />`.
+- `src/routes/_app.servicio.index.tsx` — **Panel del mesero**: grid de mesas asignadas al usuario actual (rol MESERO ve solo las suyas; ADMIN/SUPERADMIN ven todas con filtro). Cards muestran `identificador`, estado, mesero, tiempo desde `asignada_at`. Suscripción Realtime a `mesas` filtrada por `id_negocio`: cuando entra un evento con `id_mesero_asignado = miUserId` y `estado='OCUPADA'`, `toast.info("Mesa X te necesita")` + refetch.
+- `src/routes/_app.servicio.$idMesa.tsx` — **Toma de pedido**: panel split:
+  - Izquierda (catálogo): pills de categorías + lista de productos (reusa fetch tipo `getMenuPublico` pero versión autenticada con `requireSupabaseAuth`).
+  - Derecha (orden): items del pedido ABIERTO; cada item con stepper de cantidad, switch "🚨 Alergia" (resalta rojo), nota libre, sección "Extras" (de `extras_permitidos`) y "Quitar ingredientes" (de `receta_detalle`).
+  - Pie: total + botón **Confirmar orden** → `confirmar_pedido`.
 
-### Fase 1 — Onboarding
-Modal centrado mobile-first (no usa `Dialog` modal pesado; pantalla completa con tarjeta) con:
-- Identificador de la mesa ("Mesa 5").
-- Texto: *"Revisa nuestro menú y cuando tengas claro qué vas a pedir llama a tu mesero, te atenderemos con gusto"*.
-- Botón "Continuar" → `setFase('menu')`.
+### 2.2 Sidebar
+- Agregar grupo "Servicio" con un solo item "Mesas en servicio" → `/servicio`. Edit puntual a `app-sidebar.tsx`.
 
-### Fase 2 — Catálogo tipo Rappi
-- **Header sticky superior**: nombre/identificador de mesa + pills horizontales de categorías (`overflow-x-auto`, scroll suave, pill activa destacada con `bg-primary`).
-- **Lista de productos** agrupados o filtrados por categoría activa (filtro client-side sobre la respuesta). Tarjetas con:
-  - `url_imagen` (con fallback `ImageIcon` si null).
-  - `nombre_producto` (font-medium).
-  - `descripcion_producto` truncada a 2 líneas (`line-clamp-2`).
-  - `precio_venta` formateado `Intl.NumberFormat` ($ COP/local).
-- **Sticky Bottom Bar** (`fixed bottom-0 inset-x-0`) con padding seguro (`pb-[env(safe-area-inset-bottom)]`), botón grande primario con icono `Bell` de `lucide-react`: **"Llamar mesero"**.
-  - Estado deshabilitado mientras la mutación corre.
-  - Si `mesa.estado === 'OCUPADA'` al cargar o tras el click, muestra estado "Mesero notificado" (botón secundario, deshabilitado) — sin re-llamadas accidentales.
-  - Al éxito: `toast.success("¡Tu mesero va en camino!")` y refresca la query.
-- Padding inferior en la lista (`pb-28`) para que el último producto no quede bajo la barra.
+### 2.3 Server functions (`src/lib/servicio.functions.ts`)
+Todas con `requireSupabaseAuth`:
+- `listarMisMesas`, `obtenerMesaConPedido`, `agregarItem`, `actualizarItem`, `eliminarItem`, `confirmarPedido`, `reasignarMesero` (admin/superadmin).
 
-### Estados
-- Loading: skeletons de tarjetas.
-- Error / mesa no encontrada: pantalla con mensaje claro ("Mesa no válida, pide ayuda al personal").
-- Sin productos: vacío amable.
+### 2.4 Componentes (`src/components/servicio/`)
+- `mesa-card.tsx`, `mesa-grid.tsx`, `item-editor-sheet.tsx` (modal mobile-friendly con extras/exclusiones/alergia/nota), `pedido-panel.tsx`, `catalogo-panel.tsx`, `alergia-badge.tsx`.
 
-## Diseño y tokens
-- Mobile-first estricto, sin scroll horizontal (excepto pills).
-- Solo tokens semánticos de `src/styles.css` (primary, muted, card, etc.). Sin colores hardcodeados.
-- Tipografía y `Toaster` ya están globales en `__root.tsx`.
+## 3. Flujo end-to-end
+1. Cliente abre `/carta/$idMesa` y toca "Llamar mesero".
+2. `llamarMesero` → `UPDATE mesas` + `asignar_mesero_a_mesa` → un mesero queda asignado.
+3. Realtime entrega el cambio a la sesión del mesero → toast.
+4. Mesero entra a `/servicio` → ve la mesa → abre `/servicio/$idMesa` → se crea el `pedido ABIERTO`.
+5. Mesero arma la orden item por item (cantidad, extras, exclusiones, alergia, nota).
+6. Confirma → `confirmar_pedido` snapshotea `destino` por item. La vista de cocina/barra (Paso 6.3) consumirá `pedido_items` filtrando por `destino`.
 
-## Archivos a crear / modificar
+## 4. Restricciones honradas
+- No se tocan Compras, Inventario, Recetas, ni la UI de Configuración/Mesas (solo se añade `destino` en Categorías).
+- Sin push nativo: Realtime in-app + toast.
+- Sin mock data: todo vía server functions reales.
+- Diff & Select: solo se edita `app-sidebar.tsx`, `menu-publico.functions.ts` y `categorias-master-detail.tsx` (selector destino). Lo demás son archivos nuevos.
 
-Crear:
-- `src/lib/menu-publico.functions.ts` — server fns públicas.
-- `src/routes/carta.$idMesa.tsx` — vista pública.
-- (Opcional) `src/components/carta/producto-card.tsx`, `category-pills.tsx`, `llamar-mesero-bar.tsx` para mantener el route file simple.
-
-Modificar (mínimo):
-- `src/components/configuracion/mesas/mesa-detail-dialog.tsx` — cambiar la URL del QR a `${origin}/carta/${mesa.id_mesa}`.
-
-## Restricciones honradas
-- No se tocan rutas `/menu/*` (admin), ni `_app`, ni sidebar, ni Compras/Inventario/Recetas.
-- No se modifica el esquema de productos. Solo se hace `UPDATE` a `mesas.estado` (campo ya existente).
-- Vista 100% lectura sobre productos: sin carrito, sin editar, sin eliminar.
-- Sin mock data: lectura real vía server fn → Supabase.
-
-## QA antes de cerrar
-1. Generar mesa, abrir QR del modal, verificar que el QR apunta a `/carta/<uuid>`.
-2. Abrir esa URL en modo incógnito (sin sesión): se ve onboarding → menú → llamar mesero.
-3. Verificar en `supabase--read_query` que `mesas.estado` cambió a `OCUPADA`.
-4. Probar viewport móvil (~390px): sin scroll horizontal, CTA siempre visible, pills scrolleables.
+## 5. QA antes de cerrar
+1. Crear 2 meseros en turno → llamar mesero desde la carta → verificar que `asignar_mesero_a_mesa` reparte por menor carga.
+2. Tomar orden con extras + exclusiones + alergia → confirmar → revisar en DB que `pedido_items.destino` quedó correcto según categoría.
+3. Abrir `/servicio` en dos pestañas con meseros distintos → llamar mesa asignada al mesero A → solo la pestaña A recibe toast.
+4. Mobile 390px: panel de toma de pedido usable (sheet en lugar de split en <md).
