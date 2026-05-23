@@ -41,6 +41,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
   const [idSubcategoria, setIdSubcategoria] = useState("");
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [tiempoPrep, setTiempoPrep] = useState<number>(15);
   const [ingredientes, setIngredientes] = useState<IngredienteInput[]>([]);
   const [search, setSearch] = useState("");
 
@@ -63,7 +64,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
     if (mode === "edit" && idReceta) {
       const { data: r } = await supabase
         .from("receta_master")
-        .select("nombre_receta, descripcion, id_categoria, id_subcategoria")
+        .select("nombre_receta, descripcion, id_categoria, id_subcategoria, tiempo_preparacion_min")
         .eq("id_receta", idReceta)
         .maybeSingle();
       const { data: d } = await supabase
@@ -80,6 +81,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         setDescripcion(r.descripcion ?? "");
         setIdCategoria(r.id_categoria);
         setIdSubcategoria(r.id_subcategoria);
+        setTiempoPrep(Number(r.tiempo_preparacion_min ?? 15));
       }
       if (d) {
         setIngredientes(
@@ -168,7 +170,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
     setIdSubcategoria("");
   };
 
-  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
+  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && tiempoPrep > 0 && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
 
   const guardar = async () => {
     if (!puedeGuardar) {
@@ -194,6 +196,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
+          p_tiempo_preparacion_min: tiempoPrep,
         });
         if (error) throw error;
         // Obtener id_producto recién creado
@@ -211,6 +214,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
+          p_tiempo_preparacion_min: tiempoPrep,
         });
         if (error) throw error;
       }
@@ -314,9 +318,25 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
             </div>
             <Input id="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Limonada de coco" />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="desc">Descripción (opcional)</Label>
-            <Textarea id="desc" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={2} placeholder="Notas internas sobre la preparación" />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="desc">Descripción (opcional)</Label>
+              <Textarea id="desc" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={2} placeholder="Notas internas sobre la preparación" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tprep">Tiempo de preparación (min)</Label>
+              <Input
+                id="tprep"
+                type="number"
+                min={1}
+                step={1}
+                value={tiempoPrep}
+                onChange={(e) => setTiempoPrep(Math.max(1, Math.floor(Number(e.target.value) || 0)))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Las bebidas se sincronizan con la mitad del tiempo del plato más lento del pedido.
+              </p>
+            </div>
           </div>
         </section>
 
