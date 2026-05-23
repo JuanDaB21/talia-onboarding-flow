@@ -18,7 +18,9 @@ import { Route as AppServicioRouteImport } from './routes/_app.servicio'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppConfiguracionRouteImport } from './routes/_app.configuracion'
+import { Route as AppCocinaRouteImport } from './routes/_app.cocina'
 import { Route as AppBodegaRouteImport } from './routes/_app.bodega'
+import { Route as AppBarraRouteImport } from './routes/_app.barra'
 import { Route as AppServicioIndexRouteImport } from './routes/_app.servicio.index'
 import { Route as AppMenuIndexRouteImport } from './routes/_app.menu.index'
 import { Route as AppConfiguracionIndexRouteImport } from './routes/_app.configuracion.index'
@@ -82,9 +84,19 @@ const AppConfiguracionRoute = AppConfiguracionRouteImport.update({
   path: '/configuracion',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCocinaRoute = AppCocinaRouteImport.update({
+  id: '/cocina',
+  path: '/cocina',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBodegaRoute = AppBodegaRouteImport.update({
   id: '/bodega',
   path: '/bodega',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBarraRoute = AppBarraRouteImport.update({
+  id: '/barra',
+  path: '/barra',
   getParentRoute: () => AppRoute,
 } as any)
 const AppServicioIndexRoute = AppServicioIndexRouteImport.update({
@@ -185,7 +197,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/barra': typeof AppBarraRoute
   '/bodega': typeof AppBodegaRouteWithChildren
+  '/cocina': typeof AppCocinaRoute
   '/configuracion': typeof AppConfiguracionRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/menu': typeof AppMenuRouteWithChildren
@@ -214,6 +228,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/barra': typeof AppBarraRoute
+  '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
@@ -239,7 +255,9 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/_app/barra': typeof AppBarraRoute
   '/_app/bodega': typeof AppBodegaRouteWithChildren
+  '/_app/cocina': typeof AppCocinaRoute
   '/_app/configuracion': typeof AppConfiguracionRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
@@ -270,7 +288,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/barra'
     | '/bodega'
+    | '/cocina'
     | '/configuracion'
     | '/dashboard'
     | '/menu'
@@ -299,6 +319,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
+    | '/barra'
+    | '/cocina'
     | '/dashboard'
     | '/carta/$idMesa'
     | '/bodega/compras'
@@ -323,7 +345,9 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/register'
+    | '/_app/barra'
     | '/_app/bodega'
+    | '/_app/cocina'
     | '/_app/configuracion'
     | '/_app/dashboard'
     | '/_app/menu'
@@ -422,11 +446,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cocina': {
+      id: '/_app/cocina'
+      path: '/cocina'
+      fullPath: '/cocina'
+      preLoaderRoute: typeof AppCocinaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bodega': {
       id: '/_app/bodega'
       path: '/bodega'
       fullPath: '/bodega'
       preLoaderRoute: typeof AppBodegaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/barra': {
+      id: '/_app/barra'
+      path: '/barra'
+      fullPath: '/barra'
+      preLoaderRoute: typeof AppBarraRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/servicio/': {
@@ -652,7 +690,9 @@ const AppServicioRouteWithChildren = AppServicioRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppBarraRoute: typeof AppBarraRoute
   AppBodegaRoute: typeof AppBodegaRouteWithChildren
+  AppCocinaRoute: typeof AppCocinaRoute
   AppConfiguracionRoute: typeof AppConfiguracionRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppMenuRoute: typeof AppMenuRouteWithChildren
@@ -660,7 +700,9 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBarraRoute: AppBarraRoute,
   AppBodegaRoute: AppBodegaRouteWithChildren,
+  AppCocinaRoute: AppCocinaRoute,
   AppConfiguracionRoute: AppConfiguracionRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppMenuRoute: AppMenuRouteWithChildren,
