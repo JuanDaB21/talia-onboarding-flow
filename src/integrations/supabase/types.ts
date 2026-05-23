@@ -279,6 +279,9 @@ export type Database = {
           id_mesero_asignado: string | null
           id_negocio: string
           identificador: string
+          liberada_at: string | null
+          solicitud_at: string | null
+          solicitud_cliente: string | null
           updated_at: string
         }
         Insert: {
@@ -289,6 +292,9 @@ export type Database = {
           id_mesero_asignado?: string | null
           id_negocio: string
           identificador: string
+          liberada_at?: string | null
+          solicitud_at?: string | null
+          solicitud_cliente?: string | null
           updated_at?: string
         }
         Update: {
@@ -299,6 +305,9 @@ export type Database = {
           id_mesero_asignado?: string | null
           id_negocio?: string
           identificador?: string
+          liberada_at?: string | null
+          solicitud_at?: string | null
+          solicitud_cliente?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -558,32 +567,44 @@ export type Database = {
       }
       pedidos: {
         Row: {
+          confirmado_at: string | null
           created_at: string
+          entregado_at: string | null
           estado: Database["public"]["Enums"]["estado_pedido"]
           id_mesa: string
           id_mesero: string | null
           id_negocio: string
           id_pedido: string
+          pagado_at: string | null
+          seguimiento_visto_at: string | null
           total: number
           updated_at: string
         }
         Insert: {
+          confirmado_at?: string | null
           created_at?: string
+          entregado_at?: string | null
           estado?: Database["public"]["Enums"]["estado_pedido"]
           id_mesa: string
           id_mesero?: string | null
           id_negocio: string
           id_pedido?: string
+          pagado_at?: string | null
+          seguimiento_visto_at?: string | null
           total?: number
           updated_at?: string
         }
         Update: {
+          confirmado_at?: string | null
           created_at?: string
+          entregado_at?: string | null
           estado?: Database["public"]["Enums"]["estado_pedido"]
           id_mesa?: string
           id_mesero?: string | null
           id_negocio?: string
           id_pedido?: string
+          pagado_at?: string | null
+          seguimiento_visto_at?: string | null
           total?: number
           updated_at?: string
         }
@@ -937,6 +958,7 @@ export type Database = {
         Args: { p_id_item: string; p_nuevo_estado: string }
         Returns: string
       }
+      cerrar_cuenta_mesa: { Args: { p_id_mesa: string }; Returns: number }
       confirmar_pedido: { Args: { p_id_pedido: string }; Returns: undefined }
       crear_pedido_para_mesa: { Args: { p_id_mesa: string }; Returns: string }
       crear_receta:
@@ -963,6 +985,15 @@ export type Database = {
           }
       current_user_negocio: { Args: never; Returns: string }
       duplicar_receta: { Args: { p_id_receta: string }; Returns: string }
+      editar_item_pedido: {
+        Args: {
+          p_cantidad: number
+          p_id_item: string
+          p_nota: string
+          p_tiene_alergia: boolean
+        }
+        Returns: undefined
+      }
       eliminar_item_pedido: { Args: { p_id_item: string }; Returns: undefined }
       eliminar_receta: { Args: { p_id_receta: string }; Returns: undefined }
       guardar_extras_producto: {
@@ -972,6 +1003,18 @@ export type Database = {
       iniciar_comanda_estacion: {
         Args: { p_destino: string; p_id_pedido: string }
         Returns: number
+      }
+      limpiar_solicitud_cliente: {
+        Args: { p_id_mesa: string }
+        Returns: undefined
+      }
+      marcar_pedido_entregado: {
+        Args: { p_id_pedido: string }
+        Returns: number
+      }
+      marcar_seguimiento_visto: {
+        Args: { p_id_pedido: string }
+        Returns: undefined
       }
       recalcular_total_pedido: {
         Args: { p_id_pedido: string }
@@ -1000,9 +1043,18 @@ export type Database = {
         }
         Returns: string
       }
+      solicitar_accion_cliente: {
+        Args: { p_id_mesa: string; p_tipo: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      estado_pedido: "ABIERTO" | "CONFIRMADO" | "CERRADO" | "CANCELADO"
+      estado_pedido:
+        | "ABIERTO"
+        | "CONFIRMADO"
+        | "CERRADO"
+        | "CANCELADO"
+        | "PAGADO"
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
       rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA"
     }
@@ -1132,7 +1184,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      estado_pedido: ["ABIERTO", "CONFIRMADO", "CERRADO", "CANCELADO"],
+      estado_pedido: [
+        "ABIERTO",
+        "CONFIRMADO",
+        "CERRADO",
+        "CANCELADO",
+        "PAGADO",
+      ],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
       rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA"],
     },
