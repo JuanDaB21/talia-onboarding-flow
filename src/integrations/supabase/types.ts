@@ -1045,6 +1045,7 @@ export type Database = {
         Returns: string
       }
       cerrar_cuenta_mesa: { Args: { p_id_mesa: string }; Returns: number }
+      cerrar_mesa: { Args: { p_id_mesa: string }; Returns: undefined }
       confirmar_pago_transferencia: {
         Args: { p_aprobar: boolean; p_id_pago: string }
         Returns: undefined

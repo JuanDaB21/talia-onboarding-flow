@@ -45,6 +45,19 @@ import {
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useNavigate } from "@tanstack/react-router";
+import { LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/servicio/$idMesa")({
@@ -213,6 +226,29 @@ function MesaEnServicio() {
   });
 
   const [pagarOpen, setPagarOpen] = useState(false);
+  const [cerrarOpen, setCerrarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const estadoFn = useServerFn(estadoCierreMesa);
+  const estadoQ = useQuery({
+    queryKey: ["estadoCierre", idMesa],
+    queryFn: () => estadoFn({ data: { idMesa } }),
+    refetchInterval: 15_000,
+  });
+
+  const cerrarFn = useServerFn(cerrarMesa);
+  const cerrarMut = useMutation({
+    mutationFn: () => cerrarFn({ data: { idMesa } }),
+    onSuccess: () => {
+      toast.success("Mesa cerrada y liberada");
+      setCerrarOpen(false);
+      navigate({ to: "/servicio" });
+    },
+    onError: (e) =>
+      toast.error("No se pudo cerrar la mesa", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -260,6 +296,8 @@ function MesaEnServicio() {
         mesa={mesa}
         onPagar={() => setPagarOpen(true)}
         pagando={false}
+        onCerrar={() => setCerrarOpen(true)}
+        estado={estadoQ.data ?? null}
       />
 
       {/* Pedidos confirmados */}
@@ -322,6 +360,38 @@ function MesaEnServicio() {
       />
 
       <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
+
+      <AlertDialog open={cerrarOpen} onOpenChange={setCerrarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar y liberar la mesa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción marcará todos los pedidos como pagados y dejará la mesa
+              libre. No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrarMut.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                cerrarMut.mutate();
+              }}
+              disabled={cerrarMut.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {cerrarMut.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LockKeyhole className="h-4 w-4 mr-2" />
+              )}
+              Cerrar mesa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -330,23 +400,31 @@ function MesaHeader({
   mesa,
   onPagar,
   pagando,
+  onCerrar,
+  estado,
 }: {
   mesa: MesaSesion;
   onPagar: () => void;
   pagando: boolean;
+  onCerrar: () => void;
+  estado: import("@/lib/pagos.functions").EstadoCierreMesa | null;
 }) {
   const tiempo = mesa.asignada_at
     ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
     : 0;
   const hayPagar = mesa.pedidos.some((p) => p.estado !== "ABIERTO");
+  const puedeCerrar = estado?.puede_cerrar ?? false;
+  const motivoCerrar = !estado?.hay_pedidos
+    ? "No hay pedidos activos"
+    : (estado?.items_pendientes ?? 0) > 0
+      ? `Faltan ${estado?.items_pendientes} items por cobrar`
+      : (estado?.pagos_pendientes ?? 0) > 0
+        ? `Hay ${estado?.pagos_pendientes} transferencias por confirmar`
+        : "";
   return (
     <div className="rounded-2xl border bg-card p-5 shadow-sm">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat
-          label="Total mesa"
-          value={fmt.format(mesa.total_mesa)}
-          accent
-        />
+        <Stat label="Total mesa" value={fmt.format(mesa.total_mesa)} accent />
         <Stat
           label="Tiempo en mesa"
           value={`${tiempo} min`}
@@ -363,7 +441,7 @@ function MesaHeader({
           icon={<Utensils className="h-4 w-4" />}
         />
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <Button
           size="lg"
           onClick={onPagar}
@@ -377,7 +455,26 @@ function MesaHeader({
           )}
           Pagar cuenta
         </Button>
+        <Button
+          size="lg"
+          variant={puedeCerrar ? "default" : "outline"}
+          onClick={onCerrar}
+          disabled={!puedeCerrar}
+          title={!puedeCerrar ? motivoCerrar : "Cerrar y liberar mesa"}
+          className={cn(
+            "gap-2",
+            puedeCerrar && "bg-emerald-600 hover:bg-emerald-700 text-white",
+          )}
+        >
+          <LockKeyhole className="h-4 w-4" />
+          Cerrar mesa
+        </Button>
       </div>
+      {!puedeCerrar && estado?.hay_pedidos && motivoCerrar && (
+        <p className="mt-2 text-right text-xs text-muted-foreground">
+          {motivoCerrar}
+        </p>
+      )}
     </div>
   );
 }
