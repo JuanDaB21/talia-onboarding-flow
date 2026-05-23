@@ -178,22 +178,47 @@ function CartaPage() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="mx-auto max-w-2xl p-3">
-          <Button
-            size="lg"
-            className="w-full h-14 text-base font-semibold gap-2"
-            onClick={() => mut.mutate()}
-            disabled={mut.isPending || ocupada}
-            variant={ocupada ? "secondary" : "default"}
-          >
-            {mut.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Bell className="h-5 w-5" />
-            )}
-            {ocupada ? "Mesero notificado" : "Llamar mesero"}
-          </Button>
+          {estadoQ.data?.tiene_pedido_activo ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 text-base font-semibold gap-2"
+                onClick={() => solicitarMut.mutate("PEDIR_MAS")}
+                disabled={solicitarMut.isPending}
+              >
+                <Plus className="h-5 w-5" />
+                Pedir más
+              </Button>
+              <Button
+                size="lg"
+                className="h-14 text-base font-semibold gap-2"
+                onClick={() => solicitarMut.mutate("CUENTA")}
+                disabled={solicitarMut.isPending}
+              >
+                <CreditCard className="h-5 w-5" />
+                Pedir la cuenta
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="lg"
+              className="w-full h-14 text-base font-semibold gap-2"
+              onClick={() => mut.mutate()}
+              disabled={mut.isPending || ocupada}
+              variant={ocupada ? "secondary" : "default"}
+            >
+              {mut.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Bell className="h-5 w-5" />
+              )}
+              {ocupada ? "Mesero notificado" : "Llamar mesero"}
+            </Button>
+          )}
         </div>
       </div>
+
     </main>
   );
 }
