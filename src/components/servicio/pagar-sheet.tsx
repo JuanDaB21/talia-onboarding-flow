@@ -85,9 +85,16 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const selectAll = () => setSelected(new Set(pendientes.map((i) => i.id_item)));
   const clear = () => setSelected(new Set());
 
+  type PagarInput = {
+    idMesa: string;
+    metodo: Metodo;
+    subtipo: string | null;
+    voucher: string | null;
+    urlComprobante: string | null;
+    itemIds: string[];
+  };
   const pagarMut = useMutation({
-    mutationFn: (input: Parameters<typeof pagarFn>[0]["data"]) =>
-      pagarFn({ data: input }),
+    mutationFn: (input: PagarInput) => pagarFn({ data: input }),
     onSuccess: (_res, vars) => {
       const esTransfer = vars.metodo === "TRANSFERENCIA";
       toast.success(
