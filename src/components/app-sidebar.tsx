@@ -83,6 +83,12 @@ const CONFIG_NAV = [
   { to: "/configuracion/mesas", label: "Mesas", icon: Utensils },
 ] as const;
 
+const ADMIN_NAV = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/operacion", label: "Operación", icon: Activity },
+  { to: "/caja", label: "Caja", icon: Wallet },
+] as const;
+
 function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
     return {
