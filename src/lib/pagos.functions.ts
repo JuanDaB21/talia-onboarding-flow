@@ -208,11 +208,21 @@ export const listarPagosPendientes = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("pagos")
       .select(
-        "id_pago, id_mesa, id_mesero, metodo, subtipo, monto, url_comprobante, created_at, mesas:id_mesa(identificador)",
+        "id_pago, id_mesa, id_mesero, metodo, subtipo, monto, url_comprobante, created_at",
       )
       .eq("estado_confirmacion", "PENDIENTE")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+
+    const mesaIds = Array.from(new Set((data ?? []).map((p) => p.id_mesa)));
+    const mesasMap = new Map<string, string>();
+    if (mesaIds.length > 0) {
+      const { data: ms } = await supabase
+        .from("mesas")
+        .select("id_mesa, identificador")
+        .in("id_mesa", mesaIds);
+      (ms ?? []).forEach((m) => mesasMap.set(m.id_mesa, m.identificador));
+    }
 
     const meseroIds = Array.from(
       new Set((data ?? []).map((p) => p.id_mesero).filter(Boolean) as string[]),
