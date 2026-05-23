@@ -1,31 +1,65 @@
-# Cierre manual de pedido
+# Turnos y acceso por rol
 
-Cambiar el auto-cierre actual por un botón explícito **"Cerrar y liberar mesa"** que el mesero pulsa cuando ya no quedan items ni pagos pendientes.
+Añadir un sistema de turnos (Iniciar/Finalizar) para MESERO, COCINA y BARRA, con bloqueo de las pantallas operativas si el usuario no está en turno, y restringir el sidebar para que cada rol solo vea sus módulos.
 
 ## Backend
 
-**Migración:**
-- Quitar el bloque de auto-cierre dentro de `registrar_pago` y `confirmar_pago_transferencia` (la mesa ya no se libera sola). El estado del pedido sigue actualizándose a `PARCIAL` / items marcados `pagado_at`.
-- Nueva RPC `cerrar_mesa(p_id_mesa uuid)` (SECURITY DEFINER) que valida:
-  1. La mesa pertenece al negocio del caller.
-  2. No existen `pedido_items` sin `pagado_at` en pedidos no PAGADO → si hay, error "Quedan items sin cobrar".
-  3. No existen `pagos` con `estado_confirmacion = 'PENDIENTE'` para esa mesa → si hay, error "Hay transferencias por confirmar".
-  4. Marca todos los pedidos abiertos como `PAGADO` + `pagado_at = now()`.
-  5. Marca la mesa `LIBRE` y limpia `id_mesero_asignado`, `asignada_at`, `solicitud_*`, set `liberada_at`.
+**Migración SQL:**
+- RPC `iniciar_turno()` (SECURITY DEFINER, sin parámetros): toma `auth.uid()`, valida que el usuario sea staff del negocio y rol ∈ (MESERO, COCINA, BARRA, ADMIN), set `esta_en_turno = true`. Idempotente.
+- RPC `finalizar_turno()`:
+  1. Si rol = MESERO → cuenta mesas con `id_mesero_asignado = uid` y `estado <> 'LIBRE'`. Si > 0 → error `"No puedes salir de turno: tienes N mesa(s) con cuenta abierta"`.
+  2. Set `esta_en_turno = false`.
+- Nueva columna opcional `usuarios_staff.turno_iniciado_at timestamptz` para registro histórico (se actualiza en iniciar/finalizar, queda en NULL cuando está fuera de turno).
 
-**Server function (`src/lib/pagos.functions.ts`):**
-- `cerrarMesa({ idMesa })` que llama `rpc('cerrar_mesa')`.
-- Extender `listarItemsCobrables` para devolver también `pendientesPago` (count de pagos PENDIENTE de la mesa) y `puedeCerrar` (boolean).
+**Server functions (`src/lib/turno.functions.ts`, nuevo):**
+- `iniciarTurno()` → `rpc('iniciar_turno')`.
+- `finalizarTurno()` → `rpc('finalizar_turno')`, devuelve también lista de mesas bloqueantes cuando falla (consulta auxiliar antes de llamar la RPC para mostrar al usuario).
+- `getMiStaff()` → devuelve `{ rol, esta_en_turno, turno_iniciado_at, nombre }` del usuario actual desde `usuarios_staff`.
 
 ## Frontend
 
-**`src/routes/_app.servicio.$idMesa.tsx`:**
-- En el footer/acciones de la mesa, junto al botón "Pagar", añadir botón **"Cerrar y liberar mesa"**.
-  - Visible siempre cuando hay pedidos abiertos.
-  - Deshabilitado con tooltip explicando el motivo cuando: `totalPendiente > 0` ("Faltan items por cobrar") o `pendientesPago > 0` ("Hay transferencias por confirmar").
-  - Habilitado en verde cuando todo OK.
-- AlertDialog de confirmación → llama `cerrarMesa` → toast "Mesa liberada" → navegar a `/servicio`.
+**`src/hooks/use-mi-staff.ts` (nuevo):**
+- Hook con `useQuery(['mi-staff'])` que llama `getMiStaff`. Expone `{ rol, enTurno, loading, refetch }`. Se invalida tras iniciar/finalizar turno.
 
-## Fix paralelo (silencioso)
+**Gate de turno (`src/components/turno/turno-gate.tsx`, nuevo):**
+- Wrapper que recibe `rolesRequeridos: ('MESERO'|'COCINA'|'BARRA')[]` y children.
+- Si rol = ADMIN → pasa directo (admin no necesita turno).
+- Si rol no incluido → redirige a `/` con toast "Sin acceso".
+- Si rol incluido y `enTurno = false` → renderiza pantalla bloqueante con: icono grande, "Inicia tu turno para continuar", botón "Iniciar turno" que llama `iniciarTurno` + invalida hook + toast.
+- Si `enTurno = true` → renderiza children.
 
-En `listarPagosPendientes`, reemplazar el embed `mesas:id_mesa(identificador)` por un segundo query manual a `mesas` por `in('id_mesa', ids)` (resuelve el error "Could not find a relationship between 'pagos' and 'id_mesa'" por falta de FK declarada).
+**Aplicar gate:**
+- `src/routes/_app.servicio.tsx` → envolver `<Outlet/>` con `<TurnoGate rolesRequeridos={['MESERO']}>`.
+- `src/routes/_app.cocina.tsx` → `<TurnoGate rolesRequeridos={['COCINA']}>` alrededor del KanbanBoard.
+- `src/routes/_app.barra.tsx` → `<TurnoGate rolesRequeridos={['BARRA']}>` alrededor del KanbanBoard.
+
+**Sidebar por rol (`src/components/app-sidebar.tsx`):**
+- Leer rol con `useMiStaff`.
+- Mostrar grupos según matriz:
+  - ADMIN: todos los grupos actuales.
+  - MESERO: solo grupo "Servicio".
+  - COCINA: solo grupo "Preparación" → item Cocina.
+  - BARRA: solo grupo "Preparación" → item Barra.
+- En el footer del perfil añadir, debajo de "Cerrar sesión", un item dinámico:
+  - Si rol ≠ ADMIN y `enTurno = false` → **"Iniciar turno"** (verde) → llama `iniciarTurno`.
+  - Si rol ≠ ADMIN y `enTurno = true` → **"Finalizar turno"** (rojo) → AlertDialog confirmando; si la RPC falla con mesas pendientes, muestra el conteo y bloquea.
+  - Mostrar también badge "En turno desde HH:mm" cuando aplica.
+
+**Redirección de entrada (`src/routes/_app.tsx`):**
+- Tras validar sesión, si rol = MESERO redirigir a `/servicio`, COCINA → `/cocina`, BARRA → `/barra`, ADMIN se queda en `/dashboard` (comportamiento actual).
+- Solo redirigir cuando el path actual es `/dashboard` o no pertenece a las rutas permitidas del rol.
+
+## Resumen del flujo final
+
+```text
+Login → _app valida sesión → lee rol
+  ├─ ADMIN  → /dashboard, sidebar completo
+  ├─ MESERO → /servicio  → TurnoGate → si fuera de turno: pantalla "Iniciar turno"
+  ├─ COCINA → /cocina    → TurnoGate (idem)
+  └─ BARRA  → /barra     → TurnoGate (idem)
+
+Footer perfil: botón Iniciar/Finalizar turno (no ADMIN)
+Finalizar MESERO con mesas activas → bloqueado con mensaje
+```
+
+La lógica de asignación automática ya respeta `esta_en_turno` (RPC `asignar_mesero_a_mesa` existente), así que al cambiar este flag el algoritmo se ajusta solo.
