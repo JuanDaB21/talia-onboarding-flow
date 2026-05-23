@@ -215,6 +215,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
         {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
         {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.servicio && renderGroup("Servicio", SERVICIO_NAV)}
