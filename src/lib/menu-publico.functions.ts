@@ -102,3 +102,52 @@ export const llamarMesero = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+const solicitudSchema = z.object({
+  idMesa: z.string().uuid(),
+  tipo: z.enum(["PEDIR_MAS", "CUENTA"]),
+});
+
+export interface EstadoMesaPublico {
+  id_mesa: string;
+  identificador: string;
+  estado: string;
+  tiene_pedido_activo: boolean;
+}
+
+export const getEstadoMesaPublico = createServerFn({ method: "POST" })
+  .inputValidator((input) => idMesaSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { data: mesa, error } = await supabaseAdmin
+      .from("mesas")
+      .select("id_mesa, identificador, estado")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+
+    const { count } = await supabaseAdmin
+      .from("pedidos")
+      .select("id_pedido", { count: "exact", head: true })
+      .eq("id_mesa", data.idMesa)
+      .eq("estado", "CONFIRMADO");
+
+    const out: EstadoMesaPublico = {
+      id_mesa: mesa.id_mesa,
+      identificador: mesa.identificador,
+      estado: mesa.estado,
+      tiene_pedido_activo: (count ?? 0) > 0,
+    };
+    return out;
+  });
+
+export const solicitarAccionCliente = createServerFn({ method: "POST" })
+  .inputValidator((input) => solicitudSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { error } = await supabaseAdmin.rpc("solicitar_accion_cliente", {
+      p_id_mesa: data.idMesa,
+      p_tipo: data.tipo,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

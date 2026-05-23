@@ -2,14 +2,17 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, ImageIcon, Loader2 } from "lucide-react";
+import { Bell, CreditCard, ImageIcon, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   getMenuPublico,
   llamarMesero,
+  getEstadoMesaPublico,
+  solicitarAccionCliente,
   type CartaProducto,
 } from "@/lib/menu-publico.functions";
+
 
 export const Route = createFileRoute("/carta/$idMesa")({
   head: () => ({
@@ -35,10 +38,19 @@ function CartaPage() {
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
+  const getEstado = useServerFn(getEstadoMesaPublico);
+  const solicitar = useServerFn(solicitarAccionCliente);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
     queryFn: () => getMenu({ data: { idMesa } }),
+    retry: false,
+  });
+
+  const estadoQ = useQuery({
+    queryKey: ["estadoMesaPublico", idMesa],
+    queryFn: () => getEstado({ data: { idMesa } }),
+    refetchInterval: 15000,
     retry: false,
   });
 
@@ -54,6 +66,24 @@ function CartaPage() {
       });
     },
   });
+
+  const solicitarMut = useMutation({
+    mutationFn: (tipo: "PEDIR_MAS" | "CUENTA") =>
+      solicitar({ data: { idMesa, tipo } }),
+    onSuccess: (_, tipo) => {
+      toast.success(
+        tipo === "CUENTA"
+          ? "Pedimos la cuenta a tu mesero 🧾"
+          : "Le avisamos a tu mesero que quieres pedir más ➕",
+      );
+    },
+    onError: (e) => {
+      toast.error("No se pudo enviar la solicitud", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    },
+  });
+
 
   const productosFiltrados = useMemo(() => {
     if (!data) return [];
@@ -148,22 +178,47 @@ function CartaPage() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="mx-auto max-w-2xl p-3">
-          <Button
-            size="lg"
-            className="w-full h-14 text-base font-semibold gap-2"
-            onClick={() => mut.mutate()}
-            disabled={mut.isPending || ocupada}
-            variant={ocupada ? "secondary" : "default"}
-          >
-            {mut.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Bell className="h-5 w-5" />
-            )}
-            {ocupada ? "Mesero notificado" : "Llamar mesero"}
-          </Button>
+          {estadoQ.data?.tiene_pedido_activo ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 text-base font-semibold gap-2"
+                onClick={() => solicitarMut.mutate("PEDIR_MAS")}
+                disabled={solicitarMut.isPending}
+              >
+                <Plus className="h-5 w-5" />
+                Pedir más
+              </Button>
+              <Button
+                size="lg"
+                className="h-14 text-base font-semibold gap-2"
+                onClick={() => solicitarMut.mutate("CUENTA")}
+                disabled={solicitarMut.isPending}
+              >
+                <CreditCard className="h-5 w-5" />
+                Pedir la cuenta
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="lg"
+              className="w-full h-14 text-base font-semibold gap-2"
+              onClick={() => mut.mutate()}
+              disabled={mut.isPending || ocupada}
+              variant={ocupada ? "secondary" : "default"}
+            >
+              {mut.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Bell className="h-5 w-5" />
+              )}
+              {ocupada ? "Mesero notificado" : "Llamar mesero"}
+            </Button>
+          )}
         </div>
       </div>
+
     </main>
   );
 }

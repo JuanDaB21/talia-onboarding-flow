@@ -66,9 +66,11 @@ export function ItemEditorSheet({
     onSuccess: () => {
       toast.success("Producto agregado");
       qc.invalidateQueries({ queryKey: ["mesaPedido"] });
+      qc.invalidateQueries({ queryKey: ["mesaSesion"] });
       reset();
       onOpenChange(false);
     },
+
     onError: (e) =>
       toast.error("No se pudo agregar", {
         description: e instanceof Error ? e.message : undefined,
