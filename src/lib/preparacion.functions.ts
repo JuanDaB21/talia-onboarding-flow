@@ -7,6 +7,10 @@ const avanzarSchema = z.object({
   idItem: z.string().uuid(),
   nuevoEstado: z.enum(["EN_PREPARACION", "LISTO", "ENTREGADO"]),
 });
+const iniciarComandaSchema = z.object({
+  idPedido: z.string().uuid(),
+  destino: z.enum(["COCINA", "BARRA"]),
+});
 
 export interface ItemPreparacion {
   id_item: string;
@@ -28,13 +32,21 @@ export interface ItemPreparacion {
   exclusiones: { nombre: string }[];
 }
 
-export const listarItemsEstacion = createServerFn({ method: "POST" })
+export interface ComandaEstacion {
+  id_pedido: string;
+  mesa_identificador: string;
+  pedido_created_at: string;
+  items: ItemPreparacion[];
+}
+
+export const listarComandasEstacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => destinoSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const { data: items, error } = await supabase
+    // Items activos (no entregados) de pedidos confirmados
+    const { data: itemsActivos, error: errActivos } = await supabase
       .from("pedido_items")
       .select(
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
@@ -47,9 +59,29 @@ export const listarItemsEstacion = createServerFn({ method: "POST" })
       .eq("pedidos.estado", "CONFIRMADO")
       .order("created_at", { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (errActivos) throw new Error(errActivos.message);
 
-    const itemIds = (items ?? []).map((i) => i.id_item);
+    // Items entregados recientes (última hora) para columna de feedback
+    const haceUnaHora = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: itemsEntregados, error: errEntregados } = await supabase
+      .from("pedido_items")
+      .select(
+        `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
+         estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
+         productos:id_producto(nombre_producto),
+         pedidos!inner(id_pedido, estado, created_at, id_mesa, mesas:id_mesa(identificador))`,
+      )
+      .eq("destino", data.destino)
+      .eq("estado_preparacion", "ENTREGADO")
+      .gte("entregado_at", haceUnaHora)
+      .order("entregado_at", { ascending: false })
+      .limit(50);
+
+    if (errEntregados) throw new Error(errEntregados.message);
+
+    const todosItems = [...(itemsActivos ?? []), ...(itemsEntregados ?? [])];
+    const itemIds = todosItems.map((i) => i.id_item);
+
     const [{ data: extras }, { data: excl }] = await Promise.all([
       itemIds.length
         ? supabase
@@ -65,7 +97,6 @@ export const listarItemsEstacion = createServerFn({ method: "POST" })
         : Promise.resolve({ data: [] as unknown[] }),
     ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const extrasByItem = new Map<string, { nombre: string; cantidad: number }[]>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (extras as any[] | null)?.forEach((e) => {
@@ -81,11 +112,10 @@ export const listarItemsEstacion = createServerFn({ method: "POST" })
       exclByItem.set(e.id_item, arr);
     });
 
-    const out: ItemPreparacion[] = (items ?? []).map((i) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p: any = (i as any).pedidos;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prod: any = (i as any).productos;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapItem = (i: any): ItemPreparacion => {
+      const p = i.pedidos;
+      const prod = i.productos;
       return {
         id_item: i.id_item,
         id_pedido: i.id_pedido,
@@ -105,9 +135,31 @@ export const listarItemsEstacion = createServerFn({ method: "POST" })
         extras: extrasByItem.get(i.id_item) ?? [],
         exclusiones: exclByItem.get(i.id_item) ?? [],
       };
+    };
+
+    // Agrupar por pedido
+    const grupos = new Map<string, ComandaEstacion>();
+    todosItems.forEach((raw) => {
+      const it = mapItem(raw);
+      let g = grupos.get(it.id_pedido);
+      if (!g) {
+        g = {
+          id_pedido: it.id_pedido,
+          mesa_identificador: it.mesa_identificador,
+          pedido_created_at: it.pedido_created_at,
+          items: [],
+        };
+        grupos.set(it.id_pedido, g);
+      }
+      g.items.push(it);
     });
 
-    return { items: out };
+    const comandas = Array.from(grupos.values()).sort(
+      (a, b) =>
+        new Date(a.pedido_created_at).getTime() - new Date(b.pedido_created_at).getTime(),
+    );
+
+    return { comandas };
   });
 
 export const avanzarItem = createServerFn({ method: "POST" })
@@ -121,4 +173,17 @@ export const avanzarItem = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const iniciarComanda = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => iniciarComandaSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: count, error } = await supabase.rpc("iniciar_comanda_estacion", {
+      p_id_pedido: data.idPedido,
+      p_destino: data.destino,
+    });
+    if (error) throw new Error(error.message);
+    return { iniciados: Number(count ?? 0) };
   });
