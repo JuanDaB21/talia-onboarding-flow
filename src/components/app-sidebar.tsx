@@ -13,6 +13,7 @@ import {
   Package,
   Users,
   Utensils,
+  ConciergeBell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -51,6 +52,10 @@ const MENU_NAV = [
   { to: "/menu/categorias", label: "Categorías", icon: FolderTree },
   { to: "/menu/recetas", label: "Recetas", icon: BookOpen },
   { to: "/menu/productos", label: "Productos", icon: Package },
+] as const;
+
+const SERVICIO_NAV = [
+  { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
 ] as const;
 
 const CONFIG_NAV = [
