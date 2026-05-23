@@ -92,6 +92,7 @@ const ADMIN_NAV = [
 function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
     return {
+      admin: true,
       bodega: true,
       menu: true,
       servicio: true,
@@ -101,6 +102,7 @@ function gruposPorRol(rol: Rol | null) {
     };
   }
   return {
+    admin: false,
     bodega: false,
     menu: false,
     servicio: rol === "MESERO",
