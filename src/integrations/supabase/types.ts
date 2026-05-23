@@ -427,6 +427,86 @@ export type Database = {
         }
         Relationships: []
       }
+      pago_items: {
+        Row: {
+          created_at: string
+          id_item: string
+          id_pago: string
+          id_pi: string
+          monto: number
+        }
+        Insert: {
+          created_at?: string
+          id_item: string
+          id_pago: string
+          id_pi?: string
+          monto?: number
+        }
+        Update: {
+          created_at?: string
+          id_item?: string
+          id_pago?: string
+          id_pi?: string
+          monto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pago_items_id_pago_fkey"
+            columns: ["id_pago"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id_pago"]
+          },
+        ]
+      }
+      pagos: {
+        Row: {
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          estado_confirmacion: Database["public"]["Enums"]["estado_pago"]
+          id_mesa: string
+          id_mesero: string | null
+          id_negocio: string
+          id_pago: string
+          metodo: Database["public"]["Enums"]["metodo_pago"]
+          monto: number
+          subtipo: string | null
+          url_comprobante: string | null
+          voucher: string | null
+        }
+        Insert: {
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado_confirmacion?: Database["public"]["Enums"]["estado_pago"]
+          id_mesa: string
+          id_mesero?: string | null
+          id_negocio: string
+          id_pago?: string
+          metodo: Database["public"]["Enums"]["metodo_pago"]
+          monto: number
+          subtipo?: string | null
+          url_comprobante?: string | null
+          voucher?: string | null
+        }
+        Update: {
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado_confirmacion?: Database["public"]["Enums"]["estado_pago"]
+          id_mesa?: string
+          id_mesero?: string | null
+          id_negocio?: string
+          id_pago?: string
+          metodo?: Database["public"]["Enums"]["metodo_pago"]
+          monto?: number
+          subtipo?: string | null
+          url_comprobante?: string | null
+          voucher?: string | null
+        }
+        Relationships: []
+      }
       pedido_item_exclusiones: {
         Row: {
           id_insumo: string
@@ -507,11 +587,13 @@ export type Database = {
           entregado_at: string | null
           estado_preparacion: string
           id_item: string
+          id_pago: string | null
           id_pedido: string
           id_producto: string
           iniciado_at: string | null
           listo_at: string | null
           nota: string | null
+          pagado_at: string | null
           precio_unitario: number
           tiempo_planeado_min: number | null
           tiene_alergia: boolean
@@ -523,11 +605,13 @@ export type Database = {
           entregado_at?: string | null
           estado_preparacion?: string
           id_item?: string
+          id_pago?: string | null
           id_pedido: string
           id_producto: string
           iniciado_at?: string | null
           listo_at?: string | null
           nota?: string | null
+          pagado_at?: string | null
           precio_unitario?: number
           tiempo_planeado_min?: number | null
           tiene_alergia?: boolean
@@ -539,11 +623,13 @@ export type Database = {
           entregado_at?: string | null
           estado_preparacion?: string
           id_item?: string
+          id_pago?: string | null
           id_pedido?: string
           id_producto?: string
           iniciado_at?: string | null
           listo_at?: string | null
           nota?: string | null
+          pagado_at?: string | null
           precio_unitario?: number
           tiempo_planeado_min?: number | null
           tiene_alergia?: boolean
@@ -959,6 +1045,10 @@ export type Database = {
         Returns: string
       }
       cerrar_cuenta_mesa: { Args: { p_id_mesa: string }; Returns: number }
+      confirmar_pago_transferencia: {
+        Args: { p_aprobar: boolean; p_id_pago: string }
+        Returns: undefined
+      }
       confirmar_pedido: { Args: { p_id_pedido: string }; Returns: undefined }
       crear_pedido_para_mesa: { Args: { p_id_mesa: string }; Returns: string }
       crear_receta:
@@ -1043,19 +1133,33 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_pago: {
+        Args: {
+          p_id_mesa: string
+          p_item_ids: string[]
+          p_metodo: Database["public"]["Enums"]["metodo_pago"]
+          p_subtipo: string
+          p_url_comprobante: string
+          p_voucher: string
+        }
+        Returns: string
+      }
       solicitar_accion_cliente: {
         Args: { p_id_mesa: string; p_tipo: string }
         Returns: undefined
       }
     }
     Enums: {
+      estado_pago: "CONFIRMADO" | "PENDIENTE" | "RECHAZADO"
       estado_pedido:
         | "ABIERTO"
         | "CONFIRMADO"
         | "CERRADO"
         | "CANCELADO"
         | "PAGADO"
+        | "PARCIAL"
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
+      metodo_pago: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO"
       rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA"
     }
     CompositeTypes: {
@@ -1184,14 +1288,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      estado_pago: ["CONFIRMADO", "PENDIENTE", "RECHAZADO"],
       estado_pedido: [
         "ABIERTO",
         "CONFIRMADO",
         "CERRADO",
         "CANCELADO",
         "PAGADO",
+        "PARCIAL",
       ],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
+      metodo_pago: ["EFECTIVO", "TRANSFERENCIA", "DATAFONO"],
       rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA"],
     },
   },
