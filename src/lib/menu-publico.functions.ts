@@ -82,10 +82,23 @@ export const getMenuPublico = createServerFn({ method: "GET" })
 export const llamarMesero = createServerFn({ method: "POST" })
   .inputValidator((input) => idMesaSchema.parse(input))
   .handler(async ({ data }) => {
+    const { data: mesa, error: mErr } = await supabaseAdmin
+      .from("mesas")
+      .select("id_mesa, id_mesero_asignado")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+
     const { error } = await supabaseAdmin
       .from("mesas")
       .update({ estado: "OCUPADA" })
       .eq("id_mesa", data.idMesa);
     if (error) throw new Error(error.message);
+
+    if (!mesa.id_mesero_asignado) {
+      // Intento de asignación; si no hay meseros en turno, queda NULL.
+      await supabaseAdmin.rpc("asignar_mesero_a_mesa", { p_id_mesa: data.idMesa });
+    }
     return { ok: true };
   });
