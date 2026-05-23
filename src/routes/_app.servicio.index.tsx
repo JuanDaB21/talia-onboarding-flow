@@ -1,13 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck } from "lucide-react";
+import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { listarMesasServicio, type MesaServicio } from "@/lib/servicio.functions";
+import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
+import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
 
 export const Route = createFileRoute("/_app/servicio/")({
   head: () => ({ meta: [{ title: "Servicio — Mesas" }] }),
@@ -93,16 +97,58 @@ function ServicioIndex() {
     prevListoRef.current = ahora;
   }, [data?.mesas]);
 
+  const [pagosOpen, setPagosOpen] = useState(false);
+  const pagosFn = useServerFn(listarPagosPendientes);
+  const pagosQ = useQuery({
+    queryKey: ["pagos", "pendientes", "badge"],
+    queryFn: () => pagosFn(),
+    refetchInterval: 20_000,
+    enabled: !!data?.esAdmin,
+  });
+  // Realtime: refrescar badge cuando llegue/cambie un pago
+  useEffect(() => {
+    if (!data?.esAdmin) return;
+    const ch = supabase
+      .channel("pagos-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
+        pagosQ.refetch();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [data?.esAdmin, pagosQ]);
+  const pendCount = pagosQ.data?.pagos.length ?? 0;
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Mesas en servicio</h1>
-        <p className="text-sm text-muted-foreground">
-          {data?.esAdmin
-            ? "Vista de todas las mesas del local."
-            : "Mesas asignadas a ti."}
-        </p>
+      <header className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Mesas en servicio</h1>
+          <p className="text-sm text-muted-foreground">
+            {data?.esAdmin
+              ? "Vista de todas las mesas del local."
+              : "Mesas asignadas a ti."}
+          </p>
+        </div>
+        {data?.esAdmin && (
+          <Button
+            variant={pendCount > 0 ? "default" : "outline"}
+            onClick={() => setPagosOpen(true)}
+            className="gap-2"
+          >
+            <Wallet className="h-4 w-4" />
+            Pagos por confirmar
+            {pendCount > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {pendCount}
+              </Badge>
+            )}
+          </Button>
+        )}
       </header>
+
+      {!data?.esAdmin && <CajaTurnoCard />}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -120,6 +166,8 @@ function ServicioIndex() {
           ))}
         </div>
       )}
+
+      <PagosPendientesSheet open={pagosOpen} onOpenChange={setPagosOpen} />
     </div>
   );
 }

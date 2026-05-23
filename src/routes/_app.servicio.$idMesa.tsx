@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,16 +23,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   obtenerMesaSesion,
@@ -41,7 +31,6 @@ import {
   confirmarPedido,
   iniciarNuevoPedido,
   marcarPedidoEntregado,
-  cerrarCuentaMesa,
   marcarSeguimientoVisto,
   limpiarSolicitudCliente,
   type PedidoSesion,
@@ -54,6 +43,7 @@ import {
   EditarItemDialog,
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
+import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { cn } from "@/lib/utils";
 
@@ -79,14 +69,13 @@ function formatHora(s: string | null) {
 function MesaEnServicio() {
   const { idMesa } = Route.useParams();
   const qc = useQueryClient();
-  const navigate = useNavigate();
+  
 
   const getMesa = useServerFn(obtenerMesaSesion);
   const delFn = useServerFn(eliminarItem);
   const confFn = useServerFn(confirmarPedido);
   const newFn = useServerFn(iniciarNuevoPedido);
   const entregaFn = useServerFn(marcarPedidoEntregado);
-  const pagarFn = useServerFn(cerrarCuentaMesa);
   const limpiarSolFn = useServerFn(limpiarSolicitudCliente);
   const segFn = useServerFn(marcarSeguimientoVisto);
 
@@ -223,20 +212,7 @@ function MesaEnServicio() {
       }),
   });
 
-  const [confirmPagar, setConfirmPagar] = useState(false);
-  const pagarMut = useMutation({
-    mutationFn: () => pagarFn({ data: { idMesa } }),
-    onSuccess: (r) => {
-      toast.success(`Cuenta cerrada: ${fmt.format(r.total)}`);
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
-      navigate({ to: "/servicio" });
-    },
-    onError: (e) =>
-      toast.error("No se pudo cerrar la cuenta", {
-        description: e instanceof Error ? e.message : undefined,
-      }),
-  });
+  const [pagarOpen, setPagarOpen] = useState(false);
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
@@ -282,8 +258,8 @@ function MesaEnServicio() {
 
       <MesaHeader
         mesa={mesa}
-        onPagar={() => setConfirmPagar(true)}
-        pagando={pagarMut.isPending}
+        onPagar={() => setPagarOpen(true)}
+        pagando={false}
       />
 
       {/* Pedidos confirmados */}
@@ -345,26 +321,7 @@ function MesaEnServicio() {
         titulo="Agregar a la comanda"
       />
 
-      <AlertDialog open={confirmPagar} onOpenChange={setConfirmPagar}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cerrar cuenta de la mesa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Total a cobrar:{" "}
-              <span className="font-bold text-foreground">
-                {fmt.format(mesa.total_mesa)}
-              </span>
-              . La mesa quedará libre y los pedidos se marcarán como pagados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pagarMut.mutate()}>
-              Cobrar y cerrar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
     </div>
   );
 }
