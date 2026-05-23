@@ -2,14 +2,17 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, ImageIcon, Loader2 } from "lucide-react";
+import { Bell, CreditCard, ImageIcon, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   getMenuPublico,
   llamarMesero,
+  getEstadoMesaPublico,
+  solicitarAccionCliente,
   type CartaProducto,
 } from "@/lib/menu-publico.functions";
+
 
 export const Route = createFileRoute("/carta/$idMesa")({
   head: () => ({
