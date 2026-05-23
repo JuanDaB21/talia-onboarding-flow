@@ -13,7 +13,10 @@ const editItemSchema = z.object({
   nota: z.string().max(500).optional().nullable(),
 });
 
+const addItemSchema = z.object({
   idPedido: z.string().uuid(),
+  idProducto: z.string().uuid(),
+
   idProducto: z.string().uuid(),
   cantidad: z.number().positive().max(999),
   tieneAlergia: z.boolean(),
