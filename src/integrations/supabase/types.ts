@@ -551,7 +551,15 @@ export type Database = {
           total?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_id_mesa_fkey"
+            columns: ["id_mesa"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id_mesa"]
+          },
+        ]
       }
       productos: {
         Row: {
