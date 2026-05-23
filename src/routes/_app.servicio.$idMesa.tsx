@@ -268,8 +268,8 @@ function MesaEnServicio() {
 
       <MesaHeader
         mesa={mesa}
-        onPagar={() => setConfirmPagar(true)}
-        pagando={pagarMut.isPending}
+        onPagar={() => setPagarOpen(true)}
+        pagando={false}
       />
 
       {/* Pedidos confirmados */}
