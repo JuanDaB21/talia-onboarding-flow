@@ -360,6 +360,38 @@ function MesaEnServicio() {
       />
 
       <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
+
+      <AlertDialog open={cerrarOpen} onOpenChange={setCerrarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar y liberar la mesa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción marcará todos los pedidos como pagados y dejará la mesa
+              libre. No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrarMut.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                cerrarMut.mutate();
+              }}
+              disabled={cerrarMut.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {cerrarMut.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LockKeyhole className="h-4 w-4 mr-2" />
+              )}
+              Cerrar mesa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
