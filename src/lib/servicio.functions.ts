@@ -37,6 +37,9 @@ export interface MesaServicio {
   id_mesero_asignado: string | null;
   asignada_at: string | null;
   mesero_nombre: string | null;
+  solicitud_cliente: string | null;
+  alerta_listo: boolean;
+  alerta_seguimiento: boolean;
 }
 
 export const listarMesasServicio = createServerFn({ method: "GET" })
@@ -44,7 +47,6 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    // ¿usuario es admin?
     const { data: yo } = await supabase
       .from("usuarios_staff")
       .select("rol")
@@ -54,7 +56,9 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
 
     let q = supabase
       .from("mesas")
-      .select("id_mesa, identificador, estado, id_mesero_asignado, asignada_at")
+      .select(
+        "id_mesa, identificador, estado, id_mesero_asignado, asignada_at, solicitud_cliente",
+      )
       .order("identificador");
     if (!esAdmin) {
       q = q.eq("id_mesero_asignado", userId);
@@ -74,6 +78,45 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
       (ms ?? []).forEach((m) => nombres.set(m.id_usuario, m.nombre));
     }
 
+    const mesaIds = (mesas ?? []).map((m) => m.id_mesa);
+    const listoSet = new Set<string>();
+    const seguimientoSet = new Set<string>();
+
+    if (mesaIds.length > 0) {
+      // Mesas con items LISTO esperando recogida
+      const { data: pedidosActivos } = await supabase
+        .from("pedidos")
+        .select("id_pedido, id_mesa, entregado_at, seguimiento_visto_at, estado")
+        .in("id_mesa", mesaIds)
+        .neq("estado", "PAGADO");
+
+      const pedidoToMesa = new Map<string, string>();
+      const haceMediaHora = Date.now() - 30 * 60 * 1000;
+      (pedidosActivos ?? []).forEach((p) => {
+        pedidoToMesa.set(p.id_pedido, p.id_mesa);
+        if (
+          p.entregado_at &&
+          !p.seguimiento_visto_at &&
+          new Date(p.entregado_at).getTime() < haceMediaHora
+        ) {
+          seguimientoSet.add(p.id_mesa);
+        }
+      });
+
+      const pedidoIds = Array.from(pedidoToMesa.keys());
+      if (pedidoIds.length > 0) {
+        const { data: itemsListos } = await supabase
+          .from("pedido_items")
+          .select("id_pedido")
+          .in("id_pedido", pedidoIds)
+          .eq("estado_preparacion", "LISTO");
+        (itemsListos ?? []).forEach((i) => {
+          const mid = pedidoToMesa.get(i.id_pedido);
+          if (mid) listoSet.add(mid);
+        });
+      }
+    }
+
     const out: MesaServicio[] = (mesas ?? []).map((m) => ({
       id_mesa: m.id_mesa,
       identificador: m.identificador,
@@ -81,9 +124,13 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
       id_mesero_asignado: m.id_mesero_asignado,
       asignada_at: m.asignada_at,
       mesero_nombre: m.id_mesero_asignado ? nombres.get(m.id_mesero_asignado) ?? null : null,
+      solicitud_cliente: m.solicitud_cliente,
+      alerta_listo: listoSet.has(m.id_mesa),
+      alerta_seguimiento: seguimientoSet.has(m.id_mesa),
     }));
     return { mesas: out, esAdmin, userId };
   });
+
 
 export const obtenerMesaPedido = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
