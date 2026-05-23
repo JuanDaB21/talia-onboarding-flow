@@ -109,6 +109,78 @@ export const registrarPago = createServerFn({ method: "POST" })
     return { idPago: id as string };
   });
 
+export const cerrarMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("cerrar_mesa", { p_id_mesa: data.idMesa });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export interface EstadoCierreMesa {
+  items_pendientes: number;
+  monto_pendiente: number;
+  pagos_pendientes: number;
+  hay_pedidos: boolean;
+  puede_cerrar: boolean;
+}
+
+export const estadoCierreMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }): Promise<EstadoCierreMesa> => {
+    const { supabase } = context;
+    const { data: pedidos } = await supabase
+      .from("pedidos")
+      .select("id_pedido")
+      .eq("id_mesa", data.idMesa)
+      .neq("estado", "PAGADO");
+    const ids = (pedidos ?? []).map((p) => p.id_pedido);
+    let items_pendientes = 0;
+    let monto_pendiente = 0;
+    if (ids.length > 0) {
+      const { data: items } = await supabase
+        .from("pedido_items")
+        .select("id_item, cantidad, precio_unitario, pagado_at")
+        .in("id_pedido", ids)
+        .is("pagado_at", null);
+      const itemIds = (items ?? []).map((i) => i.id_item);
+      const extrasMap = new Map<string, number>();
+      if (itemIds.length > 0) {
+        const { data: ex } = await supabase
+          .from("pedido_item_extras")
+          .select("id_item, precio_extra")
+          .in("id_item", itemIds);
+        (ex ?? []).forEach((e) =>
+          extrasMap.set(e.id_item, (extrasMap.get(e.id_item) ?? 0) + Number(e.precio_extra ?? 0)),
+        );
+      }
+      items_pendientes = items?.length ?? 0;
+      monto_pendiente = (items ?? []).reduce(
+        (a, i) =>
+          a +
+          Number(i.cantidad) * Number(i.precio_unitario) +
+          (extrasMap.get(i.id_item) ?? 0),
+        0,
+      );
+    }
+    const { count: pagos_pendientes } = await supabase
+      .from("pagos")
+      .select("id_pago", { count: "exact", head: true })
+      .eq("id_mesa", data.idMesa)
+      .eq("estado_confirmacion", "PENDIENTE");
+    const pp = pagos_pendientes ?? 0;
+    return {
+      items_pendientes,
+      monto_pendiente,
+      pagos_pendientes: pp,
+      hay_pedidos: ids.length > 0,
+      puede_cerrar: ids.length > 0 && items_pendientes === 0 && pp === 0,
+    };
+  });
+
 export interface PagoPendiente {
   id_pago: string;
   id_mesa: string;
