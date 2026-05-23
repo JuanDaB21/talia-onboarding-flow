@@ -466,33 +466,48 @@ export type Database = {
           cantidad: number
           created_at: string
           destino: string | null
+          entregado_at: string | null
+          estado_preparacion: string
           id_item: string
           id_pedido: string
           id_producto: string
+          iniciado_at: string | null
+          listo_at: string | null
           nota: string | null
           precio_unitario: number
+          tiempo_planeado_min: number | null
           tiene_alergia: boolean
         }
         Insert: {
           cantidad: number
           created_at?: string
           destino?: string | null
+          entregado_at?: string | null
+          estado_preparacion?: string
           id_item?: string
           id_pedido: string
           id_producto: string
+          iniciado_at?: string | null
+          listo_at?: string | null
           nota?: string | null
           precio_unitario?: number
+          tiempo_planeado_min?: number | null
           tiene_alergia?: boolean
         }
         Update: {
           cantidad?: number
           created_at?: string
           destino?: string | null
+          entregado_at?: string | null
+          estado_preparacion?: string
           id_item?: string
           id_pedido?: string
           id_producto?: string
+          iniciado_at?: string | null
+          listo_at?: string | null
           nota?: string | null
           precio_unitario?: number
+          tiempo_planeado_min?: number | null
           tiene_alergia?: boolean
         }
         Relationships: [
@@ -681,6 +696,7 @@ export type Database = {
           id_receta: string
           id_subcategoria: string
           nombre_receta: string
+          tiempo_preparacion_min: number
           updated_at: string
         }
         Insert: {
@@ -691,6 +707,7 @@ export type Database = {
           id_receta?: string
           id_subcategoria: string
           nombre_receta: string
+          tiempo_preparacion_min?: number
           updated_at?: string
         }
         Update: {
@@ -701,6 +718,7 @@ export type Database = {
           id_receta?: string
           id_subcategoria?: string
           nombre_receta?: string
+          tiempo_preparacion_min?: number
           updated_at?: string
         }
         Relationships: [
@@ -812,17 +830,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      actualizar_receta: {
-        Args: {
-          p_descripcion: string
-          p_id_categoria: string
-          p_id_receta: string
-          p_id_subcategoria: string
-          p_ingredientes: Json
-          p_nombre: string
-        }
-        Returns: string
-      }
+      actualizar_receta:
+        | {
+            Args: {
+              p_descripcion: string
+              p_id_categoria: string
+              p_id_receta: string
+              p_id_subcategoria: string
+              p_ingredientes: Json
+              p_nombre: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_descripcion: string
+              p_id_categoria: string
+              p_id_receta: string
+              p_id_subcategoria: string
+              p_ingredientes: Json
+              p_nombre: string
+              p_tiempo_preparacion_min?: number
+            }
+            Returns: string
+          }
       agregar_item_pedido: {
         Args: {
           p_cantidad: number
@@ -844,18 +875,34 @@ export type Database = {
         Returns: number
       }
       asignar_mesero_a_mesa: { Args: { p_id_mesa: string }; Returns: string }
-      confirmar_pedido: { Args: { p_id_pedido: string }; Returns: undefined }
-      crear_pedido_para_mesa: { Args: { p_id_mesa: string }; Returns: string }
-      crear_receta: {
-        Args: {
-          p_descripcion: string
-          p_id_categoria: string
-          p_id_subcategoria: string
-          p_ingredientes: Json
-          p_nombre: string
-        }
+      avanzar_estado_item: {
+        Args: { p_id_item: string; p_nuevo_estado: string }
         Returns: string
       }
+      confirmar_pedido: { Args: { p_id_pedido: string }; Returns: undefined }
+      crear_pedido_para_mesa: { Args: { p_id_mesa: string }; Returns: string }
+      crear_receta:
+        | {
+            Args: {
+              p_descripcion: string
+              p_id_categoria: string
+              p_id_subcategoria: string
+              p_ingredientes: Json
+              p_nombre: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_descripcion: string
+              p_id_categoria: string
+              p_id_subcategoria: string
+              p_ingredientes: Json
+              p_nombre: string
+              p_tiempo_preparacion_min?: number
+            }
+            Returns: string
+          }
       current_user_negocio: { Args: never; Returns: string }
       duplicar_receta: { Args: { p_id_receta: string }; Returns: string }
       eliminar_item_pedido: { Args: { p_id_item: string }; Returns: undefined }
