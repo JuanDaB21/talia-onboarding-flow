@@ -252,8 +252,7 @@ export const listarPagosPendientes = createServerFn({ method: "GET" })
         return {
           id_pago: p.id_pago,
           id_mesa: p.id_mesa,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          identificador_mesa: ((p as any).mesas?.identificador as string) ?? "—",
+          identificador_mesa: mesasMap.get(p.id_mesa) ?? "—",
           mesero_nombre: p.id_mesero ? nombres.get(p.id_mesero) ?? null : null,
           metodo: p.metodo as string,
           subtipo: (p.subtipo as string | null) ?? null,
