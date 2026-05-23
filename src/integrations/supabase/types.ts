@@ -959,6 +959,7 @@ export type Database = {
           id_usuario: string
           nombre: string
           rol: Database["public"]["Enums"]["rol_staff"]
+          turno_iniciado_at: string | null
         }
         Insert: {
           correo: string
@@ -969,6 +970,7 @@ export type Database = {
           id_usuario: string
           nombre: string
           rol: Database["public"]["Enums"]["rol_staff"]
+          turno_iniciado_at?: string | null
         }
         Update: {
           correo?: string
@@ -979,6 +981,7 @@ export type Database = {
           id_usuario?: string
           nombre?: string
           rol?: Database["public"]["Enums"]["rol_staff"]
+          turno_iniciado_at?: string | null
         }
         Relationships: [
           {
@@ -1087,6 +1090,7 @@ export type Database = {
       }
       eliminar_item_pedido: { Args: { p_id_item: string }; Returns: undefined }
       eliminar_receta: { Args: { p_id_receta: string }; Returns: undefined }
+      finalizar_turno: { Args: never; Returns: undefined }
       guardar_extras_producto: {
         Args: { p_extras: Json; p_id_producto: string }
         Returns: undefined
@@ -1095,6 +1099,7 @@ export type Database = {
         Args: { p_destino: string; p_id_pedido: string }
         Returns: number
       }
+      iniciar_turno: { Args: never; Returns: undefined }
       limpiar_solicitud_cliente: {
         Args: { p_id_mesa: string }
         Returns: undefined
