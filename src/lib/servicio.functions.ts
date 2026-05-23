@@ -6,7 +6,13 @@ const idMesaInput = z.object({ idMesa: z.string().uuid() });
 const idPedidoInput = z.object({ idPedido: z.string().uuid() });
 const idItemInput = z.object({ idItem: z.string().uuid() });
 
-const addItemSchema = z.object({
+const editItemSchema = z.object({
+  idItem: z.string().uuid(),
+  cantidad: z.number().positive().max(999),
+  tieneAlergia: z.boolean(),
+  nota: z.string().max(500).optional().nullable(),
+});
+
   idPedido: z.string().uuid(),
   idProducto: z.string().uuid(),
   cantidad: z.number().positive().max(999),
