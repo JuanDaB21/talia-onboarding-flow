@@ -969,6 +969,10 @@ export type Database = {
         Args: { p_extras: Json; p_id_producto: string }
         Returns: undefined
       }
+      iniciar_comanda_estacion: {
+        Args: { p_destino: string; p_id_pedido: string }
+        Returns: number
+      }
       recalcular_total_pedido: {
         Args: { p_id_pedido: string }
         Returns: undefined
