@@ -296,6 +296,8 @@ function MesaEnServicio() {
         mesa={mesa}
         onPagar={() => setPagarOpen(true)}
         pagando={false}
+        onCerrar={() => setCerrarOpen(true)}
+        estado={estadoQ.data ?? null}
       />
 
       {/* Pedidos confirmados */}
