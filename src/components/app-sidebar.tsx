@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import {
   Boxes,
   ShoppingCart,
@@ -16,6 +18,8 @@ import {
   ConciergeBell,
   Flame,
   Wine,
+  Play,
+  Square,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -39,13 +43,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useMiStaff, type Rol } from "@/hooks/use-mi-staff";
+import { iniciarTurno, finalizarTurno } from "@/lib/turno.functions";
 
 const BODEGA_NAV = [
-  {
-    to: "/bodega/proveedores-insumos",
-    label: "Proveedores e Insumos",
-    icon: Boxes,
-  },
+  { to: "/bodega/proveedores-insumos", label: "Proveedores e Insumos", icon: Boxes },
   { to: "/bodega/compras", label: "Compras", icon: ShoppingCart },
   { to: "/bodega/inventario", label: "Inventario", icon: Warehouse },
 ] as const;
@@ -60,15 +72,34 @@ const SERVICIO_NAV = [
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
 ] as const;
 
-const PREPARACION_NAV = [
-  { to: "/cocina", label: "Cocina", icon: Flame },
-  { to: "/barra", label: "Barra", icon: Wine },
-] as const;
+const COCINA_NAV = [{ to: "/cocina", label: "Cocina", icon: Flame }] as const;
+const BARRA_NAV = [{ to: "/barra", label: "Barra", icon: Wine }] as const;
 
 const CONFIG_NAV = [
   { to: "/configuracion/usuarios", label: "Usuarios", icon: Users },
   { to: "/configuracion/mesas", label: "Mesas", icon: Utensils },
 ] as const;
+
+function gruposPorRol(rol: Rol | null) {
+  if (rol === "ADMIN" || rol === "SUPERADMIN") {
+    return {
+      bodega: true,
+      menu: true,
+      servicio: true,
+      cocina: true,
+      barra: true,
+      config: true,
+    };
+  }
+  return {
+    bodega: false,
+    menu: false,
+    servicio: rol === "MESERO",
+    cocina: rol === "COCINA",
+    barra: rol === "BARRA",
+    config: false,
+  };
+}
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -76,6 +107,11 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
+  const { rol, enTurno, turnoIniciadoAt, invalidate } = useMiStaff();
+  const iniciar = useServerFn(iniciarTurno);
+  const finalizar = useServerFn(finalizarTurno);
+  const [confirmCerrarOpen, setConfirmCerrarOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -88,6 +124,72 @@ export function AppSidebar() {
     navigate({ to: "/login" });
   };
 
+  const handleIniciar = async () => {
+    setBusy(true);
+    try {
+      await iniciar();
+      await invalidate();
+      toast.success("Turno iniciado");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error";
+      toast.error("No se pudo iniciar turno", { description: msg });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFinalizar = async () => {
+    setBusy(true);
+    try {
+      await finalizar();
+      await invalidate();
+      toast.success("Turno finalizado");
+      setConfirmCerrarOpen(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error";
+      toast.error("No se pudo finalizar turno", { description: msg });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const grupos = gruposPorRol(rol);
+  const mostrarTurno = rol === "MESERO" || rol === "COCINA" || rol === "BARRA";
+
+  const horaInicio = turnoIniciadoAt
+    ? new Date(turnoIniciadoAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const renderGroup = (
+    label: string,
+    items: ReadonlyArray<{ to: string; label: string; icon: typeof Boxes }>,
+  ) => (
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = pathname.startsWith(item.to);
+            return (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                  <Link to={item.to}>
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -96,148 +198,88 @@ export function AppSidebar() {
             <ChefHat className="h-4 w-4" />
           </div>
           {!collapsed && (
-            <span className="text-base font-semibold tracking-tight">
-              Talia
-            </span>
+            <span className="text-base font-semibold tracking-tight">Talia</span>
           )}
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Bodega</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {BODEGA_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Menú</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {MENU_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Servicio</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {SERVICIO_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Preparación</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {PREPARACION_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Configuración</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {CONFIG_NAV.map((item) => {
-                const Icon = item.icon;
-                const active = pathname.startsWith(item.to);
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.to}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
+        {grupos.menu && renderGroup("Menú", MENU_NAV)}
+        {grupos.servicio && renderGroup("Servicio", SERVICIO_NAV)}
+        {(grupos.cocina || grupos.barra) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Preparación</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {grupos.cocina &&
+                  COCINA_NAV.map((item) => {
+                    const Icon = item.icon;
+                    const active = pathname.startsWith(item.to);
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                          <Link to={item.to}>
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                {grupos.barra &&
+                  BARRA_NAV.map((item) => {
+                    const Icon = item.icon;
+                    const active = pathname.startsWith(item.to);
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                          <Link to={item.to}>
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        {grupos.config && renderGroup("Configuración", CONFIG_NAV)}
       </SidebarContent>
-
 
       <SidebarFooter>
         <SidebarMenu>
+          {mostrarTurno && (
+            <SidebarMenuItem>
+              {enTurno ? (
+                <SidebarMenuButton
+                  onClick={() => setConfirmCerrarOpen(true)}
+                  tooltip={`Finalizar turno${horaInicio ? ` (desde ${horaInicio})` : ""}`}
+                  className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                >
+                  <Square className="h-4 w-4" />
+                  <span>
+                    Finalizar turno
+                    {horaInicio && (
+                      <span className="ml-1 text-xs opacity-70">· {horaInicio}</span>
+                    )}
+                  </span>
+                </SidebarMenuButton>
+              ) : (
+                <SidebarMenuButton
+                  onClick={handleIniciar}
+                  disabled={busy}
+                  tooltip="Iniciar turno"
+                  className="bg-primary/10 text-primary hover:bg-primary/20"
+                >
+                  <Play className="h-4 w-4" />
+                  <span>Iniciar turno</span>
+                </SidebarMenuButton>
+              )}
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -258,11 +300,7 @@ export function AppSidebar() {
                   <ChevronUp className="ml-auto h-4 w-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="end"
-                className="w-56"
-              >
+              <DropdownMenuContent side="top" align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground">
@@ -271,6 +309,9 @@ export function AppSidebar() {
                     <span className="truncate text-sm font-medium">
                       {email || "—"}
                     </span>
+                    {rol && (
+                      <span className="text-xs text-muted-foreground">Rol: {rol}</span>
+                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -283,6 +324,25 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <AlertDialog open={confirmCerrarOpen} onOpenChange={setConfirmCerrarOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Finalizar turno?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rol === "MESERO"
+                ? "Si tienes mesas con cuenta abierta no podrás salir. Tras finalizar, dejarás de recibir asignaciones."
+                : "Tras finalizar, dejarás de recibir nuevos pedidos en tu estación."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinalizar} disabled={busy}>
+              Finalizar turno
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   );
 }
