@@ -1,11 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, UserCheck } from "lucide-react";
+import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { listarMesasServicio, type MesaServicio } from "@/lib/servicio.functions";
+import { beepListo } from "@/components/servicio/alerta-sound";
 
 export const Route = createFileRoute("/_app/servicio/")({
   head: () => ({ meta: [{ title: "Servicio — Mesas" }] }),
@@ -20,11 +22,12 @@ function ServicioIndex() {
     refetchInterval: 15000,
   });
 
+  // Realtime: cualquier cambio relevante refresca
   useEffect(() => {
     if (!data?.userId) return;
     const myId = data.userId;
     const ch = supabase
-      .channel("servicio-mesas")
+      .channel("servicio-mesas-global")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "mesas" },
@@ -42,14 +45,53 @@ function ServicioIndex() {
               icon: <Bell className="h-4 w-4" />,
             });
           }
+          if (nuevo?.solicitud_cliente && viejo?.solicitud_cliente !== nuevo?.solicitud_cliente) {
+            toast.info(
+              nuevo.solicitud_cliente === "CUENTA"
+                ? `Mesa ${nuevo.identificador}: pide la cuenta 🧾`
+                : `Mesa ${nuevo.identificador}: quiere pedir más ➕`,
+            );
+          }
           refetch();
         },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "pedido_items" },
+        () => refetch(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pedidos" },
+        () => refetch(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
   }, [data?.userId, refetch]);
+
+  // Detectar mesas que pasan a tener alerta LISTO y avisar
+  const prevListoRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!data?.mesas) return;
+    const ahora = new Set<string>();
+    for (const m of data.mesas) {
+      if (m.alerta_listo) ahora.add(m.id_mesa);
+    }
+    for (const id of ahora) {
+      if (!prevListoRef.current.has(id)) {
+        const m = data.mesas.find((x) => x.id_mesa === id);
+        if (m) {
+          beepListo();
+          toast.success(`Mesa ${m.identificador}: pedido listo para recoger`, {
+            icon: <Bell className="h-4 w-4" />,
+          });
+        }
+      }
+    }
+    prevListoRef.current = ahora;
+  }, [data?.mesas]);
 
   return (
     <div className="space-y-6">
@@ -88,7 +130,9 @@ function MesaCard({ m }: { m: MesaServicio }) {
     <Link
       to="/servicio/$idMesa"
       params={{ idMesa: m.id_mesa }}
-      className="block rounded-xl border bg-card p-4 hover:shadow-md transition-shadow"
+      className={`block rounded-xl border bg-card p-4 hover:shadow-md transition-shadow ${
+        m.alerta_listo ? "ring-2 ring-emerald-500" : ""
+      } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""}`}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -107,6 +151,30 @@ function MesaCard({ m }: { m: MesaServicio }) {
           {m.estado}
         </span>
       </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {m.alerta_listo && (
+          <Badge className="bg-emerald-600 text-white animate-pulse gap-1">
+            <Bell className="h-3 w-3" /> Recoger
+          </Badge>
+        )}
+        {m.solicitud_cliente === "CUENTA" && (
+          <Badge variant="default" className="gap-1">
+            <CreditCard className="h-3 w-3" /> Pide cuenta
+          </Badge>
+        )}
+        {m.solicitud_cliente === "PEDIR_MAS" && (
+          <Badge variant="default" className="gap-1">
+            <Plus className="h-3 w-3" /> Pide más
+          </Badge>
+        )}
+        {m.alerta_seguimiento && (
+          <Badge variant="secondary" className="gap-1">
+            <Clock className="h-3 w-3" /> Seguimiento
+          </Badge>
+        )}
+      </div>
+
       <div className="mt-3 space-y-1 text-xs text-muted-foreground">
         {m.mesero_nombre && (
           <div className="flex items-center gap-1.5">
