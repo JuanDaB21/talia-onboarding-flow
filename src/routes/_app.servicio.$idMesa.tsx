@@ -79,7 +79,7 @@ function formatHora(s: string | null) {
 function MesaEnServicio() {
   const { idMesa } = Route.useParams();
   const qc = useQueryClient();
-  const navigate = useNavigate();
+  
 
   const getMesa = useServerFn(obtenerMesaSesion);
   const delFn = useServerFn(eliminarItem);
