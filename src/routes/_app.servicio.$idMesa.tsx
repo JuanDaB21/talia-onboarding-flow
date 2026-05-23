@@ -331,26 +331,7 @@ function MesaEnServicio() {
         titulo="Agregar a la comanda"
       />
 
-      <AlertDialog open={confirmPagar} onOpenChange={setConfirmPagar}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cerrar cuenta de la mesa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Total a cobrar:{" "}
-              <span className="font-bold text-foreground">
-                {fmt.format(mesa.total_mesa)}
-              </span>
-              . La mesa quedará libre y los pedidos se marcarán como pagados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pagarMut.mutate()}>
-              Cobrar y cerrar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
     </div>
   );
 }
