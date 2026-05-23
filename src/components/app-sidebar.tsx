@@ -150,6 +150,32 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
+          <SidebarGroupLabel>Servicio</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {SERVICIO_NAV.map((item) => {
+                const Icon = item.icon;
+                const active = pathname.startsWith(item.to);
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={item.label}
+                    >
+                      <Link to={item.to}>
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Configuración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
