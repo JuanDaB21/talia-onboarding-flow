@@ -41,7 +41,6 @@ import {
   confirmarPedido,
   iniciarNuevoPedido,
   marcarPedidoEntregado,
-  cerrarCuentaMesa,
   marcarSeguimientoVisto,
   limpiarSolicitudCliente,
   type PedidoSesion,
@@ -54,6 +53,7 @@ import {
   EditarItemDialog,
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
+import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { cn } from "@/lib/utils";
 
