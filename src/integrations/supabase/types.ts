@@ -301,7 +301,22 @@ export type Database = {
           identificador?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mesas_id_mesero_asignado_fkey"
+            columns: ["id_mesero_asignado"]
+            isOneToOne: false
+            referencedRelation: "usuarios_staff"
+            referencedColumns: ["id_usuario"]
+          },
+          {
+            foreignKeyName: "mesas_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
       }
       movimientos_inventario: {
         Row: {
@@ -421,6 +436,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "pedido_item_exclusiones_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
             foreignKeyName: "pedido_item_exclusiones_id_item_fkey"
             columns: ["id_item"]
             isOneToOne: false
@@ -452,6 +474,13 @@ export type Database = {
           precio_extra?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "pedido_item_extras_id_insumo_extra_fkey"
+            columns: ["id_insumo_extra"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
           {
             foreignKeyName: "pedido_item_extras_id_item_fkey"
             columns: ["id_item"]
@@ -518,6 +547,13 @@ export type Database = {
             referencedRelation: "pedidos"
             referencedColumns: ["id_pedido"]
           },
+          {
+            foreignKeyName: "pedido_items_id_producto_fkey"
+            columns: ["id_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
+          },
         ]
       }
       pedidos: {
@@ -558,6 +594,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mesas"
             referencedColumns: ["id_mesa"]
+          },
+          {
+            foreignKeyName: "pedidos_id_mesero_fkey"
+            columns: ["id_mesero"]
+            isOneToOne: false
+            referencedRelation: "usuarios_staff"
+            referencedColumns: ["id_usuario"]
+          },
+          {
+            foreignKeyName: "pedidos_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
           },
         ]
       }
