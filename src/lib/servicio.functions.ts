@@ -212,7 +212,7 @@ export const agregarItem = createServerFn({ method: "POST" })
       p_id_producto: data.idProducto,
       p_cantidad: data.cantidad,
       p_tiene_alergia: data.tieneAlergia,
-      p_nota: data.nota ?? null,
+      p_nota: data.nota ?? "",
       p_extras: data.extras,
       p_exclusiones: data.exclusiones,
     });
