@@ -38,10 +38,19 @@ function CartaPage() {
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
+  const getEstado = useServerFn(getEstadoMesaPublico);
+  const solicitar = useServerFn(solicitarAccionCliente);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
     queryFn: () => getMenu({ data: { idMesa } }),
+    retry: false,
+  });
+
+  const estadoQ = useQuery({
+    queryKey: ["estadoMesaPublico", idMesa],
+    queryFn: () => getEstado({ data: { idMesa } }),
+    refetchInterval: 15000,
     retry: false,
   });
 
@@ -57,6 +66,24 @@ function CartaPage() {
       });
     },
   });
+
+  const solicitarMut = useMutation({
+    mutationFn: (tipo: "PEDIR_MAS" | "CUENTA") =>
+      solicitar({ data: { idMesa, tipo } }),
+    onSuccess: (_, tipo) => {
+      toast.success(
+        tipo === "CUENTA"
+          ? "Pedimos la cuenta a tu mesero 🧾"
+          : "Le avisamos a tu mesero que quieres pedir más ➕",
+      );
+    },
+    onError: (e) => {
+      toast.error("No se pudo enviar la solicitud", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    },
+  });
+
 
   const productosFiltrados = useMemo(() => {
     if (!data) return [];
