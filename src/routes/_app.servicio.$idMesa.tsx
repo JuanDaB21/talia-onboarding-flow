@@ -226,6 +226,29 @@ function MesaEnServicio() {
   });
 
   const [pagarOpen, setPagarOpen] = useState(false);
+  const [cerrarOpen, setCerrarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const estadoFn = useServerFn(estadoCierreMesa);
+  const estadoQ = useQuery({
+    queryKey: ["estadoCierre", idMesa],
+    queryFn: () => estadoFn({ data: { idMesa } }),
+    refetchInterval: 15_000,
+  });
+
+  const cerrarFn = useServerFn(cerrarMesa);
+  const cerrarMut = useMutation({
+    mutationFn: () => cerrarFn({ data: { idMesa } }),
+    onSuccess: () => {
+      toast.success("Mesa cerrada y liberada");
+      setCerrarOpen(false);
+      navigate({ to: "/servicio" });
+    },
+    onError: (e) =>
+      toast.error("No se pudo cerrar la mesa", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
