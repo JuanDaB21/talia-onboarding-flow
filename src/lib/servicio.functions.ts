@@ -247,3 +247,321 @@ export const confirmarPedido = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============================================================
+// Fase 6.4 — Mesa en sesión multi-pedido
+// ============================================================
+
+export interface ItemPedidoSesion {
+  id_item: string;
+  id_producto: string;
+  nombre_producto: string;
+  cantidad: number;
+  precio_unitario: number;
+  tiene_alergia: boolean;
+  nota: string | null;
+  destino: string | null;
+  estado_preparacion: string;
+  iniciado_at: string | null;
+  listo_at: string | null;
+  entregado_at: string | null;
+  extras: { id_insumo_extra: string; nombre: string; precio: number }[];
+  exclusiones: { id_insumo: string; nombre: string }[];
+}
+
+export interface PedidoSesion {
+  id_pedido: string;
+  estado: string;
+  total: number;
+  created_at: string;
+  confirmado_at: string | null;
+  entregado_at: string | null;
+  pagado_at: string | null;
+  seguimiento_visto_at: string | null;
+  estado_global: "ABIERTO" | "EN_COLA" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
+  items: ItemPedidoSesion[];
+}
+
+export interface MesaSesion {
+  id_mesa: string;
+  identificador: string;
+  estado: string;
+  id_mesero_asignado: string | null;
+  mesero_nombre: string | null;
+  asignada_at: string | null;
+  solicitud_cliente: string | null;
+  solicitud_at: string | null;
+  tiempo_servicio_min: number;
+  total_mesa: number;
+  pedidos: PedidoSesion[];
+}
+
+function computeEstadoGlobal(
+  pedidoEstado: string,
+  items: { estado_preparacion: string }[],
+): PedidoSesion["estado_global"] {
+  if (pedidoEstado === "ABIERTO") return "ABIERTO";
+  if (items.length === 0) return "EN_COLA";
+  if (items.every((i) => i.estado_preparacion === "ENTREGADO")) return "ENTREGADO";
+  if (items.every((i) => i.estado_preparacion === "LISTO" || i.estado_preparacion === "ENTREGADO"))
+    return "LISTO";
+  if (items.some((i) => i.estado_preparacion !== "EN_COLA")) return "EN_PREPARACION";
+  return "EN_COLA";
+}
+
+export const obtenerMesaSesion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { data: mesa, error: mErr } = await supabase
+      .from("mesas")
+      .select(
+        "id_mesa, identificador, estado, id_mesero_asignado, asignada_at, solicitud_cliente, solicitud_at",
+      )
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+
+    let mesero_nombre: string | null = null;
+    if (mesa.id_mesero_asignado) {
+      const { data: m } = await supabase
+        .from("usuarios_staff")
+        .select("nombre")
+        .eq("id_usuario", mesa.id_mesero_asignado)
+        .maybeSingle();
+      mesero_nombre = m?.nombre ?? null;
+    }
+
+    // Asegurar que exista un pedido ABIERTO si no hay ninguno activo
+    const { data: pedActivos } = await supabase
+      .from("pedidos")
+      .select("id_pedido")
+      .eq("id_mesa", data.idMesa)
+      .neq("estado", "PAGADO")
+      .limit(1);
+    if (!pedActivos || pedActivos.length === 0) {
+      await supabase.rpc("crear_pedido_para_mesa", { p_id_mesa: data.idMesa });
+    }
+
+    const { data: pedidos, error: pErr } = await supabase
+      .from("pedidos")
+      .select(
+        "id_pedido, estado, total, created_at, confirmado_at, entregado_at, pagado_at, seguimiento_visto_at",
+      )
+      .eq("id_mesa", data.idMesa)
+      .neq("estado", "PAGADO")
+      .order("created_at", { ascending: true });
+    if (pErr) throw new Error(pErr.message);
+
+    const pedidoIds = (pedidos ?? []).map((p) => p.id_pedido);
+
+    let itemsRaw: Array<Record<string, unknown>> = [];
+    let extrasRaw: Array<Record<string, unknown>> = [];
+    let exclRaw: Array<Record<string, unknown>> = [];
+
+    if (pedidoIds.length > 0) {
+      const { data: it, error: iErr } = await supabase
+        .from("pedido_items")
+        .select(
+          `id_item, id_pedido, id_producto, cantidad, precio_unitario, tiene_alergia, nota,
+           destino, estado_preparacion, iniciado_at, listo_at, entregado_at, created_at,
+           productos:id_producto(nombre_producto)`,
+        )
+        .in("id_pedido", pedidoIds)
+        .order("created_at", { ascending: true });
+      if (iErr) throw new Error(iErr.message);
+      itemsRaw = (it ?? []) as Array<Record<string, unknown>>;
+
+      const itemIds = itemsRaw.map((i) => i.id_item as string);
+      if (itemIds.length > 0) {
+        const [{ data: ex }, { data: xc }] = await Promise.all([
+          supabase
+            .from("pedido_item_extras")
+            .select(
+              "id_item, id_insumo_extra, precio_extra, insumos:id_insumo_extra(nombre_insumo)",
+            )
+            .in("id_item", itemIds),
+          supabase
+            .from("pedido_item_exclusiones")
+            .select("id_item, id_insumo, insumos:id_insumo(nombre_insumo)")
+            .in("id_item", itemIds),
+        ]);
+        extrasRaw = (ex ?? []) as Array<Record<string, unknown>>;
+        exclRaw = (xc ?? []) as Array<Record<string, unknown>>;
+      }
+    }
+
+    const extrasByItem = new Map<string, ItemPedidoSesion["extras"]>();
+    for (const e of extrasRaw) {
+      const arr = extrasByItem.get(e.id_item as string) ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      arr.push({
+        id_insumo_extra: e.id_insumo_extra as string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nombre: ((e as any).insumos?.nombre_insumo as string) ?? "—",
+        precio: Number(e.precio_extra ?? 0),
+      });
+      extrasByItem.set(e.id_item as string, arr);
+    }
+    const exclByItem = new Map<string, ItemPedidoSesion["exclusiones"]>();
+    for (const x of exclRaw) {
+      const arr = exclByItem.get(x.id_item as string) ?? [];
+      arr.push({
+        id_insumo: x.id_insumo as string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nombre: ((x as any).insumos?.nombre_insumo as string) ?? "—",
+      });
+      exclByItem.set(x.id_item as string, arr);
+    }
+
+    const itemsByPedido = new Map<string, ItemPedidoSesion[]>();
+    for (const i of itemsRaw) {
+      const arr = itemsByPedido.get(i.id_pedido as string) ?? [];
+      arr.push({
+        id_item: i.id_item as string,
+        id_producto: i.id_producto as string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        nombre_producto: ((i as any).productos?.nombre_producto as string) ?? "—",
+        cantidad: Number(i.cantidad),
+        precio_unitario: Number(i.precio_unitario),
+        tiene_alergia: Boolean(i.tiene_alergia),
+        nota: (i.nota as string | null) ?? null,
+        destino: (i.destino as string | null) ?? null,
+        estado_preparacion: i.estado_preparacion as string,
+        iniciado_at: (i.iniciado_at as string | null) ?? null,
+        listo_at: (i.listo_at as string | null) ?? null,
+        entregado_at: (i.entregado_at as string | null) ?? null,
+        extras: extrasByItem.get(i.id_item as string) ?? [],
+        exclusiones: exclByItem.get(i.id_item as string) ?? [],
+      });
+      itemsByPedido.set(i.id_pedido as string, arr);
+    }
+
+    // Re-fetch pedidos to include the auto-created ABIERTO if it just got created
+    let pedidosFinal = pedidos ?? [];
+    if ((pedidos ?? []).length === 0) {
+      const { data: p2 } = await supabase
+        .from("pedidos")
+        .select(
+          "id_pedido, estado, total, created_at, confirmado_at, entregado_at, pagado_at, seguimiento_visto_at",
+        )
+        .eq("id_mesa", data.idMesa)
+        .neq("estado", "PAGADO")
+        .order("created_at", { ascending: true });
+      pedidosFinal = p2 ?? [];
+    }
+
+    const pedidosOut: PedidoSesion[] = pedidosFinal.map((p) => {
+      const items = itemsByPedido.get(p.id_pedido) ?? [];
+      return {
+        id_pedido: p.id_pedido,
+        estado: p.estado,
+        total: Number(p.total ?? 0),
+        created_at: p.created_at,
+        confirmado_at: p.confirmado_at,
+        entregado_at: p.entregado_at,
+        pagado_at: p.pagado_at,
+        seguimiento_visto_at: p.seguimiento_visto_at,
+        estado_global: computeEstadoGlobal(p.estado, items),
+        items,
+      };
+    });
+
+    const total_mesa = pedidosOut.reduce((a, p) => a + p.total, 0);
+    const tiempo_servicio_min = mesa.asignada_at
+      ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
+      : 0;
+
+    const out: MesaSesion = {
+      id_mesa: mesa.id_mesa,
+      identificador: mesa.identificador,
+      estado: mesa.estado,
+      id_mesero_asignado: mesa.id_mesero_asignado,
+      mesero_nombre,
+      asignada_at: mesa.asignada_at,
+      solicitud_cliente: mesa.solicitud_cliente,
+      solicitud_at: mesa.solicitud_at,
+      tiempo_servicio_min,
+      total_mesa,
+      pedidos: pedidosOut,
+    };
+    return out;
+  });
+
+export const editarItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => editItemSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("editar_item_pedido", {
+      p_id_item: data.idItem,
+      p_cantidad: data.cantidad,
+      p_tiene_alergia: data.tieneAlergia,
+      p_nota: data.nota ?? "",
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const iniciarNuevoPedido = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: id, error } = await supabase.rpc("crear_pedido_para_mesa", {
+      p_id_mesa: data.idMesa,
+    });
+    if (error) throw new Error(error.message);
+    return { idPedido: id as string };
+  });
+
+export const marcarPedidoEntregado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idPedidoInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: count, error } = await supabase.rpc("marcar_pedido_entregado", {
+      p_id_pedido: data.idPedido,
+    });
+    if (error) throw new Error(error.message);
+    return { entregados: Number(count ?? 0) };
+  });
+
+export const cerrarCuentaMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: total, error } = await supabase.rpc("cerrar_cuenta_mesa", {
+      p_id_mesa: data.idMesa,
+    });
+    if (error) throw new Error(error.message);
+    return { total: Number(total ?? 0) };
+  });
+
+export const marcarSeguimientoVisto = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idPedidoInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("marcar_seguimiento_visto", {
+      p_id_pedido: data.idPedido,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const limpiarSolicitudCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.rpc("limpiar_solicitud_cliente", {
+      p_id_mesa: data.idMesa,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
