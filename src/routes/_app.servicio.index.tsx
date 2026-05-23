@@ -1,13 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck } from "lucide-react";
+import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { listarMesasServicio, type MesaServicio } from "@/lib/servicio.functions";
+import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
+import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
 
 export const Route = createFileRoute("/_app/servicio/")({
   head: () => ({ meta: [{ title: "Servicio — Mesas" }] }),
