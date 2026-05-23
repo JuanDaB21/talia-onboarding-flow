@@ -20,6 +20,9 @@ import {
   Wine,
   Play,
   Square,
+  LayoutDashboard,
+  Activity,
+  Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -80,9 +83,16 @@ const CONFIG_NAV = [
   { to: "/configuracion/mesas", label: "Mesas", icon: Utensils },
 ] as const;
 
+const ADMIN_NAV = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/operacion", label: "Operación", icon: Activity },
+  { to: "/caja", label: "Caja", icon: Wallet },
+] as const;
+
 function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
     return {
+      admin: true,
       bodega: true,
       menu: true,
       servicio: true,
@@ -92,6 +102,7 @@ function gruposPorRol(rol: Rol | null) {
     };
   }
   return {
+    admin: false,
     bodega: false,
     menu: false,
     servicio: rol === "MESERO",
@@ -204,6 +215,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
         {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
         {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.servicio && renderGroup("Servicio", SERVICIO_NAV)}
