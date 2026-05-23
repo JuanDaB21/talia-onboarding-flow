@@ -60,6 +60,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// keep beepListo referenced (no-op import side-effect already above)
+void beepListo;
+
 export const Route = createFileRoute("/_app/servicio/$idMesa")({
   head: () => ({ meta: [{ title: "Mesa en servicio" }] }),
   component: MesaEnServicio,
