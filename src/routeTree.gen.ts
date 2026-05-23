@@ -14,13 +14,16 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CartaIdMesaRouteImport } from './routes/carta.$idMesa'
+import { Route as AppServicioRouteImport } from './routes/_app.servicio'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppConfiguracionRouteImport } from './routes/_app.configuracion'
 import { Route as AppBodegaRouteImport } from './routes/_app.bodega'
+import { Route as AppServicioIndexRouteImport } from './routes/_app.servicio.index'
 import { Route as AppMenuIndexRouteImport } from './routes/_app.menu.index'
 import { Route as AppConfiguracionIndexRouteImport } from './routes/_app.configuracion.index'
 import { Route as AppBodegaIndexRouteImport } from './routes/_app.bodega.index'
+import { Route as AppServicioIdMesaRouteImport } from './routes/_app.servicio.$idMesa'
 import { Route as AppMenuRecetasRouteImport } from './routes/_app.menu.recetas'
 import { Route as AppMenuProductosRouteImport } from './routes/_app.menu.productos'
 import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.categorias'
@@ -59,6 +62,11 @@ const CartaIdMesaRoute = CartaIdMesaRouteImport.update({
   path: '/carta/$idMesa',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppServicioRoute = AppServicioRouteImport.update({
+  id: '/servicio',
+  path: '/servicio',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppMenuRoute = AppMenuRouteImport.update({
   id: '/menu',
   path: '/menu',
@@ -79,6 +87,11 @@ const AppBodegaRoute = AppBodegaRouteImport.update({
   path: '/bodega',
   getParentRoute: () => AppRoute,
 } as any)
+const AppServicioIndexRoute = AppServicioIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppServicioRoute,
+} as any)
 const AppMenuIndexRoute = AppMenuIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -93,6 +106,11 @@ const AppBodegaIndexRoute = AppBodegaIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppBodegaRoute,
+} as any)
+const AppServicioIdMesaRoute = AppServicioIdMesaRouteImport.update({
+  id: '/$idMesa',
+  path: '/$idMesa',
+  getParentRoute: () => AppServicioRoute,
 } as any)
 const AppMenuRecetasRoute = AppMenuRecetasRouteImport.update({
   id: '/recetas',
@@ -171,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof AppConfiguracionRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
   '/menu': typeof AppMenuRouteWithChildren
+  '/servicio': typeof AppServicioRouteWithChildren
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -180,9 +199,11 @@ export interface FileRoutesByFullPath {
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
   '/menu/recetas': typeof AppMenuRecetasRouteWithChildren
+  '/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/bodega/': typeof AppBodegaIndexRoute
   '/configuracion/': typeof AppConfiguracionIndexRoute
   '/menu/': typeof AppMenuIndexRoute
+  '/servicio/': typeof AppServicioIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
@@ -201,9 +222,11 @@ export interface FileRoutesByTo {
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
+  '/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/bodega': typeof AppBodegaIndexRoute
   '/configuracion': typeof AppConfiguracionIndexRoute
   '/menu': typeof AppMenuIndexRoute
+  '/servicio': typeof AppServicioIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
@@ -220,6 +243,7 @@ export interface FileRoutesById {
   '/_app/configuracion': typeof AppConfiguracionRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
+  '/_app/servicio': typeof AppServicioRouteWithChildren
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -229,9 +253,11 @@ export interface FileRoutesById {
   '/_app/menu/categorias': typeof AppMenuCategoriasRoute
   '/_app/menu/productos': typeof AppMenuProductosRoute
   '/_app/menu/recetas': typeof AppMenuRecetasRouteWithChildren
+  '/_app/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/_app/bodega/': typeof AppBodegaIndexRoute
   '/_app/configuracion/': typeof AppConfiguracionIndexRoute
   '/_app/menu/': typeof AppMenuIndexRoute
+  '/_app/servicio/': typeof AppServicioIndexRoute
   '/_app/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/_app/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/_app/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
@@ -248,6 +274,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/dashboard'
     | '/menu'
+    | '/servicio'
     | '/carta/$idMesa'
     | '/bodega/compras'
     | '/bodega/inventario'
@@ -257,9 +284,11 @@ export interface FileRouteTypes {
     | '/menu/categorias'
     | '/menu/productos'
     | '/menu/recetas'
+    | '/servicio/$idMesa'
     | '/bodega/'
     | '/configuracion/'
     | '/menu/'
+    | '/servicio/'
     | '/bodega/inventario/$id'
     | '/menu/recetas/$id'
     | '/menu/recetas/nueva'
@@ -278,9 +307,11 @@ export interface FileRouteTypes {
     | '/configuracion/usuarios'
     | '/menu/categorias'
     | '/menu/productos'
+    | '/servicio/$idMesa'
     | '/bodega'
     | '/configuracion'
     | '/menu'
+    | '/servicio'
     | '/bodega/inventario/$id'
     | '/menu/recetas/$id'
     | '/menu/recetas/nueva'
@@ -296,6 +327,7 @@ export interface FileRouteTypes {
     | '/_app/configuracion'
     | '/_app/dashboard'
     | '/_app/menu'
+    | '/_app/servicio'
     | '/carta/$idMesa'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
@@ -305,9 +337,11 @@ export interface FileRouteTypes {
     | '/_app/menu/categorias'
     | '/_app/menu/productos'
     | '/_app/menu/recetas'
+    | '/_app/servicio/$idMesa'
     | '/_app/bodega/'
     | '/_app/configuracion/'
     | '/_app/menu/'
+    | '/_app/servicio/'
     | '/_app/bodega/inventario/$id'
     | '/_app/menu/recetas/$id'
     | '/_app/menu/recetas/nueva'
@@ -360,6 +394,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CartaIdMesaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/servicio': {
+      id: '/_app/servicio'
+      path: '/servicio'
+      fullPath: '/servicio'
+      preLoaderRoute: typeof AppServicioRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/menu': {
       id: '/_app/menu'
       path: '/menu'
@@ -388,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBodegaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/servicio/': {
+      id: '/_app/servicio/'
+      path: '/'
+      fullPath: '/servicio/'
+      preLoaderRoute: typeof AppServicioIndexRouteImport
+      parentRoute: typeof AppServicioRoute
+    }
     '/_app/menu/': {
       id: '/_app/menu/'
       path: '/'
@@ -408,6 +456,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/bodega/'
       preLoaderRoute: typeof AppBodegaIndexRouteImport
       parentRoute: typeof AppBodegaRoute
+    }
+    '/_app/servicio/$idMesa': {
+      id: '/_app/servicio/$idMesa'
+      path: '/$idMesa'
+      fullPath: '/servicio/$idMesa'
+      preLoaderRoute: typeof AppServicioIdMesaRouteImport
+      parentRoute: typeof AppServicioRoute
     }
     '/_app/menu/recetas': {
       id: '/_app/menu/recetas'
@@ -582,11 +637,26 @@ const AppMenuRouteChildren: AppMenuRouteChildren = {
 const AppMenuRouteWithChildren =
   AppMenuRoute._addFileChildren(AppMenuRouteChildren)
 
+interface AppServicioRouteChildren {
+  AppServicioIdMesaRoute: typeof AppServicioIdMesaRoute
+  AppServicioIndexRoute: typeof AppServicioIndexRoute
+}
+
+const AppServicioRouteChildren: AppServicioRouteChildren = {
+  AppServicioIdMesaRoute: AppServicioIdMesaRoute,
+  AppServicioIndexRoute: AppServicioIndexRoute,
+}
+
+const AppServicioRouteWithChildren = AppServicioRoute._addFileChildren(
+  AppServicioRouteChildren,
+)
+
 interface AppRouteChildren {
   AppBodegaRoute: typeof AppBodegaRouteWithChildren
   AppConfiguracionRoute: typeof AppConfiguracionRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
   AppMenuRoute: typeof AppMenuRouteWithChildren
+  AppServicioRoute: typeof AppServicioRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -594,6 +664,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracionRoute: AppConfiguracionRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
   AppMenuRoute: AppMenuRouteWithChildren,
+  AppServicioRoute: AppServicioRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -17,18 +17,21 @@ export type Database = {
       categorias: {
         Row: {
           created_at: string
+          destino: string
           id_categoria: string
           id_negocio: string
           nombre: string
         }
         Insert: {
           created_at?: string
+          destino?: string
           id_categoria?: string
           id_negocio: string
           nombre: string
         }
         Update: {
           created_at?: string
+          destino?: string
           id_categoria?: string
           id_negocio?: string
           nombre?: string
@@ -269,25 +272,31 @@ export type Database = {
       }
       mesas: {
         Row: {
+          asignada_at: string | null
           created_at: string
           estado: string
           id_mesa: string
+          id_mesero_asignado: string | null
           id_negocio: string
           identificador: string
           updated_at: string
         }
         Insert: {
+          asignada_at?: string | null
           created_at?: string
           estado?: string
           id_mesa?: string
+          id_mesero_asignado?: string | null
           id_negocio: string
           identificador: string
           updated_at?: string
         }
         Update: {
+          asignada_at?: string | null
           created_at?: string
           estado?: string
           id_mesa?: string
+          id_mesero_asignado?: string | null
           id_negocio?: string
           identificador?: string
           updated_at?: string
@@ -391,6 +400,141 @@ export type Database = {
           razon_social?: string
           telefono_contacto?: string
           url_logo?: string | null
+        }
+        Relationships: []
+      }
+      pedido_item_exclusiones: {
+        Row: {
+          id_insumo: string
+          id_item: string
+          id_pix: string
+        }
+        Insert: {
+          id_insumo: string
+          id_item: string
+          id_pix?: string
+        }
+        Update: {
+          id_insumo?: string
+          id_item?: string
+          id_pix?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_item_exclusiones_id_item_fkey"
+            columns: ["id_item"]
+            isOneToOne: false
+            referencedRelation: "pedido_items"
+            referencedColumns: ["id_item"]
+          },
+        ]
+      }
+      pedido_item_extras: {
+        Row: {
+          cantidad_porcion: number
+          id_insumo_extra: string
+          id_item: string
+          id_pie: string
+          precio_extra: number
+        }
+        Insert: {
+          cantidad_porcion: number
+          id_insumo_extra: string
+          id_item: string
+          id_pie?: string
+          precio_extra?: number
+        }
+        Update: {
+          cantidad_porcion?: number
+          id_insumo_extra?: string
+          id_item?: string
+          id_pie?: string
+          precio_extra?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_item_extras_id_item_fkey"
+            columns: ["id_item"]
+            isOneToOne: false
+            referencedRelation: "pedido_items"
+            referencedColumns: ["id_item"]
+          },
+        ]
+      }
+      pedido_items: {
+        Row: {
+          cantidad: number
+          created_at: string
+          destino: string | null
+          id_item: string
+          id_pedido: string
+          id_producto: string
+          nota: string | null
+          precio_unitario: number
+          tiene_alergia: boolean
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          destino?: string | null
+          id_item?: string
+          id_pedido: string
+          id_producto: string
+          nota?: string | null
+          precio_unitario?: number
+          tiene_alergia?: boolean
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          destino?: string | null
+          id_item?: string
+          id_pedido?: string
+          id_producto?: string
+          nota?: string | null
+          precio_unitario?: number
+          tiene_alergia?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_items_id_pedido_fkey"
+            columns: ["id_pedido"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id_pedido"]
+          },
+        ]
+      }
+      pedidos: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["estado_pedido"]
+          id_mesa: string
+          id_mesero: string | null
+          id_negocio: string
+          id_pedido: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_pedido"]
+          id_mesa: string
+          id_mesero?: string | null
+          id_negocio: string
+          id_pedido?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_pedido"]
+          id_mesa?: string
+          id_mesero?: string | null
+          id_negocio?: string
+          id_pedido?: string
+          total?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -679,6 +823,18 @@ export type Database = {
         }
         Returns: string
       }
+      agregar_item_pedido: {
+        Args: {
+          p_cantidad: number
+          p_exclusiones: Json
+          p_extras: Json
+          p_id_pedido: string
+          p_id_producto: string
+          p_nota: string
+          p_tiene_alergia: boolean
+        }
+        Returns: string
+      }
       ajustar_stock_manual: {
         Args: {
           p_id_insumo: string
@@ -687,6 +843,9 @@ export type Database = {
         }
         Returns: number
       }
+      asignar_mesero_a_mesa: { Args: { p_id_mesa: string }; Returns: string }
+      confirmar_pedido: { Args: { p_id_pedido: string }; Returns: undefined }
+      crear_pedido_para_mesa: { Args: { p_id_mesa: string }; Returns: string }
       crear_receta: {
         Args: {
           p_descripcion: string
@@ -699,9 +858,14 @@ export type Database = {
       }
       current_user_negocio: { Args: never; Returns: string }
       duplicar_receta: { Args: { p_id_receta: string }; Returns: string }
+      eliminar_item_pedido: { Args: { p_id_item: string }; Returns: undefined }
       eliminar_receta: { Args: { p_id_receta: string }; Returns: undefined }
       guardar_extras_producto: {
         Args: { p_extras: Json; p_id_producto: string }
+        Returns: undefined
+      }
+      recalcular_total_pedido: {
+        Args: { p_id_pedido: string }
         Returns: undefined
       }
       registrar_compra: {
@@ -729,6 +893,7 @@ export type Database = {
       }
     }
     Enums: {
+      estado_pedido: "ABIERTO" | "CONFIRMADO" | "CERRADO" | "CANCELADO"
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
       rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA"
     }
@@ -858,6 +1023,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      estado_pedido: ["ABIERTO", "CONFIRMADO", "CERRADO", "CANCELADO"],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
       rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA"],
     },

@@ -26,7 +26,7 @@ import {
   type SubcategoriaInput,
 } from "@/lib/menu-schemas";
 
-interface Categoria { id_categoria: string; nombre: string }
+interface Categoria { id_categoria: string; nombre: string; destino: string }
 interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string }
 
 export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
@@ -43,7 +43,7 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: cData }, { data: sData }] = await Promise.all([
-      supabase.from("categorias").select("id_categoria, nombre").order("nombre"),
+      supabase.from("categorias").select("id_categoria, nombre, destino").order("nombre"),
       supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria").order("nombre"),
     ]);
     setCats((cData as Categoria[]) ?? []);
@@ -232,14 +232,17 @@ function CategoriaFormInline({
     resolver: zodResolver(categoriaSchema),
     defaultValues: { nombre: initial?.nombre ?? "" },
   });
+  const [destino, setDestino] = useState<"COCINA" | "BARRA">(
+    (initial?.destino as "COCINA" | "BARRA") ?? "COCINA",
+  );
   return (
     <form onSubmit={handleSubmit(async (v) => {
       if (initial) {
-        const { error } = await supabase.from("categorias").update({ nombre: v.nombre }).eq("id_categoria", initial.id_categoria);
+        const { error } = await supabase.from("categorias").update({ nombre: v.nombre, destino }).eq("id_categoria", initial.id_categoria);
         if (error) return toast.error("No se pudo actualizar", { description: error.message });
         toast.success("Categoría actualizada");
       } else {
-        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre });
+        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino });
         if (error) return toast.error("No se pudo crear", { description: error.message });
         toast.success("Categoría creada");
       }
@@ -249,6 +252,27 @@ function CategoriaFormInline({
         <Label htmlFor="nombre">Nombre</Label>
         <Input id="nombre" {...register("nombre")} placeholder="Ej. Bebidas" autoFocus />
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label>Destino (ruteo de comandas)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setDestino("COCINA")}
+            className={cn(
+              "rounded-md border px-3 py-2 text-sm transition-colors",
+              destino === "COCINA" ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
+            )}
+          >🍳 Cocina</button>
+          <button
+            type="button"
+            onClick={() => setDestino("BARRA")}
+            className={cn(
+              "rounded-md border px-3 py-2 text-sm transition-colors",
+              destino === "BARRA" ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
+            )}
+          >🍷 Barra</button>
+        </div>
       </div>
       <div className="flex gap-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>

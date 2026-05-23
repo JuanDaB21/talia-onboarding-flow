@@ -1,0 +1,252 @@
+import { useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Loader2, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { agregarItem, getOpcionesProducto } from "@/lib/servicio.functions";
+
+interface Producto {
+  id_producto: string;
+  nombre_producto: string;
+  precio_venta: number;
+}
+
+export function ItemEditorSheet({
+  open,
+  onOpenChange,
+  producto,
+  idPedido,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  producto: Producto | null;
+  idPedido: string;
+}) {
+  const qc = useQueryClient();
+  const getOps = useServerFn(getOpcionesProducto);
+  const addFn = useServerFn(agregarItem);
+
+  const [cantidad, setCantidad] = useState(1);
+  const [alergia, setAlergia] = useState(false);
+  const [nota, setNota] = useState("");
+  const [extras, setExtras] = useState<Set<string>>(new Set());
+  const [exclus, setExclus] = useState<Set<string>>(new Set());
+
+  const { data: ops, isLoading } = useQuery({
+    queryKey: ["opcionesProducto", producto?.id_producto],
+    queryFn: () => getOps({ data: { idProducto: producto!.id_producto } }),
+    enabled: !!producto && open,
+  });
+
+  const mut = useMutation({
+    mutationFn: () =>
+      addFn({
+        data: {
+          idPedido,
+          idProducto: producto!.id_producto,
+          cantidad,
+          tieneAlergia: alergia,
+          nota,
+          extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
+          exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Producto agregado");
+      qc.invalidateQueries({ queryKey: ["mesaPedido"] });
+      reset();
+      onOpenChange(false);
+    },
+    onError: (e) =>
+      toast.error("No se pudo agregar", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  function reset() {
+    setCantidad(1);
+    setAlergia(false);
+    setNota("");
+    setExtras(new Set());
+    setExclus(new Set());
+  }
+
+  const total = useMemo(() => {
+    if (!producto) return 0;
+    const extraSum = (ops?.extras ?? [])
+      .filter((e) => extras.has(e.id_insumo_extra))
+      .reduce((a, e) => a + Number(e.precio_extra), 0);
+    return cantidad * (producto.precio_venta + extraSum);
+  }, [producto, cantidad, extras, ops]);
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{producto?.nombre_producto ?? "—"}</SheetTitle>
+          <SheetDescription>
+            Personaliza el pedido del comensal.
+          </SheetDescription>
+        </SheetHeader>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <Label>Cantidad</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCantidad((c) => Math.max(1, c - 1))}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="w-8 text-center font-semibold">{cantidad}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCantidad((c) => c + 1)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <div className="space-y-0.5">
+                <Label className="text-destructive font-semibold">
+                  🚨 Marcar alergia
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Cocina tomará precauciones estrictas.
+                </p>
+              </div>
+              <Switch checked={alergia} onCheckedChange={setAlergia} />
+            </div>
+
+            {(ops?.extras.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                <Label>Agregar extras</Label>
+                <div className="space-y-2 rounded-lg border p-3">
+                  {ops!.extras.map((e) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const ins: any = e.insumos;
+                    return (
+                      <label
+                        key={e.id_insumo_extra}
+                        className="flex items-center justify-between gap-2 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Checkbox
+                            checked={extras.has(e.id_insumo_extra)}
+                            onCheckedChange={(v) => {
+                              const next = new Set(extras);
+                              if (v) next.add(e.id_insumo_extra);
+                              else next.delete(e.id_insumo_extra);
+                              setExtras(next);
+                            }}
+                          />
+                          <span className="text-sm truncate">
+                            {ins?.nombre_insumo ?? "—"}
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium tabular-nums">
+                          +{Number(e.precio_extra).toLocaleString("es-CO")}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {(ops?.ingredientes.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                <Label>Quitar ingredientes</Label>
+                <div className="space-y-2 rounded-lg border p-3">
+                  {ops!.ingredientes.map((i) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const ins: any = i.insumos;
+                    return (
+                      <label
+                        key={i.id_insumo}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={exclus.has(i.id_insumo)}
+                          onCheckedChange={(v) => {
+                            const next = new Set(exclus);
+                            if (v) next.add(i.id_insumo);
+                            else next.delete(i.id_insumo);
+                            setExclus(next);
+                          }}
+                        />
+                        <span className="text-sm">Sin {ins?.nombre_insumo ?? "—"}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="nota">Nota</Label>
+              <Textarea
+                id="nota"
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                placeholder="Ej. término medio, sin sal…"
+                rows={2}
+              />
+            </div>
+
+            <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
+              <span className="text-sm">Subtotal</span>
+              <span className="text-lg font-bold tabular-nums">
+                ${total.toLocaleString("es-CO")}
+              </span>
+            </div>
+
+            <Button
+              className="w-full h-12"
+              onClick={() => mut.mutate()}
+              disabled={mut.isPending}
+            >
+              {mut.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Agregar al pedido"
+              )}
+            </Button>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
