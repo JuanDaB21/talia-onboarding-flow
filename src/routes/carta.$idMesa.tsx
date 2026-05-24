@@ -12,7 +12,7 @@ import {
   solicitarAccionCliente,
   type CartaProducto,
 } from "@/lib/menu-publico.functions";
-import { getMenuTheme, getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
+import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
