@@ -42,6 +42,13 @@ export const getMenuPublico = createServerFn({ method: "GET" })
     if (mesaErr) throw new Error(mesaErr.message);
     if (!mesa) throw new Error("Mesa no encontrada");
 
+    const { data: negocio, error: negErr } = await supabaseAdmin
+      .from("negocio")
+      .select("nombre_comercial, url_logo, tema_menu")
+      .eq("id_negocio", mesa.id_negocio)
+      .maybeSingle();
+    if (negErr) throw new Error(negErr.message);
+
     const { data: productos, error: prodErr } = await supabaseAdmin
       .from("productos")
       .select(
