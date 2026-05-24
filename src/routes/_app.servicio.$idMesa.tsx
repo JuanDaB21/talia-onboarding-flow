@@ -147,18 +147,8 @@ function MesaEnServicio() {
     return () => clearInterval(id);
   }, []);
 
-  // Si la mesa tenía solicitud del cliente, mostrar y limpiar
-  useEffect(() => {
-    if (!mesaQ.data?.solicitud_cliente) return;
-    const tipo = mesaQ.data.solicitud_cliente;
-    toast.info(
-      tipo === "CUENTA"
-        ? "🧾 El cliente pide la cuenta"
-        : "➕ El cliente quiere pedir más",
-      { duration: 8000 },
-    );
-    limpiarSolFn({ data: { idMesa } }).catch(() => undefined);
-  }, [mesaQ.data?.solicitud_cliente, idMesa, limpiarSolFn]);
+  // La solicitud del cliente ya NO se limpia automáticamente: se muestra como
+  // banner persistente y se limpia con una acción explícita del mesero.
 
   // Marcar seguimiento visto al entrar (los pedidos entregados >30min)
   useEffect(() => {
