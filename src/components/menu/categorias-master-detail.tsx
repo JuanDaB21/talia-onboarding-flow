@@ -72,9 +72,9 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const selectedCat = cats.find((c) => c.id_categoria === selected);
 
   return (
-    <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+    <div className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
       {/* Lista categorías */}
-      <div className={cn("rounded-md border bg-card", selected && "hidden md:block")}>
+      <div className={cn("min-w-0 rounded-md border bg-card", selected && "hidden md:block")}>
         <div className="flex items-center justify-between p-3 border-b">
           <h3 className="text-sm font-semibold">Categorías</h3>
           <Button size="sm" variant="ghost" onClick={() => setCatSheet({ open: true })}>
