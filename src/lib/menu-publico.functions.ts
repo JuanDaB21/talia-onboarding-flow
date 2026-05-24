@@ -89,7 +89,13 @@ export const getMenuPublico = createServerFn({ method: "GET" })
       estado: mesa.estado,
     };
 
-    return { mesa: mesaOut, categorias, productos: productosOut };
+    const negocioOut: CartaNegocio = {
+      nombre_comercial: negocio?.nombre_comercial ?? "",
+      url_logo: negocio?.url_logo ?? null,
+      tema_menu: negocio?.tema_menu ?? "verde-bosque",
+    };
+
+    return { mesa: mesaOut, negocio: negocioOut, categorias, productos: productosOut };
   });
 
 export const llamarMesero = createServerFn({ method: "POST" })
