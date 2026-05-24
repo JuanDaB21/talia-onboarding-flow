@@ -1,4 +1,4 @@
-import { useState } from "react";
+
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,6 +120,3 @@ export function RentabilidadPanel({ rango }: { rango: Rango }) {
     </div>
   );
 }
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _suppress = useState;
