@@ -25,6 +25,12 @@ export interface CartaMesa {
   estado: string;
 }
 
+export interface CartaNegocio {
+  nombre_comercial: string;
+  url_logo: string | null;
+  tema_menu: string;
+}
+
 export const getMenuPublico = createServerFn({ method: "GET" })
   .inputValidator((input) => idMesaSchema.parse(input))
   .handler(async ({ data }) => {
@@ -35,6 +41,13 @@ export const getMenuPublico = createServerFn({ method: "GET" })
       .maybeSingle();
     if (mesaErr) throw new Error(mesaErr.message);
     if (!mesa) throw new Error("Mesa no encontrada");
+
+    const { data: negocio, error: negErr } = await supabaseAdmin
+      .from("negocio")
+      .select("nombre_comercial, url_logo, tema_menu")
+      .eq("id_negocio", mesa.id_negocio)
+      .maybeSingle();
+    if (negErr) throw new Error(negErr.message);
 
     const { data: productos, error: prodErr } = await supabaseAdmin
       .from("productos")
@@ -76,7 +89,13 @@ export const getMenuPublico = createServerFn({ method: "GET" })
       estado: mesa.estado,
     };
 
-    return { mesa: mesaOut, categorias, productos: productosOut };
+    const negocioOut: CartaNegocio = {
+      nombre_comercial: negocio?.nombre_comercial ?? "",
+      url_logo: negocio?.url_logo ?? null,
+      tema_menu: negocio?.tema_menu ?? "verde-bosque",
+    };
+
+    return { mesa: mesaOut, negocio: negocioOut, categorias, productos: productosOut };
   });
 
 export const llamarMesero = createServerFn({ method: "POST" })

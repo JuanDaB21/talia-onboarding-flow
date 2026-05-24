@@ -33,6 +33,7 @@ import { Route as AppMenuProductosRouteImport } from './routes/_app.menu.product
 import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.categorias'
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
+import { Route as AppConfiguracionAparienciaRouteImport } from './routes/_app.configuracion.apariencia'
 import { Route as AppCajaCierreRouteImport } from './routes/_app.caja.cierre'
 import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.bodega.proveedores-insumos'
 import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.inventario'
@@ -164,6 +165,12 @@ const AppConfiguracionMesasRoute = AppConfiguracionMesasRouteImport.update({
   path: '/mesas',
   getParentRoute: () => AppConfiguracionRoute,
 } as any)
+const AppConfiguracionAparienciaRoute =
+  AppConfiguracionAparienciaRouteImport.update({
+    id: '/apariencia',
+    path: '/apariencia',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppCajaCierreRoute = AppCajaCierreRouteImport.update({
   id: '/cierre',
   path: '/cierre',
@@ -235,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/caja/cierre': typeof AppCajaCierreRoute
+  '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/caja/cierre': typeof AppCajaCierreRoute
+  '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
@@ -301,6 +310,7 @@ export interface FileRoutesById {
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/_app/caja/cierre': typeof AppCajaCierreRoute
+  '/_app/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/_app/menu/categorias': typeof AppMenuCategoriasRoute
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
     | '/caja/cierre'
+    | '/configuracion/apariencia'
     | '/configuracion/mesas'
     | '/configuracion/usuarios'
     | '/menu/categorias'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
     | '/caja/cierre'
+    | '/configuracion/apariencia'
     | '/configuracion/mesas'
     | '/configuracion/usuarios'
     | '/menu/categorias'
@@ -403,6 +415,7 @@ export interface FileRouteTypes {
     | '/_app/bodega/inventario'
     | '/_app/bodega/proveedores-insumos'
     | '/_app/caja/cierre'
+    | '/_app/configuracion/apariencia'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/usuarios'
     | '/_app/menu/categorias'
@@ -599,6 +612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionMesasRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/apariencia': {
+      id: '/_app/configuracion/apariencia'
+      path: '/apariencia'
+      fullPath: '/configuracion/apariencia'
+      preLoaderRoute: typeof AppConfiguracionAparienciaRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/caja/cierre': {
       id: '/_app/caja/cierre'
       path: '/cierre'
@@ -717,12 +737,14 @@ const AppCajaRouteWithChildren =
   AppCajaRoute._addFileChildren(AppCajaRouteChildren)
 
 interface AppConfiguracionRouteChildren {
+  AppConfiguracionAparienciaRoute: typeof AppConfiguracionAparienciaRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionUsuariosRoute: typeof AppConfiguracionUsuariosRoute
   AppConfiguracionIndexRoute: typeof AppConfiguracionIndexRoute
 }
 
 const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
+  AppConfiguracionAparienciaRoute: AppConfiguracionAparienciaRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionUsuariosRoute: AppConfiguracionUsuariosRoute,
   AppConfiguracionIndexRoute: AppConfiguracionIndexRoute,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import {
   solicitarAccionCliente,
   type CartaProducto,
 } from "@/lib/menu-publico.functions";
+import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
@@ -91,6 +92,22 @@ function CartaPage() {
     return data.productos.filter((p) => p.id_categoria === catActiva);
   }, [data, catActiva]);
 
+  const themeId = data?.negocio?.tema_menu;
+  const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
+
+  // Cargar Google Fonts del tema activo
+  useEffect(() => {
+    if (!themeId) return;
+    const href = getThemeFontsUrl(themeId);
+    const id = `menu-fonts-${themeId}`;
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.appendChild(link);
+  }, [themeId]);
+
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
@@ -112,22 +129,65 @@ function CartaPage() {
     );
   }
 
-  const { mesa, categorias } = data;
+  const { mesa, categorias, negocio } = data;
   const ocupada = mesa.estado === "OCUPADA";
+  const logoUrl = negocio?.url_logo ?? null;
+  const nombreNegocio = negocio?.nombre_comercial ?? "";
 
   if (fase === "onboarding") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-6">
-        <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-sm text-center space-y-5">
-          <div className="inline-flex items-center justify-center rounded-full bg-primary/10 px-4 py-1 text-xs font-medium text-primary">
+      <main
+        style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
+        className="flex min-h-screen items-center justify-center px-6"
+      >
+        <div
+          className="w-full max-w-sm p-6 text-center space-y-5 shadow-sm"
+          style={{
+            background: "var(--menu-surface)",
+            borderColor: "var(--menu-border)",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderRadius: "calc(var(--menu-radius) * 1.5)",
+          }}
+        >
+          {logoUrl && (
+            <div className="flex justify-center">
+              <img
+                src={logoUrl}
+                alt={nombreNegocio}
+                className="h-20 w-20 rounded-full object-contain bg-white/50 p-1"
+                style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
+              />
+            </div>
+          )}
+          <div
+            className="inline-flex items-center justify-center rounded-full px-4 py-1 text-xs font-medium"
+            style={{
+              background: "var(--menu-surface-2)",
+              color: "var(--menu-primary)",
+            }}
+          >
             Mesa {mesa.identificador}
           </div>
-          <h1 className="text-2xl font-bold leading-tight">¡Bienvenido!</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <h1
+            className="text-2xl font-bold leading-tight"
+            style={{ fontFamily: "var(--menu-heading-font)" }}
+          >
+            ¡Bienvenido{nombreNegocio ? ` a ${nombreNegocio}` : ""}!
+          </h1>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--menu-muted)" }}>
             Revisa nuestro menú y cuando tengas claro qué vas a pedir llama a tu
             mesero, te atenderemos con gusto.
           </p>
-          <Button className="w-full h-12 text-base" onClick={() => setFase("menu")}>
+          <Button
+            className="w-full h-12 text-base"
+            style={{
+              background: "var(--menu-primary)",
+              color: "var(--menu-primary-foreground)",
+              borderRadius: "var(--menu-radius)",
+            }}
+            onClick={() => setFase("menu")}
+          >
             Continuar
           </Button>
         </div>
@@ -136,13 +196,40 @@ function CartaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background pb-28">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="px-4 pt-3 pb-2">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Mesa {mesa.identificador}
-          </p>
-          <h1 className="text-lg font-bold">Nuestra carta</h1>
+    <main
+      style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
+      className="min-h-screen pb-28"
+    >
+      <header
+        className="sticky top-0 z-20 backdrop-blur"
+        style={{
+          background: "color-mix(in oklab, var(--menu-bg) 88%, transparent)",
+          borderBottom: "1px solid var(--menu-border)",
+        }}
+      >
+        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-[11px] uppercase tracking-wider"
+              style={{ color: "var(--menu-muted)" }}
+            >
+              Mesa {mesa.identificador}
+            </p>
+            <h1
+              className="text-lg font-bold leading-tight truncate"
+              style={{ fontFamily: "var(--menu-heading-font)" }}
+            >
+              {nombreNegocio || "Nuestra carta"}
+            </h1>
+          </div>
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt={nombreNegocio}
+              className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
+              style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
+            />
+          )}
         </div>
         {categorias.length > 0 && (
           <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-none">
@@ -165,7 +252,10 @@ function CartaPage() {
 
       <section className="px-4 pt-4 space-y-3">
         {productosFiltrados.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-12">
+          <p
+            className="text-center text-sm py-12"
+            style={{ color: "var(--menu-muted)" }}
+          >
             No hay productos disponibles en esta categoría.
           </p>
         ) : (
@@ -174,16 +264,26 @@ function CartaPage() {
       </section>
 
       <div
-        className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="fixed inset-x-0 bottom-0 z-30 backdrop-blur"
+        style={{
+          background: "color-mix(in oklab, var(--menu-bg) 92%, transparent)",
+          borderTop: "1px solid var(--menu-border)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
         <div className="mx-auto max-w-2xl p-3">
           {estadoQ.data?.tiene_pedido_activo ? (
             <div className="grid grid-cols-2 gap-2">
               <Button
                 size="lg"
-                variant="outline"
                 className="h-14 text-base font-semibold gap-2"
+                style={{
+                  background: "var(--menu-surface)",
+                  color: "var(--menu-foreground)",
+                  borderColor: "var(--menu-border)",
+                  borderWidth: 1,
+                  borderRadius: "var(--menu-radius)",
+                }}
                 onClick={() => solicitarMut.mutate("PEDIR_MAS")}
                 disabled={solicitarMut.isPending}
               >
@@ -193,6 +293,11 @@ function CartaPage() {
               <Button
                 size="lg"
                 className="h-14 text-base font-semibold gap-2"
+                style={{
+                  background: "var(--menu-primary)",
+                  color: "var(--menu-primary-foreground)",
+                  borderRadius: "var(--menu-radius)",
+                }}
                 onClick={() => solicitarMut.mutate("CUENTA")}
                 disabled={solicitarMut.isPending}
               >
@@ -204,9 +309,14 @@ function CartaPage() {
             <Button
               size="lg"
               className="w-full h-14 text-base font-semibold gap-2"
+              style={{
+                background: ocupada ? "var(--menu-surface-2)" : "var(--menu-primary)",
+                color: ocupada ? "var(--menu-foreground)" : "var(--menu-primary-foreground)",
+                borderRadius: "var(--menu-radius)",
+                opacity: ocupada ? 0.85 : 1,
+              }}
               onClick={() => mut.mutate()}
               disabled={mut.isPending || ocupada}
-              variant={ocupada ? "secondary" : "default"}
             >
               {mut.isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -221,51 +331,84 @@ function CartaPage() {
 
     </main>
   );
-}
 
-function CategoryPill({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card text-foreground border-border hover:bg-muted"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
+  function CategoryPill({
+    label,
+    active,
+    onClick,
+  }: {
+    label: string;
+    active: boolean;
+    onClick: () => void;
+  }) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="shrink-0 px-4 py-1.5 text-sm font-medium transition-colors"
+        style={{
+          borderRadius: "9999px",
+          background: active ? "var(--menu-primary)" : "var(--menu-surface)",
+          color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+          borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
+          borderWidth: 1,
+          borderStyle: "solid",
+          fontFamily: "var(--menu-body-font)",
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
 
-function ProductoCard({ p }: { p: CartaProducto }) {
-  return (
-    <article className="flex gap-3 rounded-xl border bg-card p-3 shadow-sm">
-      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted flex items-center justify-center">
-        {p.url_imagen ? (
-          <img src={p.url_imagen} alt={p.nombre_producto} className="h-full w-full object-cover" />
-        ) : (
-          <ImageIcon className="h-6 w-6 text-muted-foreground" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="font-semibold leading-tight line-clamp-1">{p.nombre_producto}</h3>
-        {p.descripcion_producto && (
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-            {p.descripcion_producto}
+  function ProductoCard({ p }: { p: CartaProducto }) {
+    return (
+      <article
+        className="flex gap-3 p-3 shadow-sm"
+        style={{
+          background: "var(--menu-surface)",
+          borderColor: "var(--menu-border)",
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderRadius: "var(--menu-radius)",
+        }}
+      >
+        <div
+          className="h-20 w-20 shrink-0 overflow-hidden flex items-center justify-center"
+          style={{
+            background: "var(--menu-surface-2)",
+            borderRadius: "calc(var(--menu-radius) - 4px)",
+          }}
+        >
+          {p.url_imagen ? (
+            <img src={p.url_imagen} alt={p.nombre_producto} className="h-full w-full object-cover" />
+          ) : (
+            <ImageIcon className="h-6 w-6" style={{ color: "var(--menu-muted)" }} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3
+            className="font-semibold leading-tight line-clamp-1"
+            style={{ fontFamily: "var(--menu-heading-font)" }}
+          >
+            {p.nombre_producto}
+          </h3>
+          {p.descripcion_producto && (
+            <p
+              className="mt-0.5 text-xs line-clamp-2"
+              style={{ color: "var(--menu-muted)" }}
+            >
+              {p.descripcion_producto}
+            </p>
+          )}
+          <p
+            className="mt-1.5 text-sm font-bold tabular-nums"
+            style={{ color: "var(--menu-accent)" }}
+          >
+            {fmt.format(p.precio_venta)}
           </p>
-        )}
-        <p className="mt-1.5 text-sm font-bold tabular-nums">{fmt.format(p.precio_venta)}</p>
-      </div>
-    </article>
-  );
+        </div>
+      </article>
+    );
+  }
 }

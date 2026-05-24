@@ -464,6 +464,7 @@ export type Database = {
           nombre_comercial: string
           razon_social: string
           telefono_contacto: string
+          tema_menu: string
           url_logo: string | null
         }
         Insert: {
@@ -475,6 +476,7 @@ export type Database = {
           nombre_comercial: string
           razon_social: string
           telefono_contacto: string
+          tema_menu?: string
           url_logo?: string | null
         }
         Update: {
@@ -486,6 +488,7 @@ export type Database = {
           nombre_comercial?: string
           razon_social?: string
           telefono_contacto?: string
+          tema_menu?: string
           url_logo?: string | null
         }
         Relationships: []
