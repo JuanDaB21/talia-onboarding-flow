@@ -32,7 +32,6 @@ import {
   iniciarNuevoPedido,
   marcarPedidoEntregado,
   marcarSeguimientoVisto,
-  limpiarSolicitudCliente,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
@@ -45,6 +44,8 @@ import {
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { LlamadoPanel } from "@/components/servicio/llamado-panel";
+import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
 import {
   AlertDialog,
@@ -89,7 +90,6 @@ function MesaEnServicio() {
   const confFn = useServerFn(confirmarPedido);
   const newFn = useServerFn(iniciarNuevoPedido);
   const entregaFn = useServerFn(marcarPedidoEntregado);
-  const limpiarSolFn = useServerFn(limpiarSolicitudCliente);
   const segFn = useServerFn(marcarSeguimientoVisto);
 
   const mesaQ = useQuery({
@@ -147,18 +147,8 @@ function MesaEnServicio() {
     return () => clearInterval(id);
   }, []);
 
-  // Si la mesa tenía solicitud del cliente, mostrar y limpiar
-  useEffect(() => {
-    if (!mesaQ.data?.solicitud_cliente) return;
-    const tipo = mesaQ.data.solicitud_cliente;
-    toast.info(
-      tipo === "CUENTA"
-        ? "🧾 El cliente pide la cuenta"
-        : "➕ El cliente quiere pedir más",
-      { duration: 8000 },
-    );
-    limpiarSolFn({ data: { idMesa } }).catch(() => undefined);
-  }, [mesaQ.data?.solicitud_cliente, idMesa, limpiarSolFn]);
+  // La solicitud del cliente ya NO se limpia automáticamente: se muestra como
+  // banner persistente y se limpia con una acción explícita del mesero.
 
   // Marcar seguimiento visto al entrar (los pedidos entregados >30min)
   useEffect(() => {
@@ -291,6 +281,22 @@ function MesaEnServicio() {
           <h1 className="text-2xl font-bold">{mesa.identificador}</h1>
         </div>
       </div>
+
+      {mesa.solicitud_cliente === "LLAMADO" && (
+        <LlamadoPanel
+          idMesa={mesa.id_mesa}
+          identificador={mesa.identificador}
+          solicitudAt={mesa.solicitud_at}
+        />
+      )}
+      {(mesa.solicitud_cliente === "CUENTA" ||
+        mesa.solicitud_cliente === "PEDIR_MAS") && (
+        <SolicitudBanner
+          idMesa={mesa.id_mesa}
+          tipo={mesa.solicitud_cliente as "CUENTA" | "PEDIR_MAS"}
+          solicitudAt={mesa.solicitud_at}
+        />
+      )}
 
       <MesaHeader
         mesa={mesa}

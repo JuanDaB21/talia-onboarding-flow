@@ -49,13 +49,6 @@ function ServicioIndex() {
               icon: <Bell className="h-4 w-4" />,
             });
           }
-          if (nuevo?.solicitud_cliente && viejo?.solicitud_cliente !== nuevo?.solicitud_cliente) {
-            toast.info(
-              nuevo.solicitud_cliente === "CUENTA"
-                ? `Mesa ${nuevo.identificador}: pide la cuenta 🧾`
-                : `Mesa ${nuevo.identificador}: quiere pedir más ➕`,
-            );
-          }
           refetch();
         },
       )
