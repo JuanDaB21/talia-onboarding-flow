@@ -92,7 +92,11 @@ export const llamarMesero = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin
       .from("mesas")
-      .update({ estado: "OCUPADA" })
+      .update({
+        estado: "OCUPADA",
+        solicitud_cliente: "LLAMADO",
+        solicitud_at: new Date().toISOString(),
+      })
       .eq("id_mesa", data.idMesa);
     if (error) throw new Error(error.message);
 
