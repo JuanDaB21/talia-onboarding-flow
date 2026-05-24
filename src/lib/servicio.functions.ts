@@ -38,6 +38,7 @@ export interface MesaServicio {
   asignada_at: string | null;
   mesero_nombre: string | null;
   solicitud_cliente: string | null;
+  solicitud_at: string | null;
   alerta_listo: boolean;
   alerta_seguimiento: boolean;
 }
