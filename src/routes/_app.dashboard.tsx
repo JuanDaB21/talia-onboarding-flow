@@ -40,9 +40,9 @@ function DashboardPage() {
     refetchInterval: 30_000,
   });
 
-  const setRango = (r: Rango) => navigate({ search: (s) => ({ ...s, rango: r }) });
+  const setRango = (r: Rango) => navigate({ search: { tab, rango: r } });
   const setTab = (t: string) =>
-    navigate({ search: (s) => ({ ...s, tab: t as "rentabilidad" | "cliente" | "operacion" | "alertas" }) });
+    navigate({ search: { tab: t as "rentabilidad" | "cliente" | "operacion" | "alertas", rango } });
 
   return (
     <div className="space-y-6">
