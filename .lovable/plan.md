@@ -1,112 +1,102 @@
-# Dashboard, Operación en vivo y Cierre de Caja
+## Objetivo
 
-Todo entregado en una sola pasada, accesible solo para rol `ADMIN`/`SUPERADMIN` desde un nuevo grupo "Administración" en el sidebar.
+Hacer que los llamados del cliente al mesero sean **alertas persistentes** (no toasts efímeros), tanto para el llamado inicial como para el llamado de cuenta, y darle al mesero acciones explícitas para confirmar que llegó a la mesa.
 
-## 1. Sidebar y rutas
+---
 
-Nuevo grupo "Administración" (solo ADMIN):
-- `/dashboard` — KPIs del día (reemplaza el placeholder actual).
-- `/operacion` — Mesas en vivo, alertas de retraso, personal en turno y panel de pagos por aprobar.
-- `/caja` — Resumen de caja del día (movimientos por método, base, pendientes).
-- `/caja/cierre` — Wizard paso a paso de cierre.
-- `/caja/cierres/$id` — Reporte imprimible inmutable de un cierre.
+## 1) Modelo de datos
 
-`TurnoGate` no aplica a ADMIN, así que el acceso se filtra solo por rol en el sidebar y con un `gateAdmin` simple en cada ruta (redirige si no es ADMIN).
+La tabla `mesas` ya tiene `solicitud_cliente` (text) y `solicitud_at` (timestamp). Hoy se usa con dos valores: `CUENTA` y `PEDIR_MAS`. No hay check constraint que limite los valores, así que se reutiliza la misma columna sumando un tercer valor:
 
-## 2. Base de datos (migración nueva)
+- `LLAMADO` → cliente tocó "Llamar mesero" y aún nadie lo atiende.
 
-### Tablas
+No se requiere migración de tabla. Se actualizan dos RPCs existentes y se agregan dos server functions nuevas (ver §2).
 
-`caja_dia` — una fila por día por negocio.
-- `id_caja`, `id_negocio`, `fecha date` (UNIQUE con negocio)
-- `base_inicial numeric`, `abierta_por uuid`, `abierta_at`
-- `estado text` (`ABIERTA` | `CERRADA`)
-- `cerrada_por uuid`, `cerrada_at`
-- `efectivo_sistema`, `transferencia_sistema`, `datafono_sistema numeric` (snapshot al cerrar)
-- `efectivo_fisico`, `datafono_fisico numeric` (lo que ingresó el admin)
-- `diferencia_efectivo`, `diferencia_datafono numeric`
-- `nota_cuadre text`
-- RLS: `id_negocio = current_user_negocio()`.
+### Reglas de transición
 
-### RPCs (SECURITY DEFINER, validan rol ADMIN/SUPERADMIN)
+| Evento | Cambios en `mesas` |
+|---|---|
+| Cliente toca **Llamar mesero** | `estado='OCUPADA'`, `solicitud_cliente='LLAMADO'`, `solicitud_at=now()`, intento de asignar mesero |
+| Mesero toca **Detener alerta** (solo si `solicitud_cliente='LLAMADO'`) | `estado='LIBRE'`, `solicitud_cliente=null`, `id_mesero_asignado=null`, `asignada_at=null`, `solicitud_at=null` |
+| Mesero toca **Tomar pedido** | `solicitud_cliente=null`, `solicitud_at=null` (mesa sigue OCUPADA, mesero asignado) |
+| Cliente toca **Pedir cuenta / Pedir más** | `solicitud_cliente='CUENTA'` o `'PEDIR_MAS'`, `solicitud_at=now()` |
+| Mesero toca **Atendido** en el banner de cuenta/pedir más | `solicitud_cliente=null`, `solicitud_at=null` |
 
-- `abrir_caja(p_base numeric)` — crea fila del día si no existe; falla si ya hay una ABIERTA o CERRADA hoy.
-- `resumen_caja_dia()` — devuelve, para el día abierto del negocio:
-  - totales por método (`efectivo`, `transferencia_confirmada`, `transferencia_pendiente`, `datafono`)
-  - desglose de efectivo por mesero
-  - conteo de pagos pendientes de verificación
-  - base inicial y estado de la caja
-- `cerrar_caja(p_efectivo_fisico, p_datafono_fisico, p_nota)`:
-  - valida que no haya pagos `PENDIENTE` ni mesas con cuenta abierta
-  - calcula totales del sistema y diferencias
-  - si hay diferencia y `p_nota` vacío → error
-  - marca `caja_dia` CERRADA, registra snapshot
-  - hace `UPDATE usuarios_staff SET esta_en_turno=false, turno_iniciado_at=null WHERE id_negocio=… AND esta_en_turno=true` (auto-cierre de turnos olvidados)
-  - devuelve `id_caja`
+Importante: hoy `_app.servicio.$idMesa.tsx` limpia automáticamente la solicitud al abrir la mesa. Eso se quita; la solicitud solo se limpia con acción explícita del mesero (o cuando se cobra la cuenta).
 
-### Índices
-- `pagos(id_negocio, created_at)` para los KPIs.
-- `pedido_items(estado_preparacion, iniciado_at)` para alertas.
+---
 
-## 3. Server functions (`src/lib/admin.functions.ts` y `caja.functions.ts`)
+## 2) Server functions
 
-### `admin.functions.ts`
-- `getKpisHoy()` — ventas del día (pagos confirmados), ticket promedio (ventas / mesas cerradas hoy = pedidos PAGADOS distintos por mesa), ocupación actual (`mesas.estado<>'LIBRE'` / total), promedio real de preparación (`AVG(listo_at - iniciado_at)` items de hoy) vs promedio planeado (`AVG(tiempo_planeado_min)`).
-- `getAlertasOperacion()` — items con `estado_preparacion IN ('EN_COLA','EN_PREPARACION')` cuyo tiempo transcurrido > `tiempo_planeado_min * 1.2`. Devuelve identificador de mesa, producto, destino, minutos de retraso.
-- `getPersonalEnTurno()` — `usuarios_staff` con `esta_en_turno=true`, agrupado por rol; para MESEROS incluye cuántas mesas tiene asignadas (estado<>'LIBRE').
-- `getMesasOperacion()` — todas las mesas con estado, mesero asignado, hora de asignación, solicitud cliente activa, total pendiente.
+### `src/lib/menu-publico.functions.ts`
+- `llamarMesero`: además de marcar `OCUPADA` y asignar mesero, setear `solicitud_cliente='LLAMADO'` y `solicitud_at=now()`.
 
-`listarPagosPendientes` y `confirmarPago` ya existen en `pagos.functions.ts` — se reusan.
+### `src/lib/servicio.functions.ts`
+- Nueva `detenerAlertaLlamado({ idMesa })`: valida que `solicitud_cliente='LLAMADO'` y que el caller es el mesero asignado (o admin); libera la mesa según la tabla de arriba.
+- Nueva `tomarPedidoLlamado({ idMesa })`: limpia solo `solicitud_cliente` y `solicitud_at`; mantiene mesero y `OCUPADA`.
+- Renombrar el uso actual de `limpiarSolicitudCliente` para que cubra `CUENTA`/`PEDIR_MAS` (ya existe la RPC `limpiar_solicitud_cliente`, sigue sirviendo como "marcar atendido").
+- Quitar el `useEffect` de `_app.servicio.$idMesa.tsx` que llamaba a `limpiarSolicitudCliente` automáticamente.
 
-### `caja.functions.ts`
-- `getEstadoCaja()` → llama RPC `resumen_caja_dia` + estado de la caja.
-- `abrirCaja({ base })` → RPC `abrir_caja`.
-- `cerrarCaja({ efectivoFisico, datafonoFisico, nota })` → RPC `cerrar_caja`, devuelve `idCaja`.
-- `getCierre({ idCaja })` → carga la fila inmutable de `caja_dia` + top productos vendidos del día + hora pico (agrupado por hora de `pagos.created_at`).
-- `listarCierres()` → historial.
+---
 
-Todas con `requireSupabaseAuth` y check de rol ADMIN en el RPC.
+## 3) UI mesero
 
-## 4. UI
+### Banner global de alertas (componente nuevo `AlertasMeseroBanner`)
+Se renderiza en `src/routes/_app.servicio.tsx` (encima del `<Outlet/>`) para que esté visible en la lista de mesas y en el detalle. Hace polling + realtime sobre `mesas` y filtra las que tienen `solicitud_cliente IS NOT NULL` asignadas al mesero actual (o todas si es admin).
 
-### `/dashboard` (KPIs)
-4 cards grandes: Ventas del día, Ticket promedio, Ocupación %, Tiempo prep. real vs planeado. Botones: "Ir a operación", "Ir a caja".
+Cada alerta es una tarjeta llamativa, sticky en el top, con animación `animate-pulse` + sonido `beepListo` la primera vez que aparece:
 
-### `/operacion`
-Tres secciones en grid:
-- **Pagos por aprobar**: lista de `listarPagosPendientes` con miniatura del comprobante, mesa, mesero, método/subtipo, monto, botones Aprobar/Rechazar (reusa `confirmarPago`).
-- **Alertas**: lista roja/amarilla con producto, mesa, minutos de retraso, destino.
-- **Personal en turno**: lista agrupada por rol; los meseros muestran badge con número de mesas activas.
-- **Mapa de mesas**: grid de tarjetas, color por estado.
+- **LLAMADO** (rojo/primary, más prominente):
+  - Texto: "Mesa {identificador} te está llamando" + tiempo transcurrido.
+  - Botón principal "Ir a la mesa" → navega a `/servicio/$idMesa`.
+- **CUENTA** (verde):
+  - Texto: "Mesa {identificador} pide la cuenta 🧾".
+  - Botones: "Ir a la mesa" y "Atendido" (limpia solicitud).
+- **PEDIR_MAS** (azul):
+  - Texto: "Mesa {identificador} quiere pedir más ➕".
+  - Botones: "Ir a la mesa" y "Atendido".
 
-Auto-refresh con `useQuery` + `refetchInterval: 15s`.
+Se quitan los toasts efímeros actuales (`toast.info` por `solicitud_cliente`) para no duplicar, pero se conserva el `beepListo` y el toast de "asignación nueva".
 
-### `/caja`
-- Si no hay caja abierta hoy → tarjeta "Abrir caja" con input de base inicial.
-- Si abierta → resumen del día: base, total por método, desglose efectivo por mesero, # pagos pendientes (con link a `/operacion`), CTA "Cerrar caja" (deshabilitado si quedan pagos pendientes o mesas abiertas).
-- Historial: lista de cierres anteriores con link al reporte.
+### Detalle de mesa cuando `solicitud_cliente='LLAMADO'`
+En `_app.servicio.$idMesa.tsx`, encima de `MesaHeader`, mostrar un panel grande con dos botones del mismo tamaño:
 
-### `/caja/cierre` — wizard 4 pasos
-1. **Verificación previa**: comprueba 0 pagos pendientes y 0 mesas con cuenta abierta; bloquea si falla.
-2. **Sistema**: tarjeta solo lectura con totales por método.
-3. **Físico**: dos inputs (efectivo en caja, total datáfono).
-4. **Conciliación**: muestra diferencia por método; si ≠ 0 obliga a llenar nota de cuadre. Botón "Cerrar caja" llama `cerrarCaja` y redirige al reporte.
+```text
+┌─────────────────────────────────────────┐
+│  🔔 Mesa {identificador} te llamó       │
+│  Hace 2 min                              │
+│                                          │
+│  [ Detener alerta ]  [ Tomar pedido ]   │
+└─────────────────────────────────────────┘
+```
 
-### `/caja/cierres/$id`
-Página imprimible (`@media print` limpio): cabecera negocio + fecha, base inicial, totales sistema vs físico, diferencias, nota, top productos, hora pico, lista de meseros desactivados. Botón "Imprimir".
+- **Detener alerta** (variante outline destructive): ejecuta `detenerAlertaLlamado` y al éxito navega a `/servicio`. Esto deja la mesa LIBRE, lo cual reactiva el botón "Llamar mesero" en la carta del cliente (la carta ya muestra ese botón cuando `estado!='OCUPADA'`).
+- **Tomar pedido** (variante primary, grande): ejecuta `tomarPedidoLlamado` y el panel desaparece; el flujo actual del detalle continúa normal.
 
-## 5. Resumen de archivos
+### Detalle de mesa cuando `solicitud_cliente='CUENTA'` o `'PEDIR_MAS'`
+Reemplazar el toast actual por un banner persistente similar arriba de `MesaHeader` con el texto correspondiente y un botón "Atendido" (llama a `limpiarSolicitudCliente`). Cuando se cobre la cuenta vía `PagarSheet`, también se limpia.
 
-Nuevos:
-- `supabase/migrations/…_caja_y_dashboard.sql`
-- `src/lib/admin.functions.ts`
-- `src/lib/caja.functions.ts`
-- `src/routes/_app.operacion.tsx`
-- `src/routes/_app.caja.tsx`
-- `src/routes/_app.caja.cierre.tsx`
-- `src/routes/_app.caja.cierres.$id.tsx`
-- `src/components/admin/kpi-card.tsx`, `alertas-list.tsx`, `personal-turno.tsx`, `mesas-grid.tsx`, `pagos-pendientes.tsx`
+---
 
-Editados:
-- `src/routes/_app.dashboard.tsx` (KPIs reales + gate ADMIN)
-- `src/components/app-sidebar.tsx` (grupo Administración para ADMIN: Dashboard, Operación, Caja)
+## 4) Archivos a tocar
+
+- `src/lib/menu-publico.functions.ts` — ajustar `llamarMesero`.
+- `src/lib/servicio.functions.ts` — agregar `detenerAlertaLlamado`, `tomarPedidoLlamado`.
+- `src/components/servicio/alertas-mesero-banner.tsx` — nuevo.
+- `src/components/servicio/llamado-panel.tsx` — nuevo (panel grande con los dos botones para LLAMADO).
+- `src/components/servicio/solicitud-banner.tsx` — nuevo (banner CUENTA/PEDIR_MAS dentro del detalle).
+- `src/routes/_app.servicio.tsx` — montar `AlertasMeseroBanner` encima del `<Outlet/>`.
+- `src/routes/_app.servicio.$idMesa.tsx` — quitar limpieza automática + montar paneles según `solicitud_cliente`.
+- `src/routes/_app.servicio.index.tsx` — quitar el `toast.info` duplicado de solicitud_cliente (el banner global ya lo cubre).
+
+No se tocan el flujo de pagos, ni la carta pública, ni los componentes administrativos.
+
+---
+
+## 5) QA manual
+
+1. Cliente toca "Llamar mesero" desde `/carta/{idMesa}` → en `/servicio` aparece banner rojo con la mesa, suena el beep, botón cliente cambia a "Mesero notificado".
+2. Mesero entra a la mesa → ve panel con dos botones grandes.
+3. Mesero toca "Detener alerta" → vuelve a `/servicio`, banner desaparece, en la carta del cliente vuelve a aparecer "Llamar mesero".
+4. Mesero toca "Tomar pedido" → panel desaparece, flujo de toma normal.
+5. Cliente toca "Pedir la cuenta" → en `/servicio` aparece banner verde persistente; al entrar a la mesa, banner CUENTA arriba; "Atendido" lo limpia; cobrar también lo limpia.
