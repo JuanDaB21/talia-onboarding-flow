@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -53,9 +53,19 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const autoSelected = useRef(false);
   useEffect(() => {
-    if (selected && !cats.find((c) => c.id_categoria === selected)) setSelected(null);
-    if (!selected && cats.length > 0) setSelected(cats[0].id_categoria);
+    if (selected && !cats.find((c) => c.id_categoria === selected)) {
+      setSelected(null);
+      return;
+    }
+    // Auto-seleccionar la primera categoría solo en desktop y solo una vez al cargar
+    if (!autoSelected.current && cats.length > 0 && typeof window !== "undefined") {
+      autoSelected.current = true;
+      if (window.matchMedia("(min-width: 768px)").matches && !selected) {
+        setSelected(cats[0].id_categoria);
+      }
+    }
   }, [cats, selected]);
 
   const subsOf = selected ? subs.filter((s) => s.id_categoria === selected) : [];
