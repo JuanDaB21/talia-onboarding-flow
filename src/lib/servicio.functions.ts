@@ -126,6 +126,7 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
       asignada_at: m.asignada_at,
       mesero_nombre: m.id_mesero_asignado ? nombres.get(m.id_mesero_asignado) ?? null : null,
       solicitud_cliente: m.solicitud_cliente,
+      solicitud_at: m.solicitud_at,
       alerta_listo: listoSet.has(m.id_mesa),
       alerta_seguimiento: seguimientoSet.has(m.id_mesa),
     }));
