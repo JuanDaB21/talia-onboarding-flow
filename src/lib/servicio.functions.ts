@@ -614,3 +614,48 @@ export const limpiarSolicitudCliente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// Mesero atendió el llamado y va a tomar el pedido: limpia la solicitud, mantiene OCUPADA.
+export const tomarPedidoLlamado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("mesas")
+      .update({ solicitud_cliente: null, solicitud_at: null })
+      .eq("id_mesa", data.idMesa);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// Mesero detiene la alerta sin tomar pedido: libera la mesa.
+// Solo aplica cuando la solicitud actual es LLAMADO (llamada inicial sin pedido).
+export const detenerAlertaLlamado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => idMesaInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: mesa, error: mErr } = await supabase
+      .from("mesas")
+      .select("solicitud_cliente")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+    if (mesa.solicitud_cliente !== "LLAMADO") {
+      throw new Error("La mesa ya no tiene una llamada activa");
+    }
+    const { error } = await supabase
+      .from("mesas")
+      .update({
+        estado: "LIBRE",
+        solicitud_cliente: null,
+        solicitud_at: null,
+        id_mesero_asignado: null,
+        asignada_at: null,
+      })
+      .eq("id_mesa", data.idMesa);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
