@@ -25,6 +25,12 @@ export interface CartaMesa {
   estado: string;
 }
 
+export interface CartaNegocio {
+  nombre_comercial: string;
+  url_logo: string | null;
+  tema_menu: string;
+}
+
 export const getMenuPublico = createServerFn({ method: "GET" })
   .inputValidator((input) => idMesaSchema.parse(input))
   .handler(async ({ data }) => {
