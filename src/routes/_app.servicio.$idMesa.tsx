@@ -32,7 +32,6 @@ import {
   iniciarNuevoPedido,
   marcarPedidoEntregado,
   marcarSeguimientoVisto,
-  limpiarSolicitudCliente,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
@@ -45,6 +44,8 @@ import {
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { LlamadoPanel } from "@/components/servicio/llamado-panel";
+import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
 import {
   AlertDialog,
