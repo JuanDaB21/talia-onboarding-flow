@@ -39,7 +39,7 @@ export const updateNegocioApariencia = createServerFn({ method: "POST" })
   .inputValidator((input) => aparienciaSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const patch: Record<string, unknown> = {};
+    const patch: { tema_menu?: string; url_logo?: string | null } = {};
     if (data.tema_menu !== undefined) patch.tema_menu = data.tema_menu;
     if (data.url_logo !== undefined) patch.url_logo = data.url_logo;
     if (Object.keys(patch).length === 0) return { ok: true };
