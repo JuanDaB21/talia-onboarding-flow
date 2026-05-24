@@ -282,6 +282,22 @@ function MesaEnServicio() {
         </div>
       </div>
 
+      {mesa.solicitud_cliente === "LLAMADO" && (
+        <LlamadoPanel
+          idMesa={mesa.id_mesa}
+          identificador={mesa.identificador}
+          solicitudAt={mesa.solicitud_at}
+        />
+      )}
+      {(mesa.solicitud_cliente === "CUENTA" ||
+        mesa.solicitud_cliente === "PEDIR_MAS") && (
+        <SolicitudBanner
+          idMesa={mesa.id_mesa}
+          tipo={mesa.solicitud_cliente as "CUENTA" | "PEDIR_MAS"}
+          solicitudAt={mesa.solicitud_at}
+        />
+      )}
+
       <MesaHeader
         mesa={mesa}
         onPagar={() => setPagarOpen(true)}
