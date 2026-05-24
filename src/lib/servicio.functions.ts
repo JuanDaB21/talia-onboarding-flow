@@ -58,7 +58,7 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
     let q = supabase
       .from("mesas")
       .select(
-        "id_mesa, identificador, estado, id_mesero_asignado, asignada_at, solicitud_cliente",
+        "id_mesa, identificador, estado, id_mesero_asignado, asignada_at, solicitud_cliente, solicitud_at",
       )
       .order("identificador");
     if (!esAdmin) {
