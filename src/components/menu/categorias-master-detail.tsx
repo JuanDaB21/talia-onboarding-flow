@@ -72,9 +72,9 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const selectedCat = cats.find((c) => c.id_categoria === selected);
 
   return (
-    <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+    <div className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
       {/* Lista categorías */}
-      <div className={cn("rounded-md border bg-card", selected && "hidden md:block")}>
+      <div className={cn("min-w-0 rounded-md border bg-card", selected && "hidden md:block")}>
         <div className="flex items-center justify-between p-3 border-b">
           <h3 className="text-sm font-semibold">Categorías</h3>
           <Button size="sm" variant="ghost" onClick={() => setCatSheet({ open: true })}>
@@ -105,31 +105,31 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
       </div>
 
       {/* Detalle subcategorías */}
-      <div className={cn("rounded-md border bg-card", !selected && "hidden md:block")}>
-        <div className="flex items-center justify-between p-3 border-b gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <div className={cn("min-w-0 rounded-md border bg-card", !selected && "hidden md:block")}>
+        <div className="flex items-center justify-between gap-2 border-b p-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Button
               size="icon"
               variant="ghost"
-              className="md:hidden h-8 w-8"
+              className="h-8 w-8 shrink-0 md:hidden"
               onClick={() => setSelected(null)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-sm font-semibold truncate">
-              {selectedCat ? `Subcategorías de "${selectedCat.nombre}"` : "Selecciona una categoría"}
+            <h3 className="min-w-0 truncate text-sm font-semibold">
+              {selectedCat ? selectedCat.nombre : "Selecciona una categoría"}
             </h3>
           </div>
           {selectedCat && (
-            <div className="flex items-center gap-1 shrink-0">
-              <Button size="sm" variant="ghost" onClick={() => setCatSheet({ open: true, editing: selectedCat })}>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCatSheet({ open: true, editing: selectedCat })}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDelCat(selectedCat)}>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDelCat(selectedCat)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-              <Button size="sm" onClick={() => setSubSheet({ open: true })}>
-                <Plus className="h-4 w-4 mr-1" /> Sub.
+              <Button size="icon" className="h-8 w-8" onClick={() => setSubSheet({ open: true })} aria-label="Agregar subcategoría">
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
           )}
