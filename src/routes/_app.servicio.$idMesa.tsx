@@ -90,7 +90,6 @@ function MesaEnServicio() {
   const confFn = useServerFn(confirmarPedido);
   const newFn = useServerFn(iniciarNuevoPedido);
   const entregaFn = useServerFn(marcarPedidoEntregado);
-  const segFnRef = useServerFn(marcarSeguimientoVisto);
   const segFn = useServerFn(marcarSeguimientoVisto);
 
   const mesaQ = useQuery({
