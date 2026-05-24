@@ -262,11 +262,7 @@ function ThemePreviewCard({
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
-      <div
-        style={style}
-        className="aspect-[4/3] p-4"
-        // @ts-expect-error bg via CSS var
-      >
+      <div style={style} className="aspect-[4/3] p-4">
         <div
           className="h-full w-full rounded-[var(--menu-radius)] p-3 flex flex-col gap-2"
           style={{
