@@ -1,102 +1,83 @@
 ## Objetivo
 
-Hacer que los llamados del cliente al mesero sean **alertas persistentes** (no toasts efímeros), tanto para el llamado inicial como para el llamado de cuenta, y darle al mesero acciones explícitas para confirmar que llegó a la mesa.
+Agregar una sección "Menú público" en Configuración donde el admin pueda:
 
----
+1. Elegir entre **6 temas pre-diseñados** de menú público (uno de ellos: **Verde Bosque** elegante por defecto del pedido).
+2. Subir/cambiar el **logo del negocio**, que se mostrará arriba a la derecha del menú público (`/carta/$idMesa`).
 
-## 1) Modelo de datos
+## Temas disponibles
 
-La tabla `mesas` ya tiene `solicitud_cliente` (text) y `solicitud_at` (timestamp). Hoy se usa con dos valores: `CUENTA` y `PEDIR_MAS`. No hay check constraint que limite los valores, así que se reutiliza la misma columna sumando un tercer valor:
+Se generan 6 estilos genéricos, todos atractivos y diferenciados (color, tipografía, radius, vibe):
 
-- `LLAMADO` → cliente tocó "Llamar mesero" y aún nadie lo atiende.
+1. **Verde Bosque** (elegante, default solicitado) — fondo crema, primario verde oscuro `oklch(0.32 0.06 155)`, acento dorado, serif display.
+2. **Noir & Gold** — negro profundo, dorado, alto contraste, fine dining.
+3. **Terracota Cálido** — beige arena, terracota, sage, rústico mediterráneo.
+4. **Océano Minimalista** — blanco, azul profundo, sans-serif limpio (cafetería/saludable).
+5. **Sunset Vibrante** — coral/magenta gradiente, juvenil (heladería/bar).
+6. **Cacao Artesanal** — marrón cálido, crema, panadería/bistró.
 
-No se requiere migración de tabla. Se actualizan dos RPCs existentes y se agregan dos server functions nuevas (ver §2).
+Cada tema define: `bg`, `surface`, `primary`, `primary-foreground`, `accent`, `muted`, `border`, `heading-font`, `body-font`, `radius`.
 
-### Reglas de transición
+## Cambios
 
-| Evento | Cambios en `mesas` |
-|---|---|
-| Cliente toca **Llamar mesero** | `estado='OCUPADA'`, `solicitud_cliente='LLAMADO'`, `solicitud_at=now()`, intento de asignar mesero |
-| Mesero toca **Detener alerta** (solo si `solicitud_cliente='LLAMADO'`) | `estado='LIBRE'`, `solicitud_cliente=null`, `id_mesero_asignado=null`, `asignada_at=null`, `solicitud_at=null` |
-| Mesero toca **Tomar pedido** | `solicitud_cliente=null`, `solicitud_at=null` (mesa sigue OCUPADA, mesero asignado) |
-| Cliente toca **Pedir cuenta / Pedir más** | `solicitud_cliente='CUENTA'` o `'PEDIR_MAS'`, `solicitud_at=now()` |
-| Mesero toca **Atendido** en el banner de cuenta/pedir más | `solicitud_cliente=null`, `solicitud_at=null` |
+### 1. Base de datos (migración)
 
-Importante: hoy `_app.servicio.$idMesa.tsx` limpia automáticamente la solicitud al abrir la mesa. Eso se quita; la solicitud solo se limpia con acción explícita del mesero (o cuando se cobra la cuenta).
+Agregar a tabla `negocio`:
 
----
+- `tema_menu text not null default 'verde-bosque'`
+- (la columna `url_logo` ya existe)
 
-## 2) Server functions
+Crear bucket público `negocio-logos` con políticas RLS (cualquiera lee; solo staff del negocio escribe/borra en su carpeta `{id_negocio}/...`).
 
-### `src/lib/menu-publico.functions.ts`
-- `llamarMesero`: además de marcar `OCUPADA` y asignar mesero, setear `solicitud_cliente='LLAMADO'` y `solicitud_at=now()`.
+### 2. Server functions (`src/lib/negocio.functions.ts` nuevo)
 
-### `src/lib/servicio.functions.ts`
-- Nueva `detenerAlertaLlamado({ idMesa })`: valida que `solicitud_cliente='LLAMADO'` y que el caller es el mesero asignado (o admin); libera la mesa según la tabla de arriba.
-- Nueva `tomarPedidoLlamado({ idMesa })`: limpia solo `solicitud_cliente` y `solicitud_at`; mantiene mesero y `OCUPADA`.
-- Renombrar el uso actual de `limpiarSolicitudCliente` para que cubra `CUENTA`/`PEDIR_MAS` (ya existe la RPC `limpiar_solicitud_cliente`, sigue sirviendo como "marcar atendido").
-- Quitar el `useEffect` de `_app.servicio.$idMesa.tsx` que llamaba a `limpiarSolicitudCliente` automáticamente.
+- `getNegocioConfig()` — devuelve `{ id_negocio, nombre_comercial, url_logo, tema_menu }` del negocio actual.
+- `updateNegocioApariencia({ tema_menu, url_logo })` — actualiza ambos campos, valida que `tema_menu` esté en la lista permitida.
+- `getMenuPublico` (existente) — extender para devolver también `negocio: { nombre_comercial, url_logo, tema_menu }`.
 
----
+### 3. Definición de temas (`src/lib/menu-themes.ts` nuevo)
 
-## 3) UI mesero
+Objeto `MENU_THEMES` con los 6 temas. Cada uno con tokens CSS (oklch) + clase de fuente. Helper `getThemeStyle(id)` que devuelve un objeto `style` con CSS variables (`--menu-bg`, `--menu-primary`, etc.) para inyectar en el `<main>` raíz del menú público.
 
-### Banner global de alertas (componente nuevo `AlertasMeseroBanner`)
-Se renderiza en `src/routes/_app.servicio.tsx` (encima del `<Outlet/>`) para que esté visible en la lista de mesas y en el detalle. Hace polling + realtime sobre `mesas` y filtra las que tienen `solicitud_cliente IS NOT NULL` asignadas al mesero actual (o todas si es admin).
+### 4. UI Configuración (`src/routes/_app.configuracion.apariencia.tsx` nuevo)
 
-Cada alerta es una tarjeta llamativa, sticky en el top, con animación `animate-pulse` + sonido `beepListo` la primera vez que aparece:
+- Card "Logo del negocio": preview circular del logo actual + botón "Subir logo" / "Quitar logo" (input file → upload a Storage → guarda `url_logo`).
+- Card "Tema del menú público": grid de 6 tarjetas-preview, cada una mostrando una miniatura del tema (header con logo placeholder + 2 product cards mock con los colores del tema). La tarjeta seleccionada lleva ring + check. Click selecciona y guarda.
+- Botón "Ver vista previa" abre `/carta/{primeraMesa}` en nueva pestaña.
 
-- **LLAMADO** (rojo/primary, más prominente):
-  - Texto: "Mesa {identificador} te está llamando" + tiempo transcurrido.
-  - Botón principal "Ir a la mesa" → navega a `/servicio/$idMesa`.
-- **CUENTA** (verde):
-  - Texto: "Mesa {identificador} pide la cuenta 🧾".
-  - Botones: "Ir a la mesa" y "Atendido" (limpia solicitud).
-- **PEDIR_MAS** (azul):
-  - Texto: "Mesa {identificador} quiere pedir más ➕".
-  - Botones: "Ir a la mesa" y "Atendido".
+### 5. Sidebar (`src/components/app-sidebar.tsx`)
 
-Se quitan los toasts efímeros actuales (`toast.info` por `solicitud_cliente`) para no duplicar, pero se conserva el `beepListo` y el toast de "asignación nueva".
+Agregar item "Apariencia" bajo Configuración (junto a Usuarios y Mesas), ícono `Palette`.
 
-### Detalle de mesa cuando `solicitud_cliente='LLAMADO'`
-En `_app.servicio.$idMesa.tsx`, encima de `MesaHeader`, mostrar un panel grande con dos botones del mismo tamaño:
+### 6. Aplicar tema en menú público (`src/routes/carta.$idMesa.tsx`)
 
-```text
-┌─────────────────────────────────────────┐
-│  🔔 Mesa {identificador} te llamó       │
-│  Hace 2 min                              │
-│                                          │
-│  [ Detener alerta ]  [ Tomar pedido ]   │
-└─────────────────────────────────────────┘
-```
+- Leer `data.negocio.tema_menu` y `data.negocio.url_logo`.
+- Aplicar el tema vía CSS variables inline en el `<main>` y reemplazar clases `bg-background`/`bg-card`/`text-primary` por `bg-[var(--menu-bg)]` etc. (o un wrapper con clases derivadas).
+- En el header sticky: a la izquierda título "Mesa X / Nuestra carta", a la derecha el logo (h-12 redondeado). Si no hay logo, no se renderiza.
+- Los botones inferiores y category pills usan los colores del tema.
+- Onboarding card también respeta el tema (logo grande arriba si existe).
 
-- **Detener alerta** (variante outline destructive): ejecuta `detenerAlertaLlamado` y al éxito navega a `/servicio`. Esto deja la mesa LIBRE, lo cual reactiva el botón "Llamar mesero" en la carta del cliente (la carta ya muestra ese botón cuando `estado!='OCUPADA'`).
-- **Tomar pedido** (variante primary, grande): ejecuta `tomarPedidoLlamado` y el panel desaparece; el flujo actual del detalle continúa normal.
+## Detalles técnicos
 
-### Detalle de mesa cuando `solicitud_cliente='CUENTA'` o `'PEDIR_MAS'`
-Reemplazar el toast actual por un banner persistente similar arriba de `MesaHeader` con el texto correspondiente y un botón "Atendido" (llama a `limpiarSolicitudCliente`). Cuando se cobre la cuenta vía `PagarSheet`, también se limpia.
+- Upload de logo: usar `supabase.storage.from('negocio-logos').upload(\`${id_negocio}/logo-${Date.now()}.{ext})`, validar ≤2MB, tipos` image/png|jpeg|webp|svg+xml`.
+- Inyección de tema: en lugar de tocar `src/styles.css`, cada tema expone un set de CSS vars que se aplican mediante `style={...}` en el contenedor raíz del menú público — así no afecta al admin panel.
+- Tipografías: cargar las 2-3 familias necesarias (`Playfair Display`, `Cormorant`, `Inter`, `DM Sans`) desde Google Fonts en el `<head>` de la ruta `carta.$idMesa.tsx` vía `head().links`.
+- `tema_menu` validado con Zod enum en el server fn.
+- Default para negocios existentes: `'verde-bosque'`.
 
----
+## Archivos a crear/editar
 
-## 4) Archivos a tocar
+Crear:
 
-- `src/lib/menu-publico.functions.ts` — ajustar `llamarMesero`.
-- `src/lib/servicio.functions.ts` — agregar `detenerAlertaLlamado`, `tomarPedidoLlamado`.
-- `src/components/servicio/alertas-mesero-banner.tsx` — nuevo.
-- `src/components/servicio/llamado-panel.tsx` — nuevo (panel grande con los dos botones para LLAMADO).
-- `src/components/servicio/solicitud-banner.tsx` — nuevo (banner CUENTA/PEDIR_MAS dentro del detalle).
-- `src/routes/_app.servicio.tsx` — montar `AlertasMeseroBanner` encima del `<Outlet/>`.
-- `src/routes/_app.servicio.$idMesa.tsx` — quitar limpieza automática + montar paneles según `solicitud_cliente`.
-- `src/routes/_app.servicio.index.tsx` — quitar el `toast.info` duplicado de solicitud_cliente (el banner global ya lo cubre).
+- `supabase/migrations/<timestamp>_menu_themes_and_logo_bucket.sql`
+- `src/lib/negocio.functions.ts`
+- `src/lib/menu-themes.ts`
+- `src/routes/_app.configuracion.apariencia.tsx`
+- `src/components/configuracion/theme-preview-card.tsx`
+- `src/components/configuracion/logo-uploader.tsx`
 
-No se tocan el flujo de pagos, ni la carta pública, ni los componentes administrativos.
+Editar:
 
----
-
-## 5) QA manual
-
-1. Cliente toca "Llamar mesero" desde `/carta/{idMesa}` → en `/servicio` aparece banner rojo con la mesa, suena el beep, botón cliente cambia a "Mesero notificado".
-2. Mesero entra a la mesa → ve panel con dos botones grandes.
-3. Mesero toca "Detener alerta" → vuelve a `/servicio`, banner desaparece, en la carta del cliente vuelve a aparecer "Llamar mesero".
-4. Mesero toca "Tomar pedido" → panel desaparece, flujo de toma normal.
-5. Cliente toca "Pedir la cuenta" → en `/servicio` aparece banner verde persistente; al entrar a la mesa, banner CUENTA arriba; "Atendido" lo limpia; cobrar también lo limpia.
+- `src/lib/menu-publico.functions.ts` (incluir `negocio` en `getMenuPublico`)
+- `src/routes/carta.$idMesa.tsx` (aplicar tema + logo)
+- `src/components/app-sidebar.tsx` (item Apariencia)
