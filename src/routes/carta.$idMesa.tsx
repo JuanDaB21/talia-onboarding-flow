@@ -94,7 +94,6 @@ function CartaPage() {
 
   const themeId = data?.negocio?.tema_menu;
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
-  const theme = useMemo(() => getMenuTheme(themeId), [themeId]);
 
   // Cargar Google Fonts del tema activo
   useEffect(() => {
