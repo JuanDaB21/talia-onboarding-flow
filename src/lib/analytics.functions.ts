@@ -53,7 +53,7 @@ export const getIngenieriaMenu = createServerFn({ method: "POST" })
     const { data: pedidos } = await supabase
       .from("pedidos")
       .select("id_pedido")
-      .in("estado", ["CONFIRMADO", "ENTREGADO", "PAGADO"])
+      .in("estado", ["CONFIRMADO", "PAGADO"])
       .gte("created_at", desde);
     const idsP = (pedidos ?? []).map((p) => p.id_pedido);
 
@@ -188,7 +188,7 @@ export const getComportamientoCliente = createServerFn({ method: "POST" })
       .from("pedidos")
       .select("id_pedido")
       .gte("created_at", desde)
-      .in("estado", ["CONFIRMADO", "ENTREGADO", "PAGADO"]);
+      .in("estado", ["CONFIRMADO", "PAGADO"]);
     const idsR = (pedRango ?? []).map((p) => p.id_pedido);
     let conExtras = 0;
     if (idsR.length > 0) {
@@ -392,7 +392,7 @@ export const getAlertasFugas = createServerFn({ method: "POST" })
     const { data: ped } = await supabase
       .from("pedidos")
       .select("id_pedido")
-      .in("estado", ["CONFIRMADO", "ENTREGADO", "PAGADO"])
+      .in("estado", ["CONFIRMADO", "PAGADO"])
       .gte("created_at", desde);
     const idsP = (ped ?? []).map((p) => p.id_pedido);
 
