@@ -379,7 +379,7 @@ function CartaPage() {
       />
 
       <Suspense fallback={null}>
-        <ProductoDetalleDialog
+        <LazyProductoDetalleDialog
           producto={productoSel}
           theme={theme}
           themeStyle={themeStyle}
