@@ -92,6 +92,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     voucher: string | null;
     urlComprobante: string | null;
     itemIds: string[];
+    propina: number;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => pagarFn({ data: input }),
