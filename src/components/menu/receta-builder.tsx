@@ -41,7 +41,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
   const [idSubcategoria, setIdSubcategoria] = useState("");
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [tiempoPrep, setTiempoPrep] = useState<number>(15);
+  const [tiempoPrep, setTiempoPrep] = useState<string>("15");
   const [ingredientes, setIngredientes] = useState<IngredienteInput[]>([]);
   const [search, setSearch] = useState("");
 
