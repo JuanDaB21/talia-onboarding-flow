@@ -405,11 +405,20 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
                   <Input
-                    type="number"
-                    step="any"
-                    min={0.01}
-                    value={ing.cantidad}
-                    onChange={(e) => setCantidad(ing.id_insumo, Number(e.target.value) || 0)}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={ing.cantidad === 0 ? "" : String(ing.cantidad)}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+                      if (v === "") { setCantidad(ing.id_insumo, 0); return; }
+                      const n = Number(v);
+                      if (!Number.isNaN(n)) setCantidad(ing.id_insumo, n);
+                    }}
+                    onBlur={(e) => {
+                      const n = Number(e.target.value.replace(",", "."));
+                      setCantidad(ing.id_insumo, Number.isFinite(n) && n > 0 ? n : 0);
+                    }}
                     className="h-8 w-20 text-center tabular-nums"
                   />
                   <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => stepCantidad(ing.id_insumo, 1)}>
