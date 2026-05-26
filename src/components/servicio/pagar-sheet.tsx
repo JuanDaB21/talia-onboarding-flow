@@ -312,7 +312,7 @@ function PasoItems({
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600/70 shrink-0" />
                   <span className="flex-1 truncate line-through">
-                    {it.cantidad}× {it.nombre_producto}
+                    {it.cantidad > 1 ? `${it.cantidad}× ` : ""}{it.nombre_producto}
                   </span>
                   <span className="tabular-nums shrink-0">
                     {fmt.format(it.subtotal)}
