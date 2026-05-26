@@ -30,7 +30,7 @@ function CajaPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["estado-caja"],
     queryFn: () => getEstado(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   const [desde, setDesde] = useState("");
