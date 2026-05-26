@@ -31,7 +31,7 @@ export function PagosPendientesSheet({
     queryKey: ["pagos", "pendientes"],
     queryFn: () => listar(),
     enabled: open,
-    refetchInterval: open ? 10_000 : false,
+    ...pollWhen(open, POLL.REALTIME),
   });
 
   useEffect(() => {
