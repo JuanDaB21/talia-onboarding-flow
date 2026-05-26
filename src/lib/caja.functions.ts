@@ -186,18 +186,30 @@ export const getCierre = createServerFn({ method: "POST" })
     };
   });
 
-export const listarCierres = createServerFn({ method: "GET" })
+export const listarCierres = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) =>
+    z
+      .object({
+        desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+        hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+      })
+      .optional()
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data, error } = await supabase
+    let q = supabase
       .from("caja_dia")
       .select("id_caja, fecha, estado, efectivo_sistema, transferencia_sistema, datafono_sistema, diferencia_efectivo, diferencia_datafono, cerrada_at")
       .order("fecha", { ascending: false })
-      .limit(30);
+      .limit(200);
+    if (data?.desde) q = q.gte("fecha", data.desde);
+    if (data?.hasta) q = q.lte("fecha", data.hasta);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return {
-      cierres: (data ?? []).map((c) => ({
+      cierres: (rows ?? []).map((c) => ({
         id_caja: c.id_caja,
         fecha: c.fecha,
         estado: c.estado,
@@ -207,3 +219,4 @@ export const listarCierres = createServerFn({ method: "GET" })
       })),
     };
   });
+
