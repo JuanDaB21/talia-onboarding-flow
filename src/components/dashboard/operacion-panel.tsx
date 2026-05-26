@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getEficienciaOperativa } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
 import type { Rango } from "./range-selector";
+import { POLL } from "@/lib/query-config";
 
 export function OperacionPanel({ rango }: { rango: Rango }) {
   const fn = useServerFn(getEficienciaOperativa);
