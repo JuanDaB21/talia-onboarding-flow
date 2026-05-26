@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ResponsiveSheet } from "./responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { ProveedorForm } from "./proveedor-form";
 
 interface Proveedor {
