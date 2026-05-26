@@ -286,19 +286,19 @@ export interface ResumenCaja {
   transferencia_pendiente: number;
   datafono: number;
   total: number;
+  propinas: number;
 }
 
 export const resumenCajaTurno = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    // Turno: pagos del día de este mesero
     const desde = new Date();
     desde.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
       .from("pagos")
-      .select("metodo, monto, estado_confirmacion")
+      .select("metodo, monto, propina, estado_confirmacion")
       .eq("id_mesero", userId)
       .gte("created_at", desde.toISOString());
     if (error) throw new Error(error.message);
@@ -309,9 +309,11 @@ export const resumenCajaTurno = createServerFn({ method: "GET" })
       transferencia_pendiente: 0,
       datafono: 0,
       total: 0,
+      propinas: 0,
     };
     for (const p of data ?? []) {
       const m = Number(p.monto);
+      const tip = Number(p.propina ?? 0);
       if (p.estado_confirmacion === "RECHAZADO") continue;
       if (p.metodo === "EFECTIVO") r.efectivo += m;
       else if (p.metodo === "DATAFONO") r.datafono += m;
@@ -319,7 +321,10 @@ export const resumenCajaTurno = createServerFn({ method: "GET" })
         if (p.estado_confirmacion === "CONFIRMADO") r.transferencia_confirmada += m;
         else r.transferencia_pendiente += m;
       }
-      if (p.estado_confirmacion !== "PENDIENTE") r.total += m;
+      if (p.estado_confirmacion !== "PENDIENTE") {
+        r.total += m;
+        r.propinas += tip;
+      }
     }
     return r;
   });
