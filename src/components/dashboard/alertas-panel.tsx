@@ -13,7 +13,7 @@ export function AlertasPanel({ rango }: { rango: Rango }) {
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-fugas", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 10_000,
+    ...POLL.REALTIME,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando alertas…</p>;
