@@ -96,7 +96,7 @@ function ServicioIndex() {
   const pagosQ = useQuery({
     queryKey: ["pagos", "pendientes", "badge"],
     queryFn: () => pagosFn(),
-    refetchInterval: 20_000,
+    ...POLL.LIVE,
     enabled: !!data?.esAdmin,
   });
   // Realtime: refrescar badge cuando llegue/cambie un pago
