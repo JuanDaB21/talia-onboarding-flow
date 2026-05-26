@@ -56,6 +56,7 @@ function CartaPage() {
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
+  const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
