@@ -197,7 +197,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
-          p_tiempo_preparacion_min: tiempoPrep,
+          p_tiempo_preparacion_min: tiempoPrepNum,
         });
         if (error) throw error;
         // Obtener id_producto recién creado
@@ -215,7 +215,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
-          p_tiempo_preparacion_min: tiempoPrep,
+          p_tiempo_preparacion_min: tiempoPrepNum,
         });
         if (error) throw error;
       }
