@@ -24,7 +24,7 @@ function ServicioIndex() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["servicio", "mesas"],
     queryFn: () => listar(),
-    refetchInterval: 15000,
+    ...POLL.LIVE,
   });
 
   // Realtime: cualquier cambio relevante refresca
