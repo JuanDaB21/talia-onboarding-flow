@@ -1156,6 +1156,10 @@ export type Database = {
             Returns: string
           }
       current_user_negocio: { Args: never; Returns: string }
+      descontar_inventario_item: {
+        Args: { p_id_item: string }
+        Returns: undefined
+      }
       duplicar_receta: { Args: { p_id_receta: string }; Returns: string }
       editar_item_pedido: {
         Args: {
