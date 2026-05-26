@@ -96,7 +96,7 @@ function MesaEnServicio() {
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
     queryFn: () => getMesa({ data: { idMesa } }),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   // Realtime: refrescar cuando cambien items/pedidos/mesa, y avisar cuando algo pase a LISTO
