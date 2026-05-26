@@ -73,18 +73,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "Talia tu IA para restaurantes" },
       { name: "description", content: "Talia Restaurant Hub is a SaaS application for restaurant management." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { property: "og:title", content: "Talia tu IA para restaurantes" },
       { property: "og:description", content: "Talia Restaurant Hub is a SaaS application for restaurant management." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:title", content: "Talia tu IA para restaurantes" },
       { name: "twitter:description", content: "Talia Restaurant Hub is a SaaS application for restaurant management." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7abf7e6e-d15a-4cd8-83f0-7c05cc0e10eb/id-preview-a5bdc14e--8b10a504-6066-4b8a-834d-dee3ef3491c8.lovable.app-1779411617826.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7abf7e6e-d15a-4cd8-83f0-7c05cc0e10eb/id-preview-a5bdc14e--8b10a504-6066-4b8a-834d-dee3ef3491c8.lovable.app-1779411617826.png" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/78559db7-6e46-4998-b973-44835297c2d4" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/78559db7-6e46-4998-b973-44835297c2d4" },
     ],
     links: [
       {
