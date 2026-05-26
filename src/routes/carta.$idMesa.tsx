@@ -6,11 +6,21 @@ import { Bell, CreditCard, ImageIcon, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   getMenuPublico,
   llamarMesero,
   getEstadoMesaPublico,
   solicitarAccionCliente,
+  getCuentaPublica,
   type CartaProducto,
+  type CuentaPublica,
 } from "@/lib/menu-publico.functions";
 import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
 
