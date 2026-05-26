@@ -644,6 +644,7 @@ function PasoMetodo({
               subtipo: subtipo || undefined,
               voucher: voucher || undefined,
               urlComprobante: urlComprobante ?? undefined,
+              propina,
             })
           }
         >
@@ -652,7 +653,7 @@ function PasoMetodo({
           ) : (
             <CheckCircle2 className="h-4 w-4 mr-2" />
           )}
-          Confirmar pago de {fmt.format(total)}
+          Confirmar pago de {fmt.format(totalConPropina)}
         </Button>
       </div>
     </>
