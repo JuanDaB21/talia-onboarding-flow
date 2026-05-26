@@ -262,73 +262,23 @@ function ThemePreviewCard({
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
-      <div style={style} className="aspect-[4/3] p-4">
+      <div
+        style={style}
+        className="aspect-[4/3] p-3"
+      >
         <div
-          className="h-full w-full rounded-[var(--menu-radius)] p-3 flex flex-col gap-2"
+          className="h-full w-full overflow-hidden flex flex-col"
           style={{
             background: "var(--menu-bg)",
             color: "var(--menu-foreground)",
             fontFamily: "var(--menu-body-font)",
+            borderRadius: "var(--menu-radius)",
           }}
         >
-          <div className="flex items-center justify-between">
-            <div
-              style={{ fontFamily: "var(--menu-heading-font)" }}
-              className="text-sm font-bold leading-none"
-            >
-              Nuestra carta
-            </div>
-            <div
-              className="h-6 w-6 rounded-full"
-              style={{ background: "var(--menu-primary)" }}
-            />
-          </div>
-          <div className="flex gap-1.5">
-            <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-              style={{
-                background: "var(--menu-primary)",
-                color: "var(--menu-primary-foreground)",
-              }}
-            >
-              Todo
-            </span>
-            <span
-              className="rounded-full px-2 py-0.5 text-[10px]"
-              style={{
-                background: "var(--menu-surface-2)",
-                color: "var(--menu-foreground)",
-              }}
-            >
-              Entradas
-            </span>
-          </div>
-          <div
-            className="flex-1 rounded-[calc(var(--menu-radius)-2px)] p-2"
-            style={{
-              background: "var(--menu-surface)",
-              borderColor: "var(--menu-border)",
-              borderWidth: 1,
-              borderStyle: "solid",
-            }}
-          >
-            <div className="h-2.5 w-3/5 rounded" style={{ background: "var(--menu-surface-2)" }} />
-            <div className="mt-1.5 h-2 w-4/5 rounded" style={{ background: "var(--menu-surface-2)" }} />
-            <div
-              className="mt-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
-              style={{ color: "var(--menu-accent)" }}
-            >
-              $ 25.000
-            </div>
-          </div>
-          <div
-            className="rounded-[calc(var(--menu-radius)-2px)] py-1.5 text-center text-[10px] font-semibold"
-            style={{
-              background: "var(--menu-primary)",
-              color: "var(--menu-primary-foreground)",
-            }}
-          >
-            Llamar mesero
+          <MiniHeader theme={theme} />
+          <MiniCategories theme={theme} />
+          <div className="flex-1 px-2.5 pb-2.5 overflow-hidden">
+            <MiniProducts theme={theme} />
           </div>
         </div>
       </div>
@@ -339,3 +289,307 @@ function ThemePreviewCard({
     </button>
   );
 }
+
+function MiniHeader({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
+  const s = theme.headerStyle;
+  if (s === "hero-centrado") {
+    return (
+      <div
+        className="px-2 py-2 text-center"
+        style={{
+          background: theme.vars["--menu-gradient"] ?? "var(--menu-surface)",
+        }}
+      >
+        <div
+          className="text-[9px] uppercase tracking-widest"
+          style={{ color: "var(--menu-accent)" }}
+        >
+          Mesa 12
+        </div>
+        <div
+          className="text-[12px] font-bold leading-tight"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          La Trattoria
+        </div>
+        <div
+          className="mx-auto mt-0.5 h-px w-6"
+          style={{ background: "var(--menu-accent)" }}
+        />
+      </div>
+    );
+  }
+  if (s === "banner-gradiente") {
+    return (
+      <div
+        className="px-2 py-2"
+        style={{
+          background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+          color: "var(--menu-primary-foreground)",
+        }}
+      >
+        <div className="text-[8px] uppercase tracking-widest opacity-80">Mesa 12</div>
+        <div
+          className="text-[12px] font-bold leading-tight"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          La Trattoria
+        </div>
+      </div>
+    );
+  }
+  if (s === "editorial") {
+    return (
+      <div
+        className="px-2 py-1.5"
+        style={{
+          background: "var(--menu-surface)",
+          borderBottom: "1px solid var(--menu-border)",
+        }}
+      >
+        <div
+          className="text-[8px] tracking-widest"
+          style={{ color: "var(--menu-accent)" }}
+        >
+          · MESA 12 ·
+        </div>
+        <div
+          className="text-[13px] font-bold italic leading-tight"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          La Trattoria
+        </div>
+        <div className="mt-1 flex items-center gap-1">
+          <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
+          <div className="text-[7px] tracking-widest" style={{ color: "var(--menu-muted)" }}>
+            CARTA
+          </div>
+          <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
+        </div>
+      </div>
+    );
+  }
+  // minimal
+  return (
+    <div
+      className="flex items-center justify-between px-2 py-1.5"
+      style={{
+        background: "var(--menu-surface)",
+        borderBottom: "1px solid var(--menu-border)",
+      }}
+    >
+      <div>
+        <div className="text-[8px] uppercase tracking-wider" style={{ color: "var(--menu-muted)" }}>
+          Mesa 12
+        </div>
+        <div
+          className="text-[11px] font-bold"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          La Trattoria
+        </div>
+      </div>
+      <div className="h-4 w-4 rounded-full" style={{ background: "var(--menu-primary)" }} />
+    </div>
+  );
+}
+
+function MiniCategories({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
+  const s = theme.categoryStyle;
+  const items = ["Todo", "Entradas", "Platos"];
+  if (s === "tabs-subrayadas") {
+    return (
+      <div className="flex gap-2 px-2 py-1.5">
+        {items.map((it, i) => (
+          <div
+            key={it}
+            className="text-[9px] pb-0.5"
+            style={{
+              color: i === 0 ? "var(--menu-foreground)" : "var(--menu-muted)",
+              borderBottom: i === 0 ? "1.5px solid var(--menu-accent)" : "1.5px solid transparent",
+            }}
+          >
+            {it}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (s === "tags-duros") {
+    return (
+      <div className="flex gap-1 px-2 py-1.5">
+        {items.map((it, i) => (
+          <div
+            key={it}
+            className="text-[8px] font-bold uppercase px-1.5 py-0.5"
+            style={{
+              background: i === 0 ? "var(--menu-foreground)" : "var(--menu-surface)",
+              color: i === 0 ? "var(--menu-bg)" : "var(--menu-foreground)",
+              border: "1.5px solid var(--menu-foreground)",
+            }}
+          >
+            {it}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // pills & chips-grandes
+  return (
+    <div className="flex gap-1 px-2 py-1.5">
+      {items.map((it, i) => (
+        <div
+          key={it}
+          className="text-[9px] px-2 py-0.5 rounded-full"
+          style={{
+            background:
+              i === 0
+                ? theme.vars["--menu-gradient"] ?? "var(--menu-primary)"
+                : "var(--menu-surface)",
+            color: i === 0 ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+            border: i === 0 ? "none" : "1px solid var(--menu-border)",
+            fontWeight: s === "chips-grandes" ? 600 : 500,
+          }}
+        >
+          {it}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
+  const layout = theme.productLayout;
+  const priceStyle: React.CSSProperties =
+    theme.priceStyle === "tag"
+      ? {
+          background: "var(--menu-accent)",
+          color: "var(--menu-primary-foreground)",
+          padding: "1px 5px",
+          borderRadius: "3px",
+        }
+      : theme.priceStyle === "badge-gradiente"
+      ? {
+          background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+          color: "var(--menu-primary-foreground)",
+          padding: "1px 6px",
+          borderRadius: "9999px",
+        }
+      : theme.priceStyle === "linea"
+      ? { color: "var(--menu-accent)" }
+      : theme.priceStyle === "subrayado"
+      ? {
+          color: "var(--menu-accent)",
+          borderBottom: "1.5px solid var(--menu-accent)",
+        }
+      : { color: "var(--menu-foreground)" };
+
+  const Price = () => (
+    <span className="text-[9px] font-bold tabular-nums" style={priceStyle}>
+      $25K
+    </span>
+  );
+
+  if (layout === "hero-grid") {
+    return (
+      <div className="grid grid-cols-2 gap-1.5 h-full">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="overflow-hidden flex flex-col"
+            style={{
+              background: "var(--menu-surface)",
+              border: "1px solid var(--menu-border)",
+              borderRadius: "calc(var(--menu-radius) / 2)",
+            }}
+          >
+            <div className="flex-1" style={{ background: "var(--menu-surface-2)" }} />
+            <div className="p-1 space-y-0.5">
+              <div
+                className="h-1.5 w-3/4 rounded"
+                style={{ background: "var(--menu-surface-2)" }}
+              />
+              <Price />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (layout === "vertical-grande") {
+    return (
+      <div
+        className="overflow-hidden"
+        style={{
+          background: "var(--menu-surface)",
+          border: "1px solid var(--menu-border)",
+          borderRadius: "calc(var(--menu-radius) / 2)",
+        }}
+      >
+        <div className="h-10" style={{ background: "var(--menu-surface-2)" }} />
+        <div className="p-1.5 space-y-1">
+          <div
+            className="h-2 w-3/5 rounded"
+            style={{ background: "var(--menu-surface-2)" }}
+          />
+          <div
+            className="h-1.5 w-4/5 rounded"
+            style={{ background: "var(--menu-surface-2)" }}
+          />
+          <Price />
+        </div>
+      </div>
+    );
+  }
+  if (layout === "lista-densa") {
+    return (
+      <div className="divide-y" style={{ borderColor: "var(--menu-border)" }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between py-1"
+            style={{ borderColor: "var(--menu-border)" }}
+          >
+            <div
+              className="h-1.5 w-1/2 rounded"
+              style={{ background: "var(--menu-surface-2)" }}
+            />
+            <Price />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // horizontal
+  return (
+    <div className="space-y-1.5">
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="flex gap-1.5 p-1"
+          style={{
+            background: "var(--menu-surface)",
+            border: "1px solid var(--menu-border)",
+            borderRadius: "calc(var(--menu-radius) / 2)",
+          }}
+        >
+          <div
+            className="h-7 w-7 shrink-0"
+            style={{
+              background: "var(--menu-surface-2)",
+              borderRadius: "calc(var(--menu-radius) / 3)",
+            }}
+          />
+          <div className="flex-1 space-y-0.5 min-w-0">
+            <div
+              className="h-1.5 w-3/4 rounded"
+              style={{ background: "var(--menu-surface-2)" }}
+            />
+            <Price />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+

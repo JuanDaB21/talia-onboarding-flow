@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, CreditCard, ImageIcon, Loader2, Plus } from "lucide-react";
+import { Bell, CreditCard, ImageIcon, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,7 @@ import {
   type CartaProducto,
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
-import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
+import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
@@ -56,6 +56,7 @@ function CartaPage() {
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
+  const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
@@ -128,6 +129,7 @@ function CartaPage() {
   }, [data, catActiva]);
 
   const themeId = data?.negocio?.tema_menu;
+  const theme = useMemo(() => getMenuTheme(themeId), [themeId]);
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
 
   // Cargar Google Fonts del tema activo
@@ -235,68 +237,63 @@ function CartaPage() {
       style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
       className="min-h-screen pb-28"
     >
-      <header
-        className="sticky top-0 z-20 backdrop-blur"
-        style={{
-          background: "color-mix(in oklab, var(--menu-bg) 88%, transparent)",
-          borderBottom: "1px solid var(--menu-border)",
-        }}
-      >
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[11px] uppercase tracking-wider"
-              style={{ color: "var(--menu-muted)" }}
-            >
-              Mesa {mesa.identificador}
-            </p>
-            <h1
-              className="text-lg font-bold leading-tight truncate"
-              style={{ fontFamily: "var(--menu-heading-font)" }}
-            >
-              {nombreNegocio || "Nuestra carta"}
-            </h1>
-          </div>
-          {logoUrl && (
-            <img
-              src={logoUrl}
-              alt={nombreNegocio}
-              className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
-              style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
-            />
-          )}
+      <ThemedHeader
+        theme={theme}
+        mesa={mesa.identificador}
+        nombreNegocio={nombreNegocio}
+        logoUrl={logoUrl}
+      />
+      {categorias.length > 0 && (
+        <div
+          className="sticky z-10 backdrop-blur"
+          style={{
+            top: 0,
+            background: "color-mix(in oklab, var(--menu-bg) 92%, transparent)",
+            borderBottom: "1px solid var(--menu-border)",
+          }}
+        >
+          <CategoryNav
+            theme={theme}
+            categorias={categorias}
+            activa={catActiva}
+            onSelect={setCatActiva}
+          />
         </div>
-        {categorias.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-none">
-            <CategoryPill
-              label="Todo"
-              active={catActiva === null}
-              onClick={() => setCatActiva(null)}
-            />
-            {categorias.map((c) => (
-              <CategoryPill
-                key={c.id_categoria}
-                label={c.nombre}
-                active={catActiva === c.id_categoria}
-                onClick={() => setCatActiva(c.id_categoria)}
-              />
-            ))}
-          </div>
-        )}
-      </header>
+      )}
 
-      <section className="px-4 pt-4 space-y-3">
+      <section
+        className={
+          theme.productLayout === "hero-grid"
+            ? "px-4 pt-5 grid grid-cols-2 gap-3"
+            : theme.productLayout === "lista-densa"
+            ? "px-4 pt-5 divide-y"
+            : "px-4 pt-5 space-y-3"
+        }
+        style={
+          theme.productLayout === "lista-densa"
+            ? ({ borderColor: "var(--menu-border)" } as React.CSSProperties)
+            : undefined
+        }
+      >
         {productosFiltrados.length === 0 ? (
           <p
-            className="text-center text-sm py-12"
+            className="col-span-2 text-center text-sm py-12"
             style={{ color: "var(--menu-muted)" }}
           >
             No hay productos disponibles en esta categoría.
           </p>
         ) : (
-          productosFiltrados.map((p) => <ProductoCard key={p.id_producto} p={p} />)
+          productosFiltrados.map((p) => (
+            <ProductoCard
+              key={p.id_producto}
+              p={p}
+              theme={theme}
+              onClick={() => setProductoSel(p)}
+            />
+          ))
         )}
       </section>
+
 
       <div
         className="fixed inset-x-0 bottom-0 z-30 backdrop-blur"
@@ -373,89 +370,716 @@ function CartaPage() {
         nombreNegocio={nombreNegocio}
         logoUrl={logoUrl}
       />
+
+      <ProductoDetalleDialog
+        producto={productoSel}
+        theme={theme}
+        themeStyle={themeStyle}
+        onClose={() => setProductoSel(null)}
+      />
     </main>
   );
+}
 
-  function CategoryPill({
-    label,
-    active,
-    onClick,
-  }: {
-    label: string;
-    active: boolean;
-    onClick: () => void;
-  }) {
+// ============================================================
+// Header con variantes según el tema
+// ============================================================
+function ThemedHeader({
+  theme,
+  mesa,
+  nombreNegocio,
+  logoUrl,
+}: {
+  theme: MenuTheme;
+  mesa: string;
+  nombreNegocio: string;
+  logoUrl: string | null;
+}) {
+  const style = theme.headerStyle;
+
+  if (style === "hero-centrado") {
+    return (
+      <header
+        className="px-4 pt-8 pb-6 text-center"
+        style={{
+          background: theme.vars["--menu-gradient"]
+            ? "var(--menu-gradient)"
+            : "var(--menu-surface)",
+          borderBottom: "1px solid var(--menu-border)",
+        }}
+      >
+        {logoUrl && (
+          <img
+            src={logoUrl}
+            alt={nombreNegocio}
+            className="mx-auto h-20 w-20 rounded-full object-contain bg-white/70 p-1 mb-3"
+            style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
+          />
+        )}
+        <p
+          className="text-[10px] uppercase tracking-[0.3em]"
+          style={{ color: "var(--menu-accent)" }}
+        >
+          Mesa {mesa}
+        </p>
+        <h1
+          className="mt-1 text-3xl font-bold leading-tight"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          {nombreNegocio || "Nuestra carta"}
+        </h1>
+        <div
+          className="mx-auto mt-3 h-px w-16"
+          style={{ background: "var(--menu-accent)" }}
+        />
+      </header>
+    );
+  }
+
+  if (style === "banner-gradiente") {
+    return (
+      <header
+        className="px-5 pt-6 pb-7 flex items-center gap-4"
+        style={{
+          background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+          color: "var(--menu-primary-foreground)",
+        }}
+      >
+        {logoUrl && (
+          <img
+            src={logoUrl}
+            alt={nombreNegocio}
+            className="h-16 w-16 shrink-0 rounded-full object-contain bg-white/90 p-1"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] uppercase tracking-widest opacity-80">
+            Mesa {mesa}
+          </p>
+          <h1
+            className="text-2xl font-bold leading-tight truncate"
+            style={{ fontFamily: "var(--menu-heading-font)" }}
+          >
+            {nombreNegocio || "Nuestra carta"}
+          </h1>
+        </div>
+      </header>
+    );
+  }
+
+  if (style === "editorial") {
+    return (
+      <header
+        className="px-5 pt-6 pb-5"
+        style={{
+          background: "var(--menu-surface)",
+          borderBottom: "1px solid var(--menu-border)",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-[10px] uppercase tracking-[0.3em]"
+              style={{ color: "var(--menu-accent)" }}
+            >
+              · Mesa {mesa} ·
+            </p>
+            <h1
+              className="mt-1 text-3xl font-bold leading-[1.05] italic"
+              style={{ fontFamily: "var(--menu-heading-font)" }}
+            >
+              {nombreNegocio || "Nuestra carta"}
+            </h1>
+          </div>
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt={nombreNegocio}
+              className="h-14 w-14 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
+              style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
+            />
+          )}
+        </div>
+        <div
+          className="mt-3 flex items-center gap-2"
+          aria-hidden
+        >
+          <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
+          <div
+            className="text-xs tracking-widest"
+            style={{ color: "var(--menu-muted)" }}
+          >
+            CARTA
+          </div>
+          <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
+        </div>
+      </header>
+    );
+  }
+
+  // minimal
+  return (
+    <header
+      className="flex items-center gap-3 px-4 pt-4 pb-3"
+      style={{
+        background: "var(--menu-surface)",
+        borderBottom: "1px solid var(--menu-border)",
+      }}
+    >
+      <div className="min-w-0 flex-1">
+        <p
+          className="text-[11px] uppercase tracking-wider"
+          style={{ color: "var(--menu-muted)" }}
+        >
+          Mesa {mesa}
+        </p>
+        <h1
+          className="text-lg font-bold leading-tight truncate"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          {nombreNegocio || "Nuestra carta"}
+        </h1>
+      </div>
+      {logoUrl && (
+        <img
+          src={logoUrl}
+          alt={nombreNegocio}
+          className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
+          style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
+        />
+      )}
+    </header>
+  );
+}
+
+// ============================================================
+// Navegación de categorías con variantes
+// ============================================================
+function CategoryNav({
+  theme,
+  categorias,
+  activa,
+  onSelect,
+}: {
+  theme: MenuTheme;
+  categorias: { id_categoria: string; nombre: string }[];
+  activa: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const style = theme.categoryStyle;
+  const items: { id: string | null; nombre: string }[] = [
+    { id: null, nombre: "Todo" },
+    ...categorias.map((c) => ({ id: c.id_categoria, nombre: c.nombre })),
+  ];
+
+  if (style === "tabs-subrayadas") {
+    return (
+      <div className="flex gap-5 overflow-x-auto px-5 py-3 scrollbar-none">
+        {items.map((it) => {
+          const active = activa === it.id;
+          return (
+            <button
+              key={it.id ?? "all"}
+              type="button"
+              onClick={() => onSelect(it.id)}
+              className="shrink-0 pb-1.5 text-sm font-medium whitespace-nowrap transition-colors"
+              style={{
+                color: active ? "var(--menu-foreground)" : "var(--menu-muted)",
+                borderBottom: active
+                  ? "2px solid var(--menu-accent)"
+                  : "2px solid transparent",
+                fontFamily: "var(--menu-body-font)",
+              }}
+            >
+              {it.nombre}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (style === "chips-grandes") {
+    return (
+      <div className="flex gap-2.5 overflow-x-auto px-4 py-3 scrollbar-none">
+        {items.map((it) => {
+          const active = activa === it.id;
+          return (
+            <button
+              key={it.id ?? "all"}
+              type="button"
+              onClick={() => onSelect(it.id)}
+              className="shrink-0 px-5 py-2.5 text-sm font-semibold transition-all"
+              style={{
+                borderRadius: "9999px",
+                background: active
+                  ? theme.vars["--menu-gradient"] ?? "var(--menu-primary)"
+                  : "var(--menu-surface)",
+                color: active
+                  ? "var(--menu-primary-foreground)"
+                  : "var(--menu-foreground)",
+                boxShadow: active
+                  ? "var(--menu-shadow, 0 6px 18px -8px rgba(0,0,0,0.2))"
+                  : "none",
+                fontFamily: "var(--menu-body-font)",
+              }}
+            >
+              {it.nombre}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (style === "tags-duros") {
+    return (
+      <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none">
+        {items.map((it) => {
+          const active = activa === it.id;
+          return (
+            <button
+              key={it.id ?? "all"}
+              type="button"
+              onClick={() => onSelect(it.id)}
+              className="shrink-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-all"
+              style={{
+                background: active ? "var(--menu-foreground)" : "var(--menu-surface)",
+                color: active ? "var(--menu-bg)" : "var(--menu-foreground)",
+                border: "2px solid var(--menu-foreground)",
+                borderRadius: "0px",
+                fontFamily: "var(--menu-body-font)",
+              }}
+            >
+              {it.nombre}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // pills (default)
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none">
+      {items.map((it) => {
+        const active = activa === it.id;
+        return (
+          <button
+            key={it.id ?? "all"}
+            type="button"
+            onClick={() => onSelect(it.id)}
+            className="shrink-0 px-4 py-1.5 text-sm font-medium transition-colors"
+            style={{
+              borderRadius: "9999px",
+              background: active ? "var(--menu-primary)" : "var(--menu-surface)",
+              color: active
+                ? "var(--menu-primary-foreground)"
+                : "var(--menu-foreground)",
+              borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
+              borderWidth: 1,
+              borderStyle: "solid",
+              fontFamily: "var(--menu-body-font)",
+            }}
+          >
+            {it.nombre}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// Precio con variantes
+// ============================================================
+function PriceTag({ theme, precio }: { theme: MenuTheme; precio: number }) {
+  const style = theme.priceStyle;
+  const formatted = fmt.format(precio);
+
+  if (style === "tag") {
+    return (
+      <span
+        className="inline-block px-2.5 py-1 text-sm font-bold tabular-nums"
+        style={{
+          background: "var(--menu-accent)",
+          color: "var(--menu-primary-foreground)",
+          borderRadius: "calc(var(--menu-radius) / 2)",
+        }}
+      >
+        {formatted}
+      </span>
+    );
+  }
+
+  if (style === "badge-gradiente") {
+    return (
+      <span
+        className="inline-block px-3 py-1.5 text-sm font-extrabold tabular-nums"
+        style={{
+          background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+          color: "var(--menu-primary-foreground)",
+          borderRadius: "9999px",
+          boxShadow: "var(--menu-shadow, none)",
+        }}
+      >
+        {formatted}
+      </span>
+    );
+  }
+
+  if (style === "linea") {
+    return (
+      <span className="inline-flex items-center gap-2 text-sm font-semibold tabular-nums">
+        <span className="h-px w-6" style={{ background: "var(--menu-accent)" }} />
+        <span style={{ color: "var(--menu-accent)" }}>{formatted}</span>
+      </span>
+    );
+  }
+
+  if (style === "subrayado") {
+    return (
+      <span
+        className="text-sm font-bold tabular-nums"
+        style={{
+          color: "var(--menu-accent)",
+          borderBottom: "2px solid var(--menu-accent)",
+          paddingBottom: 1,
+        }}
+      >
+        {formatted}
+      </span>
+    );
+  }
+
+  // plano
+  return (
+    <span
+      className="text-sm font-semibold tabular-nums"
+      style={{ color: "var(--menu-foreground)" }}
+    >
+      {formatted}
+    </span>
+  );
+}
+
+// ============================================================
+// Card de producto con variantes de layout
+// ============================================================
+function ProductoCard({
+  p,
+  theme,
+  onClick,
+}: {
+  p: CartaProducto;
+  theme: MenuTheme;
+  onClick: () => void;
+}) {
+  const layout = theme.productLayout;
+
+  if (layout === "hero-grid") {
     return (
       <button
         type="button"
         onClick={onClick}
-        className="shrink-0 px-4 py-1.5 text-sm font-medium transition-colors"
-        style={{
-          borderRadius: "9999px",
-          background: active ? "var(--menu-primary)" : "var(--menu-surface)",
-          color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
-          borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
-          borderWidth: 1,
-          borderStyle: "solid",
-          fontFamily: "var(--menu-body-font)",
-        }}
-      >
-        {label}
-      </button>
-    );
-  }
-
-  function ProductoCard({ p }: { p: CartaProducto }) {
-    return (
-      <article
-        className="flex gap-3 p-3 shadow-sm"
+        className="group text-left overflow-hidden transition-transform active:scale-[0.98]"
         style={{
           background: "var(--menu-surface)",
           borderColor: "var(--menu-border)",
           borderWidth: 1,
           borderStyle: "solid",
           borderRadius: "var(--menu-radius)",
+          boxShadow: "var(--menu-shadow, 0 4px 16px -8px rgba(0,0,0,0.15))",
         }}
       >
         <div
-          className="h-20 w-20 shrink-0 overflow-hidden flex items-center justify-center"
-          style={{
-            background: "var(--menu-surface-2)",
-            borderRadius: "calc(var(--menu-radius) - 4px)",
-          }}
+          className="aspect-square w-full overflow-hidden flex items-center justify-center"
+          style={{ background: "var(--menu-surface-2)" }}
         >
           {p.url_imagen ? (
-            <img src={p.url_imagen} alt={p.nombre_producto} className="h-full w-full object-cover" />
+            <img
+              src={p.url_imagen}
+              alt={p.nombre_producto}
+              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            />
           ) : (
-            <ImageIcon className="h-6 w-6" style={{ color: "var(--menu-muted)" }} />
+            <ImageIcon className="h-8 w-8" style={{ color: "var(--menu-muted)" }} />
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="p-3 space-y-2">
           <h3
-            className="font-semibold leading-tight line-clamp-1"
+            className="font-bold leading-tight line-clamp-2 text-sm"
+            style={{ fontFamily: "var(--menu-heading-font)" }}
+          >
+            {p.nombre_producto}
+          </h3>
+          <PriceTag theme={theme} precio={p.precio_venta} />
+        </div>
+      </button>
+    );
+  }
+
+  if (layout === "vertical-grande") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="block w-full text-left overflow-hidden transition-transform active:scale-[0.99]"
+        style={{
+          background: "var(--menu-surface)",
+          borderColor: "var(--menu-border)",
+          borderWidth: 1,
+          borderStyle: "solid",
+          borderRadius: "var(--menu-radius)",
+          boxShadow: "var(--menu-shadow, 0 4px 14px -8px rgba(0,0,0,0.1))",
+        }}
+      >
+        {p.url_imagen ? (
+          <div
+            className="h-44 w-full overflow-hidden"
+            style={{ background: "var(--menu-surface-2)" }}
+          >
+            <img
+              src={p.url_imagen}
+              alt={p.nombre_producto}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ) : (
+          <div
+            className="h-32 w-full flex items-center justify-center"
+            style={{ background: "var(--menu-surface-2)" }}
+          >
+            <ImageIcon className="h-8 w-8" style={{ color: "var(--menu-muted)" }} />
+          </div>
+        )}
+        <div className="p-4">
+          <h3
+            className="text-lg font-bold leading-tight"
             style={{ fontFamily: "var(--menu-heading-font)" }}
           >
             {p.nombre_producto}
           </h3>
           {p.descripcion_producto && (
             <p
-              className="mt-0.5 text-xs line-clamp-2"
+              className="mt-1 text-sm leading-snug line-clamp-2"
               style={{ color: "var(--menu-muted)" }}
             >
               {p.descripcion_producto}
             </p>
           )}
-          <p
-            className="mt-1.5 text-sm font-bold tabular-nums"
-            style={{ color: "var(--menu-accent)" }}
-          >
-            {fmt.format(p.precio_venta)}
-          </p>
+          <div className="mt-3">
+            <PriceTag theme={theme} precio={p.precio_venta} />
+          </div>
         </div>
-      </article>
+      </button>
     );
   }
+
+  if (layout === "lista-densa") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-start gap-3 py-3 text-left"
+        style={{ borderColor: "var(--menu-border)" }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3
+              className="font-semibold leading-tight"
+              style={{ fontFamily: "var(--menu-heading-font)" }}
+            >
+              {p.nombre_producto}
+            </h3>
+            <PriceTag theme={theme} precio={p.precio_venta} />
+          </div>
+          {p.descripcion_producto && (
+            <p
+              className="mt-1 text-xs line-clamp-2"
+              style={{ color: "var(--menu-muted)" }}
+            >
+              {p.descripcion_producto}
+            </p>
+          )}
+        </div>
+        {p.url_imagen && (
+          <div
+            className="h-14 w-14 shrink-0 overflow-hidden"
+            style={{
+              background: "var(--menu-surface-2)",
+              borderRadius: "calc(var(--menu-radius) / 1.5)",
+            }}
+          >
+            <img
+              src={p.url_imagen}
+              alt={p.nombre_producto}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
+      </button>
+    );
+  }
+
+  // horizontal (default)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full gap-3 p-3 text-left transition-transform active:scale-[0.99]"
+      style={{
+        background: "var(--menu-surface)",
+        borderColor: "var(--menu-border)",
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderRadius: "var(--menu-radius)",
+        boxShadow: "var(--menu-shadow, 0 2px 10px -6px rgba(0,0,0,0.12))",
+      }}
+    >
+      <div
+        className="h-24 w-24 shrink-0 overflow-hidden flex items-center justify-center"
+        style={{
+          background: "var(--menu-surface-2)",
+          borderRadius: "calc(var(--menu-radius) - 4px)",
+        }}
+      >
+        {p.url_imagen ? (
+          <img
+            src={p.url_imagen}
+            alt={p.nombre_producto}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <ImageIcon className="h-6 w-6" style={{ color: "var(--menu-muted)" }} />
+        )}
+      </div>
+      <div className="min-w-0 flex-1 flex flex-col">
+        <h3
+          className="font-semibold leading-tight line-clamp-1"
+          style={{ fontFamily: "var(--menu-heading-font)" }}
+        >
+          {p.nombre_producto}
+        </h3>
+        {p.descripcion_producto && (
+          <p
+            className="mt-0.5 text-xs line-clamp-2"
+            style={{ color: "var(--menu-muted)" }}
+          >
+            {p.descripcion_producto}
+          </p>
+        )}
+        <div className="mt-auto pt-2">
+          <PriceTag theme={theme} precio={p.precio_venta} />
+        </div>
+      </div>
+    </button>
+  );
 }
+
+// ============================================================
+// Dialog de detalle de producto
+// ============================================================
+function ProductoDetalleDialog({
+  producto,
+  theme,
+  themeStyle,
+  onClose,
+}: {
+  producto: CartaProducto | null;
+  theme: MenuTheme;
+  themeStyle: React.CSSProperties;
+  onClose: () => void;
+}) {
+  const open = producto !== null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="max-w-md p-0 gap-0 overflow-hidden border-0"
+        style={{
+          ...themeStyle,
+          background: "var(--menu-surface)",
+          color: "var(--menu-foreground)",
+          fontFamily: "var(--menu-body-font)",
+          borderRadius: "var(--menu-radius)",
+        }}
+      >
+        {producto && (
+          <>
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur transition-colors"
+              style={{
+                background: "color-mix(in oklab, var(--menu-bg) 80%, transparent)",
+                color: "var(--menu-foreground)",
+              }}
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div
+              className="w-full overflow-hidden flex items-center justify-center"
+              style={{
+                background: "var(--menu-surface-2)",
+                aspectRatio: "4 / 3",
+              }}
+            >
+              {producto.url_imagen ? (
+                <img
+                  src={producto.url_imagen}
+                  alt={producto.nombre_producto}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImageIcon
+                  className="h-16 w-16"
+                  style={{ color: "var(--menu-muted)" }}
+                />
+              )}
+            </div>
+
+            <DialogHeader className="px-6 pt-5 pb-2 text-left space-y-2">
+              <DialogTitle
+                className="text-2xl font-bold leading-tight"
+                style={{ fontFamily: "var(--menu-heading-font)" }}
+              >
+                {producto.nombre_producto}
+              </DialogTitle>
+              <DialogDescription
+                className="text-sm leading-relaxed"
+                style={{ color: "var(--menu-muted)" }}
+              >
+                {producto.descripcion_producto || "Sin descripción disponible."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="px-6 pt-1 pb-5">
+              <PriceTag theme={theme} precio={producto.precio_venta} />
+            </div>
+
+            <DialogFooter className="px-6 pb-6 pt-0">
+              <Button
+                type="button"
+                onClick={onClose}
+                className="w-full h-12 text-base font-semibold"
+                style={{
+                  background: "var(--menu-primary)",
+                  color: "var(--menu-primary-foreground)",
+                  borderRadius: "var(--menu-radius)",
+                }}
+              >
+                Cerrar
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 interface CuentaDialogProps {
   open: boolean;

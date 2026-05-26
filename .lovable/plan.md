@@ -1,63 +1,75 @@
-# Auto-descuento de inventario al iniciar preparación
+## Objetivo
 
-## 1. Backend — descuento automático
+Hacer el menú público mucho más atractivo y verdaderamente diferenciado entre temas (no solo color/tipografía), y permitir abrir el detalle de un producto con foto grande, descripción y precio.
 
-### Nueva función `descontar_inventario_item(p_id_item uuid)` (SECURITY DEFINER)
-Toma un `pedido_items` y, **en la unidad de receta** (gramos, mililitros, unidades base):
+---
 
-1. Carga la receta del producto del item.
-2. Para cada `receta_detalle (id_insumo, cantidad)`:
-   - **Salta** los insumos presentes en `pedido_item_exclusiones` del item (cliente pidió "sin X").
-   - Consumo = `cantidad_receta × item.cantidad` (cantidad siempre es 1 con la separación por unidad ya implementada, pero respetamos el campo).
-3. Suma los `pedido_item_extras` del item (`cantidad_porcion × item.cantidad`) al insumo correspondiente.
-4. Para cada insumo agregado: `SELECT ... FOR UPDATE` sobre `inventario_actual`, descuenta, registra `movimientos_inventario` con:
-   - `tipo_movimiento = 'CONSUMO_PREPARACION'`
-   - `cantidad = -consumo`
-   - `referencia_id = id_item`
-   - `motivo = 'Preparación item ' || id_item`
-5. Permite stock negativo (no bloquea la cocina, solo lo refleja en `cantidad_actual`).
+## 1. Rediseñar los temas como **estilos visuales distintos**, no solo paletas
 
-### Idempotencia
-`avanzar_estado_item` y `iniciar_comanda_estacion` solo descuentan cuando el item transita por **primera vez** a `EN_PREPARACION` (guard `iniciado_at IS NULL` antes del UPDATE). Así no se duplica si se llama dos veces.
+Cada tema tendrá su propia **personalidad de layout** (no solo colores/fuentes). Para esto extendemos `MenuTheme` con propiedades visuales:
 
-### Integración
-- `avanzar_estado_item`: en la rama `EN_COLA → EN_PREPARACION`, ejecuta `PERFORM descontar_inventario_item(p_id_item)` antes del UPDATE.
-- `iniciar_comanda_estacion`: hace un `FOR id IN SELECT id_item ...` de los items que va a transicionar y los descuenta uno a uno antes del bulk UPDATE.
+- `cardStyle`: `"clasico"` | `"editorial"` | `"vibrante"` | `"minimal"` | `"artesanal"` | `"luxe"`
+- `productLayout`: `"horizontal"` | `"vertical-grande"` | `"hero-grid"` | `"lista-densa"` 
+- `headerStyle`: estilo del header (hero con imagen, banner con patrón, minimal sticky, etc.)
+- `categoryStyle`: pills, tabs subrayadas, chips con icono, o navegación lateral
+- `decoraciones`: gradientes, patrones SVG sutiles, bordes ornamentales, sombras dramáticas, etiquetas de precio tipo "tag"
 
-### Realtime
-La UI de bodega ya consulta `inventario_actual`. Para que el descuento se refleje en vivo, agregamos esa tabla a la publicación `supabase_realtime` y un canal en `inventario-tab.tsx` que invalida la query al recibir cambios.
+### Mapeo por tema (ejemplos):
 
-## 2. Frontend — formato inteligente de cantidades
+| Tema | Layout productos | Header | Categorías | Detalle visual |
+|---|---|---|---|---|
+| **Verde Bosque** (Editorial) | Vertical grande con imagen ancha | Hero con divisor ornamental | Tabs subrayadas serif | Precio en tag dorado |
+| **Noir & Gold** (Luxe) | Hero-grid con cards oscuras | Header negro con logo grande centrado | Pills doradas con borde fino | Precio con línea ornamental |
+| **Terracota Cálido** (Artesanal) | Vertical grande con esquinas redondeadas | Banner con textura papel | Chips circulares grandes | Precio manuscrito tipo "stamp" |
+| **Océano Minimal** (Minimal) | Lista densa 2 col, foto cuadrada | Header limpio mínimo | Tabs sin fondo | Precio sobrio alineado |
+| **Sunset Vibrante** (Vibrante) | Hero-grid con gradientes y badges | Header con gradiente coral/magenta | Pills con sombra de color | Precio con badge gradiente |
+| **Cacao Artesanal** (Artesanal) | Horizontal cálido con bordes suaves | Banner crema con icono | Chips con icono café | Precio con underline ondulado |
 
-### Nueva utilidad `formatStockInteligente(cantidad, unidad_receta, unidad_compra, factor_conversion)` en `src/lib/unidades.ts`
+### Implementación
 
-Devuelve un string legible según la familia:
+- Extender `src/lib/menu-themes.ts` con los nuevos campos `cardStyle`, `productLayout`, `headerStyle`, `categoryStyle`, `decoraciones` (opcional, defaults por tema).
+- En `src/routes/carta.$idMesa.tsx`:
+  - Refactorizar `ProductoCard` para tomar `productLayout` y renderizar variantes (horizontal, vertical grande, hero-grid).
+  - Refactorizar `CategoryPill` → `<CategoryNav>` que renderice según `categoryStyle`.
+  - El header obtiene variantes (hero con imagen, banner con patrón, minimal).
+  - Añadir nuevas CSS vars opcionales: `--menu-gradient`, `--menu-shadow`, `--menu-decoration` (patrón SVG en base64).
+- Añadir 1–2 temas nuevos para más variedad visual: por ejemplo **"Brutalist Pop"** (alta densidad, contrastes duros, fuentes mono) y **"Pastel Café"** (lifestyle pastel, layout tipo revista).
 
-- **PESO** (cantidad en gramos): si `>= 1000` g → `"19 kg 750 g"`. Si `< 1000` → `"750 g"`. La unidad mayor se elige según `unidad_compra` (kg, lb u oz) cuando esté en la misma familia; default kg.
-- **VOLUMEN** (cantidad en ml): análogo — `"3 L 250 ml"` o `"250 ml"`. Mayor según `unidad_compra` (Galón, Litro) cuando aplique.
-- **UNIDAD con factor manual** (Caja, Paquete, Bandeja, Docena con `factor_conversion > 1`):
-  - `enteras = floor(cantidad / factor)`, `sueltas = cantidad - enteras * factor`.
-  - Resultado: `"2 cajas y 18 unidades"`, `"3 docenas"`, `"18 unidades"` según corresponda.
-- **UNIDAD simple**: `"N unidades"` (singular si N=1).
-- Decimales residuales se redondean a entero cuando es UNIDAD; en PESO/VOLUMEN se muestran con 0 decimales en la unidad menor.
+### Personalización extra (sin entrar a sobre-ingeniería)
+- En `_app.configuracion.apariencia.tsx`, mejorar el preview de cada tema con un **mini-mockup real** (mini card de producto + mini header + mini precio) usando las variables del tema, en lugar de solo swatches. Así el usuario "ve" la diferencia antes de aplicar.
 
-### Aplicación
-- `src/components/bodega/inventario-tab.tsx`: reemplazar `{Number(r.cantidad_actual).toLocaleString()} {labelDe(unidad_receta)}` por `formatStockInteligente(...)`. Igual para el umbral `stock_minimo`.
-- `src/routes/_app.bodega.inventario.$id.tsx`: usar el helper para mostrar stock actual y en el historial de movimientos.
+---
 
-## 3. Detalles técnicos
+## 2. Modal de detalle de producto
 
-```text
-DB:
-  - migración: CREATE FUNCTION descontar_inventario_item(uuid) ...
-  - migración: REPLACE avanzar_estado_item + iniciar_comanda_estacion (mismo cuerpo + llamada)
-  - migración: ALTER PUBLICATION supabase_realtime ADD TABLE inventario_actual
-Frontend:
-  - src/lib/unidades.ts  → formatStockInteligente()
-  - src/components/bodega/inventario-tab.tsx  → render + canal realtime
-  - src/routes/_app.bodega.inventario.$id.tsx → render
-```
+Cuando el cliente toca una `ProductoCard`, abre un `Dialog` con:
+
+- **Foto grande** (ratio 4:3 o cuadrada según tema, full width del modal, hasta ~360px alto)
+- **Nombre del producto** (heading grande con la fuente del tema)
+- **Descripción completa** (sin `line-clamp`)
+- **Precio destacado** (estilo según `cardStyle` del tema)
+- Botón cerrar
+- Estilizado con las CSS vars del tema (mismo look & feel)
+
+### Implementación
+
+- Nuevo componente `ProductoDetalleDialog` dentro del mismo `carta.$idMesa.tsx` (o `src/components/menu-publico/producto-detalle-dialog.tsx`).
+- Estado `productoSeleccionado: CartaProducto | null` en `CartaPage`.
+- `ProductoCard` envuelto en `<button>` que llama `setProductoSeleccionado(p)`.
+- El dialog usa el `themeStyle` para mantener coherencia visual.
+- En móvil: ocupa casi pantalla completa con scroll interno si la descripción es larga.
+
+---
+
+## Archivos a modificar
+
+- `src/lib/menu-themes.ts` — extender tema con campos de layout/estilo, añadir 1–2 temas nuevos
+- `src/routes/carta.$idMesa.tsx` — refactor de `ProductoCard`, `CategoryPill`, header; añadir modal de detalle
+- `src/routes/_app.configuracion.apariencia.tsx` — mejorar previews con mini-mockups reales
+- (opcional) `src/components/menu-publico/producto-detalle-dialog.tsx` — extraer modal si crece demasiado
 
 ## Fuera de alcance
-- Revertir el descuento si el item se cancela/elimina después de iniciar preparación (hoy `eliminar_item_pedido` ya bloquea borrar items que no estén `EN_COLA`, así que el caso no se da).
-- Alertas push de stock bajo (lo dejamos solo en el badge existente).
+
+- Editor de tema personalizado (elegir cualquier color a mano) — sería un siguiente paso si lo quieres.
+- Cambios en backend / base de datos: no hace falta, `tema_menu` ya está guardado en `negocio`.
+- Cambios en el panel admin más allá del preview visual de temas.
