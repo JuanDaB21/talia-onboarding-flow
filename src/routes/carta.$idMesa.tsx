@@ -522,8 +522,9 @@ function CuentaDialog({
                 {cuenta.items.map((it) => (
                   <div key={it.id_item} className="contents">
                     <span className="tabular-nums font-medium pt-0.5">
-                      {it.cantidad}×
+                      {it.cantidad > 1 ? `${it.cantidad}×` : "•"}
                     </span>
+
                     <div className="min-w-0">
                       <p className="font-medium leading-tight break-words">
                         {it.nombre_producto}
