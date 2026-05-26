@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { AdminGate } from "@/components/admin/admin-gate";
 import { getEstadoCaja, abrirCaja, listarCierres } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
+import { POLL } from "@/lib/query-config";
 
 export const Route = createFileRoute("/_app/caja/")({
   head: () => ({ meta: [{ title: "Caja — Talia" }] }),
