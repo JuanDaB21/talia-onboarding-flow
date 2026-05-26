@@ -37,13 +37,11 @@ export function EditarItemDialog({
 }) {
   const qc = useQueryClient();
   const editFn = useServerFn(editarItem);
-  const [cantidad, setCantidad] = useState(1);
   const [alergia, setAlergia] = useState(false);
   const [nota, setNota] = useState("");
 
   useEffect(() => {
     if (item) {
-      setCantidad(item.cantidad);
       setAlergia(item.tiene_alergia);
       setNota(item.nota ?? "");
     }
@@ -54,7 +52,7 @@ export function EditarItemDialog({
       editFn({
         data: {
           idItem: item!.id_item,
-          cantidad,
+          cantidad: 1,
           tieneAlergia: alergia,
           nota,
         },
@@ -69,6 +67,7 @@ export function EditarItemDialog({
         description: e instanceof Error ? e.message : undefined,
       }),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
