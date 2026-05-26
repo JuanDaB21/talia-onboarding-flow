@@ -26,7 +26,7 @@ interface Props {
   comanda: ComandaEstacion | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO" | "ENTREGADO") => Promise<void>;
+  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
   onIniciarTodo: () => Promise<void>;
   busyId: string | null;
   iniciandoTodo: boolean;
@@ -41,17 +41,15 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
 
 function siguienteEstado(
   e: string,
-): "EN_PREPARACION" | "LISTO" | "ENTREGADO" | null {
+): "EN_PREPARACION" | "LISTO" | null {
   if (e === "EN_COLA") return "EN_PREPARACION";
   if (e === "EN_PREPARACION") return "LISTO";
-  if (e === "LISTO") return "ENTREGADO";
   return null;
 }
 
-function labelAccion(s: "EN_PREPARACION" | "LISTO" | "ENTREGADO" | null) {
+function labelAccion(s: "EN_PREPARACION" | "LISTO" | null) {
   if (s === "EN_PREPARACION") return "Iniciar";
   if (s === "LISTO") return "Marcar listo";
-  if (s === "ENTREGADO") return "Entregar";
   return "";
 }
 
