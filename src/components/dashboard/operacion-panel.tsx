@@ -13,7 +13,7 @@ export function OperacionPanel({ rango }: { rango: Rango }) {
   const { data, isLoading } = useQuery({
     queryKey: ["eficiencia-operativa", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Midiendo eficiencia…</p>;
