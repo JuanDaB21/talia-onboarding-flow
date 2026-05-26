@@ -115,8 +115,11 @@ function gruposPorRol(rol: Rol | null) {
 }
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
+  const closeIfMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
@@ -183,7 +186,7 @@ export function AppSidebar() {
       <SidebarMenuItem key={item.to}>
         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <Link to={item.to as any}>
+          <Link to={item.to as any} onClick={closeIfMobile}>
             <Icon className="h-4 w-4" />
             <span>{item.label}</span>
           </Link>
@@ -233,7 +236,7 @@ export function AppSidebar() {
                     return (
                       <SidebarMenuItem key={item.to}>
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to}>
+                          <Link to={item.to} onClick={closeIfMobile}>
                             <Icon className="h-4 w-4" />
                             <span>{item.label}</span>
                           </Link>
@@ -248,7 +251,7 @@ export function AppSidebar() {
                     return (
                       <SidebarMenuItem key={item.to}>
                         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to}>
+                          <Link to={item.to} onClick={closeIfMobile}>
                             <Icon className="h-4 w-4" />
                             <span>{item.label}</span>
                           </Link>
