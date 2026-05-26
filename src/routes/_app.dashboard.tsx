@@ -14,6 +14,7 @@ import { RentabilidadPanel } from "@/components/dashboard/rentabilidad-panel";
 import { ClientePanel } from "@/components/dashboard/cliente-panel";
 import { OperacionPanel } from "@/components/dashboard/operacion-panel";
 import { AlertasPanel } from "@/components/dashboard/alertas-panel";
+import { POLL } from "@/lib/query-config";
 
 const searchSchema = z.object({
   tab: z.enum(["rentabilidad", "cliente", "operacion", "alertas"]).optional().default("rentabilidad"),
