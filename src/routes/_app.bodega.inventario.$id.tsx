@@ -165,7 +165,13 @@ function InventarioDetailPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">{insumo.nombre_insumo}</h1>
         <p className="text-sm text-muted-foreground">
-          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()} {labelDe(insumo.unidad_receta)}
+          Stock mínimo:{" "}
+          {formatStockInteligente(
+            Number(insumo.stock_minimo),
+            insumo.unidad_receta,
+            insumo.unidad_compra,
+            Number(insumo.factor_conversion),
+          )}
         </p>
       </header>
 
@@ -176,10 +182,14 @@ function InventarioDetailPage() {
               Cantidad disponible
             </p>
             <div className="flex items-baseline gap-3">
-              <span className="text-6xl sm:text-7xl font-bold tabular-nums leading-none">
-                {cantidad.toLocaleString()}
+              <span className="text-5xl sm:text-6xl font-bold tabular-nums leading-none">
+                {formatStockInteligente(
+                  cantidad,
+                  insumo.unidad_receta,
+                  insumo.unidad_compra,
+                  Number(insumo.factor_conversion),
+                )}
               </span>
-              <span className="text-2xl text-muted-foreground">{labelDe(insumo.unidad_receta)}</span>
             </div>
             {low && (
               <Badge variant="destructive" className="mt-3 gap-1">
