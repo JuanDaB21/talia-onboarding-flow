@@ -11,6 +11,7 @@ import { AdminGate } from "@/components/admin/admin-gate";
 import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno } from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { formatMoney } from "@/lib/format";
+import { POLL } from "@/lib/query-config";
 
 export const Route = createFileRoute("/_app/operacion")({
   head: () => ({ meta: [{ title: "Operación en vivo — Talia" }] }),
