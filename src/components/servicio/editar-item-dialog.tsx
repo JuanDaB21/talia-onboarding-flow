@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Minus, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+
 import {
   Dialog,
   DialogContent,
@@ -36,13 +37,11 @@ export function EditarItemDialog({
 }) {
   const qc = useQueryClient();
   const editFn = useServerFn(editarItem);
-  const [cantidad, setCantidad] = useState(1);
   const [alergia, setAlergia] = useState(false);
   const [nota, setNota] = useState("");
 
   useEffect(() => {
     if (item) {
-      setCantidad(item.cantidad);
       setAlergia(item.tiene_alergia);
       setNota(item.nota ?? "");
     }
@@ -53,7 +52,7 @@ export function EditarItemDialog({
       editFn({
         data: {
           idItem: item!.id_item,
-          cantidad,
+          cantidad: 1,
           tieneAlergia: alergia,
           nota,
         },
@@ -69,6 +68,7 @@ export function EditarItemDialog({
       }),
   });
 
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -80,30 +80,7 @@ export function EditarItemDialog({
         </DialogHeader>
 
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <Label>Cantidad</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCantidad((c) => Math.max(1, c - 1))}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center font-semibold">{cantidad}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCantidad((c) => c + 1)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+
 
           <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
             <div className="space-y-0.5">

@@ -669,8 +669,9 @@ function ItemRow({
               <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
             )}
             <span className="text-sm font-medium">
-              {item.cantidad}× {item.nombre_producto}
+              {item.cantidad > 1 ? `${item.cantidad}× ` : ""}{item.nombre_producto}
             </span>
+
             <Badge variant="outline" className={cn("text-[10px] h-4 px-1", estado.cls)}>
               {estado.label}
             </Badge>

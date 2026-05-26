@@ -197,7 +197,7 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className={cn("font-semibold", listoYa && "line-through text-muted-foreground")}>
-                <span className="tabular-nums">×{item.cantidad}</span>{" "}
+                {item.cantidad > 1 && <span className="tabular-nums">×{item.cantidad}</span>}{" "}
                 {item.nombre_producto}
               </p>
             </div>
