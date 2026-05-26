@@ -28,7 +28,7 @@ export function AlertasMeseroBanner() {
   const { data, refetch } = useQuery({
     queryKey: ["servicio", "mesas"],
     queryFn: () => fn(),
-    refetchInterval: 10_000,
+    ...POLL.REALTIME,
   });
 
   // Realtime
