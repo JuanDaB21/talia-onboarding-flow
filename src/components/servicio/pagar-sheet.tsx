@@ -441,13 +441,69 @@ function PasoMetodo({
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-        <div className="rounded-xl bg-primary/5 p-4 text-center">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Total a cobrar
-          </p>
-          <p className="text-3xl font-bold tabular-nums text-primary mt-1">
-            {fmt.format(total)}
-          </p>
+        <div className="rounded-xl bg-primary/5 p-4 space-y-1">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="tabular-nums font-medium">{fmt.format(total)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Propina</span>
+            <span className="tabular-nums font-medium">{fmt.format(propina)}</span>
+          </div>
+          <div className="h-px bg-border my-1" />
+          <div className="flex items-end justify-between">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Total a cobrar
+            </span>
+            <span className="text-3xl font-bold tabular-nums text-primary">
+              {fmt.format(totalConPropina)}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Propina</Label>
+            <span className="text-[11px] text-muted-foreground">Sugerida 10%</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {[0, 0.05, 0.1, 0.15].map((pct) => {
+              const val = Math.round(total * pct);
+              const active = propinaTocada
+                ? propina === val
+                : pct === 0.1;
+              return (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => setPropinaPct(pct)}
+                  className={`rounded-lg border px-2 py-2 text-sm transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card hover:bg-muted"
+                  }`}
+                >
+                  {pct === 0 ? "Sin" : `${Math.round(pct * 100)}%`}
+                </button>
+              );
+            })}
+          </div>
+          <div>
+            <Label htmlFor="propina" className="text-xs text-muted-foreground">
+              O monto personalizado
+            </Label>
+            <Input
+              id="propina"
+              inputMode="numeric"
+              value={propinaStr}
+              onChange={(e) => {
+                setPropinaTocada(true);
+                setPropinaStr(e.target.value.replace(/[^\d]/g, ""));
+              }}
+              placeholder="0"
+              className="mt-1"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
