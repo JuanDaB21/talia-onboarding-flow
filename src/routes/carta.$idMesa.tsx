@@ -100,6 +100,26 @@ function CartaPage() {
     },
   });
 
+  const handlePedirCuenta = async () => {
+    setCuentaOpen(true);
+    setCargandoCuenta(true);
+    try {
+      const [c] = await Promise.all([
+        getCuenta({ data: { idMesa } }),
+        solicitar({ data: { idMesa, tipo: "CUENTA" } }).catch(() => null),
+      ]);
+      setCuenta(c);
+      toast.success("Pedimos la cuenta a tu mesero 🧾");
+    } catch (e) {
+      toast.error("No se pudo cargar la cuenta", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+      setCuentaOpen(false);
+    } finally {
+      setCargandoCuenta(false);
+    }
+  };
+
 
   const productosFiltrados = useMemo(() => {
     if (!data) return [];
