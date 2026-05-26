@@ -1,75 +1,69 @@
-## Objetivo
+# Estandarización y mejora de performance
 
-Hacer el menú público mucho más atractivo y verdaderamente diferenciado entre temas (no solo color/tipografía), y permitir abrir el detalle de un producto con foto grande, descripción y precio.
+## Hallazgos del análisis
 
----
+Al revisar `src/components` y `src/routes` (129 archivos `.tsx`) encontré varios patrones inconsistentes que afectan performance, mantenibilidad y consumo:
 
-## 1. Rediseñar los temas como **estilos visuales distintos**, no solo paletas
+1. **Polling con intervalos hardcoded e inconsistentes** (18 lugares): `10_000`, `15_000`, `15000`, `20_000`, `30_000`, `60_000`. Cada componente decide su propio ritmo, y varios refetch corren en background incluso cuando la pestaña no está visible.
+2. **Componentes que consultan Supabase directamente** (11 archivos): formularios de `bodega`, `menu`, `configuracion` y `register` hacen `supabase.from(...)` en lugar de pasar por `createServerFn`. Esto rompe el patrón del resto del proyecto, no aprovecha caché de React Query y carga el bundle del cliente con queries.
+3. **Componentes reutilizables aislados en un módulo**: `ResponsiveSheet` y `Combobox` viven en `src/components/bodega/` pero son genéricos. Otros módulos (menu, configuracion, servicio) reimplementan Sheet+Dialog responsive a mano.
+4. **Rutas muy grandes** (>900 líneas): `_app.servicio.$idMesa.tsx` (925), `carta.$idMesa.tsx` (1222), `_app.operacion.tsx` (286). Todo en un archivo = bundle más grande para esa ruta y peor code-splitting.
+5. **Empty states ad-hoc**: 15+ lugares con "No hay…" duplicado en JSX.
+6. **Sin `staleTime`** en la mayoría de `useQuery`: cada montaje refetchea aunque los datos sigan frescos.
 
-Cada tema tendrá su propia **personalidad de layout** (no solo colores/fuentes). Para esto extendemos `MenuTheme` con propiedades visuales:
+## Plan de cambios
 
-- `cardStyle`: `"clasico"` | `"editorial"` | `"vibrante"` | `"minimal"` | `"artesanal"` | `"luxe"`
-- `productLayout`: `"horizontal"` | `"vertical-grande"` | `"hero-grid"` | `"lista-densa"` 
-- `headerStyle`: estilo del header (hero con imagen, banner con patrón, minimal sticky, etc.)
-- `categoryStyle`: pills, tabs subrayadas, chips con icono, o navegación lateral
-- `decoraciones`: gradientes, patrones SVG sutiles, bordes ornamentales, sombras dramáticas, etiquetas de precio tipo "tag"
+### 1. Centralizar polling y caché (mayor impacto/menor riesgo)
+- Crear `src/lib/query-config.ts` con presets:
+  - `POLL.REALTIME` (10s) — alertas mesero, llamados
+  - `POLL.LIVE` (15s) — servicio, mesas, cocina
+  - `POLL.NORMAL` (30s) — caja, dashboard
+  - `POLL.SLOW` (60s) — paneles del dashboard, turno
+  - Cada preset incluye `refetchInterval`, `staleTime` y `refetchIntervalInBackground: false` para no consumir red con pestaña inactiva.
+- Reemplazar los 18 sitios con `...POLL.LIVE` etc.
+- Beneficio inmediato: menos requests cuando la app no está en foco (estimado −40 a −60% de requests de polling).
 
-### Mapeo por tema (ejemplos):
+### 2. Mover componentes genéricos a `src/components/ui/` o `src/components/common/`
+- `responsive-sheet.tsx` → `src/components/ui/responsive-sheet.tsx`
+- `combobox.tsx` → `src/components/ui/combobox.tsx`
+- Crear `src/components/common/empty-state.tsx` (icono + título + descripción + acción opcional) y reemplazar los "No hay X" duplicados.
+- Crear `src/components/common/loading-state.tsx` (skeleton/spinner estándar).
+- Actualizar imports en bodega y aplicar en los demás módulos donde haya patrón similar.
 
-| Tema | Layout productos | Header | Categorías | Detalle visual |
-|---|---|---|---|---|
-| **Verde Bosque** (Editorial) | Vertical grande con imagen ancha | Hero con divisor ornamental | Tabs subrayadas serif | Precio en tag dorado |
-| **Noir & Gold** (Luxe) | Hero-grid con cards oscuras | Header negro con logo grande centrado | Pills doradas con borde fino | Precio con línea ornamental |
-| **Terracota Cálido** (Artesanal) | Vertical grande con esquinas redondeadas | Banner con textura papel | Chips circulares grandes | Precio manuscrito tipo "stamp" |
-| **Océano Minimal** (Minimal) | Lista densa 2 col, foto cuadrada | Header limpio mínimo | Tabs sin fondo | Precio sobrio alineado |
-| **Sunset Vibrante** (Vibrante) | Hero-grid con gradientes y badges | Header con gradiente coral/magenta | Pills con sombra de color | Precio con badge gradiente |
-| **Cacao Artesanal** (Artesanal) | Horizontal cálido con bordes suaves | Banner crema con icono | Chips con icono café | Precio con underline ondulado |
+### 3. Migrar queries directas a server functions
+- Inventariar los 11 componentes con `supabase.from/rpc` directo y mover su lectura a una función en `src/lib/<modulo>.functions.ts` (las mutaciones se quedan; el foco es lectura).
+- Envolver cada lectura en `useQuery` con `queryKey` consistente y preset de caché.
+- Reduce código duplicado, mejora SSR-readiness y permite invalidación coordinada.
 
-### Implementación
+### 4. Code-splitting de rutas pesadas
+- Extraer los sub-componentes grandes de `carta.$idMesa.tsx` y `_app.servicio.$idMesa.tsx` a archivos en `src/components/menu-publico/` y `src/components/servicio/` (modal de detalle, ProductoCard variants, sheets, etc.). Los archivos ya estaban previstos en el plan anterior pero quedaron inline.
+- Esto reduce el bundle de cada ruta y mejora TTI.
 
-- Extender `src/lib/menu-themes.ts` con los nuevos campos `cardStyle`, `productLayout`, `headerStyle`, `categoryStyle`, `decoraciones` (opcional, defaults por tema).
-- En `src/routes/carta.$idMesa.tsx`:
-  - Refactorizar `ProductoCard` para tomar `productLayout` y renderizar variantes (horizontal, vertical grande, hero-grid).
-  - Refactorizar `CategoryPill` → `<CategoryNav>` que renderice según `categoryStyle`.
-  - El header obtiene variantes (hero con imagen, banner con patrón, minimal).
-  - Añadir nuevas CSS vars opcionales: `--menu-gradient`, `--menu-shadow`, `--menu-decoration` (patrón SVG en base64).
-- Añadir 1–2 temas nuevos para más variedad visual: por ejemplo **"Brutalist Pop"** (alta densidad, contrastes duros, fuentes mono) y **"Pastel Café"** (lifestyle pastel, layout tipo revista).
-
-### Personalización extra (sin entrar a sobre-ingeniería)
-- En `_app.configuracion.apariencia.tsx`, mejorar el preview de cada tema con un **mini-mockup real** (mini card de producto + mini header + mini precio) usando las variables del tema, en lugar de solo swatches. Así el usuario "ve" la diferencia antes de aplicar.
-
----
-
-## 2. Modal de detalle de producto
-
-Cuando el cliente toca una `ProductoCard`, abre un `Dialog` con:
-
-- **Foto grande** (ratio 4:3 o cuadrada según tema, full width del modal, hasta ~360px alto)
-- **Nombre del producto** (heading grande con la fuente del tema)
-- **Descripción completa** (sin `line-clamp`)
-- **Precio destacado** (estilo según `cardStyle` del tema)
-- Botón cerrar
-- Estilizado con las CSS vars del tema (mismo look & feel)
-
-### Implementación
-
-- Nuevo componente `ProductoDetalleDialog` dentro del mismo `carta.$idMesa.tsx` (o `src/components/menu-publico/producto-detalle-dialog.tsx`).
-- Estado `productoSeleccionado: CartaProducto | null` en `CartaPage`.
-- `ProductoCard` envuelto en `<button>` que llama `setProductoSeleccionado(p)`.
-- El dialog usa el `themeStyle` para mantener coherencia visual.
-- En móvil: ocupa casi pantalla completa con scroll interno si la descripción es larga.
-
----
-
-## Archivos a modificar
-
-- `src/lib/menu-themes.ts` — extender tema con campos de layout/estilo, añadir 1–2 temas nuevos
-- `src/routes/carta.$idMesa.tsx` — refactor de `ProductoCard`, `CategoryPill`, header; añadir modal de detalle
-- `src/routes/_app.configuracion.apariencia.tsx` — mejorar previews con mini-mockups reales
-- (opcional) `src/components/menu-publico/producto-detalle-dialog.tsx` — extraer modal si crece demasiado
+### 5. Estandarizar claves de `useQuery`
+- Convención: `[<modulo>, <recurso>, ...filtros]` (ej. `['servicio', 'mesas', negocioId]`).
+- Documentar en `src/lib/query-config.ts` como comentario de referencia.
+- Permite invalidación granular sin pisar otros módulos.
 
 ## Fuera de alcance
 
-- Editor de tema personalizado (elegir cualquier color a mano) — sería un siguiente paso si lo quieres.
-- Cambios en backend / base de datos: no hace falta, `tema_menu` ya está guardado en `negocio`.
-- Cambios en el panel admin más allá del preview visual de temas.
+- No tocar lógica de negocio (cálculos, RPCs, RLS).
+- No cambiar el diseño visual de ningún componente.
+- No migrar todos los formularios a server functions en una sola pasada — solo las **lecturas**; las mutaciones quedan igual para evitar regresiones.
+- No introducir nuevas dependencias.
+
+## Archivos principales a tocar
+
+- **Nuevos**: `src/lib/query-config.ts`, `src/components/ui/responsive-sheet.tsx`, `src/components/ui/combobox.tsx`, `src/components/common/empty-state.tsx`, `src/components/common/loading-state.tsx`.
+- **Modificados (polling/caché)**: las 18 rutas/componentes con `refetchInterval`.
+- **Modificados (imports)**: bodega/* que usan `ResponsiveSheet` y `Combobox`.
+- **Refactor (lectura → server fn + useQuery)**: `productos-tab`, `recetas-table`, `categorias-master-detail`, `proveedores-tab/insumos-tab`, formularios de bodega/menu que cargan opciones.
+- **Split**: `carta.$idMesa.tsx` y `_app.servicio.$idMesa.tsx`.
+
+## Orden sugerido de ejecución
+
+1. Crear `query-config.ts` + aplicar presets (cambio mecánico, gran beneficio).
+2. Mover `responsive-sheet` y `combobox` a `ui/` + crear `empty-state`/`loading-state`.
+3. Migrar lecturas directas a server functions + useQuery con keys estándar.
+4. Split de rutas pesadas.
+
+¿Avanzo con los 4 pasos o prefieres que limite el primer pase solo a los pasos 1 y 2 (mayor impacto, menor riesgo) y revisamos antes de seguir?
