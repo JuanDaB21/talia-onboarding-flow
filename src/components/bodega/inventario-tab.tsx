@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
-import { labelDe } from "@/lib/unidades";
+import { labelDe, formatStockInteligente } from "@/lib/unidades";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
