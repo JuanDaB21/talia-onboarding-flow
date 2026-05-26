@@ -175,6 +175,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 voucher: extras.voucher ?? null,
                 urlComprobante: extras.urlComprobante ?? null,
                 itemIds: Array.from(selected),
+                propina: extras.propina ?? 0,
               })
             }
             isLoading={pagarMut.isPending}
