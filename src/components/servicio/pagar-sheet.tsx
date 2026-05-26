@@ -397,8 +397,8 @@ function PasoMetodo({
   const cambio = useMemo(() => {
     const r = Number(recibido);
     if (!Number.isFinite(r) || r <= 0) return null;
-    return Math.max(0, r - total);
-  }, [recibido, total]);
+    return Math.max(0, r - totalConPropina);
+  }, [recibido, totalConPropina]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
