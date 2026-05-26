@@ -80,30 +80,7 @@ export function EditarItemDialog({
         </DialogHeader>
 
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <Label>Cantidad</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCantidad((c) => Math.max(1, c - 1))}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center font-semibold">{cantidad}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setCantidad((c) => c + 1)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+
 
           <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3">
             <div className="space-y-0.5">
