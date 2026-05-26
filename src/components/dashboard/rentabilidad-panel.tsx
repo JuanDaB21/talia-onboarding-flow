@@ -32,7 +32,7 @@ export function RentabilidadPanel({ rango }: { rango: Rango }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Food Cost % global</CardTitle></CardHeader>
           <CardContent>
@@ -54,7 +54,24 @@ export function RentabilidadPanel({ rango }: { rango: Rango }) {
             <p className="text-xs text-muted-foreground mt-1">Costo: {formatMoney(data.costo_total)}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Ganancia neta</CardTitle></CardHeader>
+          <CardContent>
+            {(() => {
+              const ganancia = data.ingresos_totales - data.costo_total;
+              const pct = data.ingresos_totales > 0 ? (ganancia / data.ingresos_totales) * 100 : 0;
+              const cls = ganancia < 0 ? "text-destructive" : "text-emerald-600";
+              return (
+                <>
+                  <div className={`text-3xl font-bold ${cls}`}>{formatMoney(ganancia)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Margen: {pct.toFixed(1)}%</p>
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
       </div>
+
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {(["STAR", "PLOWHORSE", "PUZZLE", "DOG"] as Cuadrante[]).map((c) => {
