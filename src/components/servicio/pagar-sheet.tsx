@@ -361,6 +361,7 @@ function PasoMetodo({
     subtipo?: string;
     voucher?: string;
     urlComprobante?: string;
+    propina?: number;
   }) => void;
   isLoading: boolean;
 }) {
@@ -369,6 +370,20 @@ function PasoMetodo({
   const [recibido, setRecibido] = useState("");
   const [urlComprobante, setUrlComprobante] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  // Propina: sugerida 10% del total; el mesero puede editar (incluida en 0).
+  const sugerida = Math.round(total * 0.1);
+  const [propinaStr, setPropinaStr] = useState<string>(String(sugerida));
+  const [propinaTocada, setPropinaTocada] = useState(false);
+  // Si el total cambia y el usuario no la ha editado, recalcula la sugerencia.
+  useEffect(() => {
+    if (!propinaTocada) setPropinaStr(String(Math.round(total * 0.1)));
+  }, [total, propinaTocada]);
+  const propina = Math.max(0, Math.floor(Number(propinaStr) || 0));
+  const totalConPropina = total + propina;
+  const setPropinaPct = (pct: number) => {
+    setPropinaTocada(true);
+    setPropinaStr(String(Math.round(total * pct)));
+  };
   const { idNegocio } = useCurrentNegocio();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
