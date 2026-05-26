@@ -51,6 +51,11 @@ function CartaPage() {
   const callMesero = useServerFn(llamarMesero);
   const getEstado = useServerFn(getEstadoMesaPublico);
   const solicitar = useServerFn(solicitarAccionCliente);
+  const getCuenta = useServerFn(getCuentaPublica);
+
+  const [cuentaOpen, setCuentaOpen] = useState(false);
+  const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
+  const [cargandoCuenta, setCargandoCuenta] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
