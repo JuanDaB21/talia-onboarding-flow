@@ -270,7 +270,8 @@ function PasoItems({
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">
-                          {it.cantidad}× {it.nombre_producto}
+                          {it.cantidad > 1 ? `${it.cantidad}× ` : ""}{it.nombre_producto}
+
                         </p>
                       </div>
                       <p className="text-sm font-semibold tabular-nums shrink-0">
