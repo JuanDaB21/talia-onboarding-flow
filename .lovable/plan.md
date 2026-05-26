@@ -1,62 +1,63 @@
-## Objetivo
+# Auto-descuento de inventario al iniciar preparación
 
-Agregar propina al checkout del mesero: se sugiere automáticamente el **10% del total a pagar**, el mesero puede modificarla desde valor o porcentaje (incluso ponerla en 0), se guarda por cada pago para que aparezca en contabilidad (caja diaria) y en el desempeño del mesero.
+## 1. Backend — descuento automático
 
-## Cambios
+### Nueva función `descontar_inventario_item(p_id_item uuid)` (SECURITY DEFINER)
+Toma un `pedido_items` y, **en la unidad de receta** (gramos, mililitros, unidades base):
 
-### 1. Base de datos (migración)
+1. Carga la receta del producto del item.
+2. Para cada `receta_detalle (id_insumo, cantidad)`:
+   - **Salta** los insumos presentes en `pedido_item_exclusiones` del item (cliente pidió "sin X").
+   - Consumo = `cantidad_receta × item.cantidad` (cantidad siempre es 1 con la separación por unidad ya implementada, pero respetamos el campo).
+3. Suma los `pedido_item_extras` del item (`cantidad_porcion × item.cantidad`) al insumo correspondiente.
+4. Para cada insumo agregado: `SELECT ... FOR UPDATE` sobre `inventario_actual`, descuenta, registra `movimientos_inventario` con:
+   - `tipo_movimiento = 'CONSUMO_PREPARACION'`
+   - `cantidad = -consumo`
+   - `referencia_id = id_item`
+   - `motivo = 'Preparación item ' || id_item`
+5. Permite stock negativo (no bloquea la cocina, solo lo refleja en `cantidad_actual`).
 
-**Tabla `pagos**` — añadir columna:
+### Idempotencia
+`avanzar_estado_item` y `iniciar_comanda_estacion` solo descuentan cuando el item transita por **primera vez** a `EN_PREPARACION` (guard `iniciado_at IS NULL` antes del UPDATE). Así no se duplica si se llama dos veces.
 
-- `propina numeric NOT NULL DEFAULT 0` (se guarda por pago, independiente de `monto` de los items).
+### Integración
+- `avanzar_estado_item`: en la rama `EN_COLA → EN_PREPARACION`, ejecuta `PERFORM descontar_inventario_item(p_id_item)` antes del UPDATE.
+- `iniciar_comanda_estacion`: hace un `FOR id IN SELECT id_item ...` de los items que va a transicionar y los descuenta uno a uno antes del bulk UPDATE.
 
-Así cada transacción de pago lleva su propia propina, asociada al mesero (`id_mesero`) y a la mesa, lista para consumir desde reportes.
+### Realtime
+La UI de bodega ya consulta `inventario_actual`. Para que el descuento se refleje en vivo, agregamos esa tabla a la publicación `supabase_realtime` y un canal en `inventario-tab.tsx` que invalida la query al recibir cambios.
 
-**RPC `public.registrar_pago**` — agregar parámetro `p_propina numeric DEFAULT 0`:
+## 2. Frontend — formato inteligente de cantidades
 
-- Valida `p_propina >= 0`.
-- Inserta en `pagos.propina`.
-- El `monto` del pago sigue siendo el total de los items (no se suma la propina al monto base; quedan en columnas separadas para reportes claros).
-- Para el cuadre de caja, lo que el cliente entrega físicamente = `monto + propina`. Eso se ajusta en el resumen (ver punto 4).
+### Nueva utilidad `formatStockInteligente(cantidad, unidad_receta, unidad_compra, factor_conversion)` en `src/lib/unidades.ts`
 
-**RPC `public.resumen_caja_dia**` — sumar `propina` al desglose:
+Devuelve un string legible según la familia:
 
-- `efectivo_propina`, `transferencia_propina`, `datafono_propina` y `propinas_total`.
-- Ajustar `efectivo_fisico` esperado en `cerrar_caja`: `base + efectivo (monto) + efectivo_propina`. Es decir, la propina en efectivo también debe estar en caja.
+- **PESO** (cantidad en gramos): si `>= 1000` g → `"19 kg 750 g"`. Si `< 1000` → `"750 g"`. La unidad mayor se elige según `unidad_compra` (kg, lb u oz) cuando esté en la misma familia; default kg.
+- **VOLUMEN** (cantidad en ml): análogo — `"3 L 250 ml"` o `"250 ml"`. Mayor según `unidad_compra` (Galón, Litro) cuando aplique.
+- **UNIDAD con factor manual** (Caja, Paquete, Bandeja, Docena con `factor_conversion > 1`):
+  - `enteras = floor(cantidad / factor)`, `sueltas = cantidad - enteras * factor`.
+  - Resultado: `"2 cajas y 18 unidades"`, `"3 docenas"`, `"18 unidades"` según corresponda.
+- **UNIDAD simple**: `"N unidades"` (singular si N=1).
+- Decimales residuales se redondean a entero cuando es UNIDAD; en PESO/VOLUMEN se muestran con 0 decimales en la unidad menor.
 
-### 2. Server function (`src/lib/pagos.functions.ts`)
+### Aplicación
+- `src/components/bodega/inventario-tab.tsx`: reemplazar `{Number(r.cantidad_actual).toLocaleString()} {labelDe(unidad_receta)}` por `formatStockInteligente(...)`. Igual para el umbral `stock_minimo`.
+- `src/routes/_app.bodega.inventario.$id.tsx`: usar el helper para mostrar stock actual y en el historial de movimientos.
 
-`registrarPago`:
+## 3. Detalles técnicos
 
-- Añadir `propina: z.number().min(0).max(10_000_000)` al schema.
-- Pasarla al RPC como `p_propina`.
+```text
+DB:
+  - migración: CREATE FUNCTION descontar_inventario_item(uuid) ...
+  - migración: REPLACE avanzar_estado_item + iniciar_comanda_estacion (mismo cuerpo + llamada)
+  - migración: ALTER PUBLICATION supabase_realtime ADD TABLE inventario_actual
+Frontend:
+  - src/lib/unidades.ts  → formatStockInteligente()
+  - src/components/bodega/inventario-tab.tsx  → render + canal realtime
+  - src/routes/_app.bodega.inventario.$id.tsx → render
+```
 
-`resumenCajaTurno` (vista del mesero):
-
-- Incluir `propinas` totales del turno por método (ya cuenta sus pagos del día).
-
-### 3. UI checkout — `src/components/servicio/pagar-sheet.tsx`
-
-En el paso `metodo` (después de elegir items y método, antes de confirmar):
-
-- Mostrar bloque **Propina**:
-  - Total seleccionado: `$X`.
-  - Sugerido (10%): botón rápido que pone `Math.round(total * 0.10)`.
-  - Botones rápidos: `0%`, `5%`, `10%`, `15%` (calculan sobre el total seleccionado).
-  - Input editable (numérico, en pesos, sin decimales) — el mesero puede escribir cualquier monto.
-  - Línea inferior: **Total a cobrar: `monto + propina**`.
-- Al confirmar, enviar `propina` al `registrarPago`.
-- Reset al cerrar/reabrir el sheet: vuelve a sugerir 10% del nuevo total seleccionado (recalcular cuando cambian los items seleccionados, salvo que el mesero ya tocó el campo).
-
-### 4. Reportes (consumo de la nueva data)
-
-- `src/lib/caja.functions.ts` (resumen del día visto por admin): mostrar **Propinas totales del día** y desglose por mesero (sumando `pagos.propina` agrupado por `id_mesero`, mismo filtro de fecha que `resumen_caja_dia`).
-- `src/lib/turno.functions.ts` (cierre/turno del mesero): mostrar propinas acumuladas en su turno.
-
-Estos puntos quedan listos para que la próxima iteración los grafique o exporte; la columna ya existe y los queries la exponen.
-
-## Notas técnicas
-
-- El total mostrado al cliente en la cuenta pública (`getCuentaPublica`) NO incluye propina (sigue siendo el total de productos). La propina es decisión del mesero al cobrar.
-- `pago_items.monto` no cambia (sigue siendo el subtotal del item). La propina vive solo en `pagos.propina`.
-- Cuando un pago `TRANSFERENCIA` se rechaza, su `propina` queda con el pago rechazado (no se cuenta en confirmados); igual que el `monto`.
+## Fuera de alcance
+- Revertir el descuento si el item se cancela/elimina después de iniciar preparación (hoy `eliminar_item_pedido` ya bloquea borrar items que no estén `EN_COLA`, así que el caso no se da).
+- Alertas push de stock bajo (lo dejamos solo en el badge existente).
