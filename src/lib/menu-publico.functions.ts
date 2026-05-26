@@ -174,3 +174,132 @@ export const solicitarAccionCliente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export interface CuentaItem {
+  id_item: string;
+  nombre_producto: string;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  extras: Array<{ nombre: string; precio: number }>;
+  exclusiones: Array<{ nombre: string }>;
+  nota: string | null;
+}
+
+export interface CuentaPublica {
+  identificador_mesa: string;
+  nombre_negocio: string;
+  url_logo: string | null;
+  items: CuentaItem[];
+  total: number;
+  fecha: string;
+}
+
+export const getCuentaPublica = createServerFn({ method: "POST" })
+  .inputValidator((input) => idMesaSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { data: mesa, error: mErr } = await supabaseAdmin
+      .from("mesas")
+      .select("id_mesa, identificador, id_negocio")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+
+    const { data: negocio } = await supabaseAdmin
+      .from("negocio")
+      .select("nombre_comercial, url_logo")
+      .eq("id_negocio", mesa.id_negocio)
+      .maybeSingle();
+
+    const { data: pedidos, error: pErr } = await supabaseAdmin
+      .from("pedidos")
+      .select("id_pedido")
+      .eq("id_mesa", data.idMesa)
+      .neq("estado", "PAGADO");
+    if (pErr) throw new Error(pErr.message);
+
+    const pedidoIds = (pedidos ?? []).map((p) => p.id_pedido);
+    const items: CuentaItem[] = [];
+    let total = 0;
+
+    if (pedidoIds.length > 0) {
+      const { data: itemsRaw, error: iErr } = await supabaseAdmin
+        .from("pedido_items")
+        .select(
+          `id_item, cantidad, precio_unitario, nota,
+           productos:id_producto(nombre_producto)`,
+        )
+        .in("id_pedido", pedidoIds)
+        .order("created_at", { ascending: true });
+      if (iErr) throw new Error(iErr.message);
+
+      const itemIds = (itemsRaw ?? []).map((i) => i.id_item as string);
+      let extrasRaw: Array<Record<string, unknown>> = [];
+      let exclRaw: Array<Record<string, unknown>> = [];
+      if (itemIds.length > 0) {
+        const [{ data: ex }, { data: xc }] = await Promise.all([
+          supabaseAdmin
+            .from("pedido_item_extras")
+            .select("id_item, precio_extra, insumos:id_insumo_extra(nombre_insumo)")
+            .in("id_item", itemIds),
+          supabaseAdmin
+            .from("pedido_item_exclusiones")
+            .select("id_item, insumos:id_insumo(nombre_insumo)")
+            .in("id_item", itemIds),
+        ]);
+        extrasRaw = (ex ?? []) as Array<Record<string, unknown>>;
+        exclRaw = (xc ?? []) as Array<Record<string, unknown>>;
+      }
+
+      const extrasByItem = new Map<string, CuentaItem["extras"]>();
+      for (const e of extrasRaw) {
+        const arr = extrasByItem.get(e.id_item as string) ?? [];
+        arr.push({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nombre: ((e as any).insumos?.nombre_insumo as string) ?? "—",
+          precio: Number(e.precio_extra ?? 0),
+        });
+        extrasByItem.set(e.id_item as string, arr);
+      }
+      const exclByItem = new Map<string, CuentaItem["exclusiones"]>();
+      for (const x of exclRaw) {
+        const arr = exclByItem.get(x.id_item as string) ?? [];
+        arr.push({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nombre: ((x as any).insumos?.nombre_insumo as string) ?? "—",
+        });
+        exclByItem.set(x.id_item as string, arr);
+      }
+
+      for (const i of itemsRaw ?? []) {
+        const cantidad = Number(i.cantidad);
+        const precio = Number(i.precio_unitario);
+        const extras = extrasByItem.get(i.id_item as string) ?? [];
+        const extrasTotal = extras.reduce((s, e) => s + e.precio, 0);
+        const subtotal = (precio + extrasTotal) * cantidad;
+        total += subtotal;
+        items.push({
+          id_item: i.id_item as string,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nombre_producto: ((i as any).productos?.nombre_producto as string) ?? "—",
+          cantidad,
+          precio_unitario: precio,
+          subtotal,
+          extras,
+          exclusiones: exclByItem.get(i.id_item as string) ?? [],
+          nota: (i.nota as string | null) ?? null,
+        });
+      }
+    }
+
+    const out: CuentaPublica = {
+      identificador_mesa: mesa.identificador,
+      nombre_negocio: negocio?.nombre_comercial ?? "",
+      url_logo: negocio?.url_logo ?? null,
+      items,
+      total,
+      fecha: new Date().toISOString(),
+    };
+    return out;
+  });

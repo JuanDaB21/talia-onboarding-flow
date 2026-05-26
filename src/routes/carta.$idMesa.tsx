@@ -6,11 +6,21 @@ import { Bell, CreditCard, ImageIcon, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   getMenuPublico,
   llamarMesero,
   getEstadoMesaPublico,
   solicitarAccionCliente,
+  getCuentaPublica,
   type CartaProducto,
+  type CuentaPublica,
 } from "@/lib/menu-publico.functions";
 import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
 
@@ -41,6 +51,11 @@ function CartaPage() {
   const callMesero = useServerFn(llamarMesero);
   const getEstado = useServerFn(getEstadoMesaPublico);
   const solicitar = useServerFn(solicitarAccionCliente);
+  const getCuenta = useServerFn(getCuentaPublica);
+
+  const [cuentaOpen, setCuentaOpen] = useState(false);
+  const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
+  const [cargandoCuenta, setCargandoCuenta] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
@@ -84,6 +99,26 @@ function CartaPage() {
       });
     },
   });
+
+  const handlePedirCuenta = async () => {
+    setCuentaOpen(true);
+    setCargandoCuenta(true);
+    try {
+      const [c] = await Promise.all([
+        getCuenta({ data: { idMesa } }),
+        solicitar({ data: { idMesa, tipo: "CUENTA" } }).catch(() => null),
+      ]);
+      setCuenta(c);
+      toast.success("Pedimos la cuenta a tu mesero 🧾");
+    } catch (e) {
+      toast.error("No se pudo cargar la cuenta", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+      setCuentaOpen(false);
+    } finally {
+      setCargandoCuenta(false);
+    }
+  };
 
 
   const productosFiltrados = useMemo(() => {
@@ -298,8 +333,8 @@ function CartaPage() {
                   color: "var(--menu-primary-foreground)",
                   borderRadius: "var(--menu-radius)",
                 }}
-                onClick={() => solicitarMut.mutate("CUENTA")}
-                disabled={solicitarMut.isPending}
+                onClick={handlePedirCuenta}
+                disabled={cargandoCuenta}
               >
                 <CreditCard className="h-5 w-5" />
                 Pedir la cuenta
@@ -329,6 +364,15 @@ function CartaPage() {
         </div>
       </div>
 
+      <CuentaDialog
+        open={cuentaOpen}
+        onOpenChange={setCuentaOpen}
+        cuenta={cuenta}
+        cargando={cargandoCuenta}
+        mesa={mesa.identificador}
+        nombreNegocio={nombreNegocio}
+        logoUrl={logoUrl}
+      />
     </main>
   );
 
@@ -411,4 +455,143 @@ function CartaPage() {
       </article>
     );
   }
+}
+
+interface CuentaDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cuenta: CuentaPublica | null;
+  cargando: boolean;
+  mesa: string;
+  nombreNegocio: string;
+  logoUrl: string | null;
+}
+
+function CuentaDialog({
+  open,
+  onOpenChange,
+  cuenta,
+  cargando,
+  mesa,
+  nombreNegocio,
+  logoUrl,
+}: CuentaDialogProps) {
+  const fecha = cuenta ? new Date(cuenta.fecha) : new Date();
+  const fechaFmt = fecha.toLocaleString("es-CO", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 text-center items-center border-b border-dashed">
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              alt={nombreNegocio}
+              className="h-14 w-14 rounded-full object-contain bg-muted p-1 mb-2"
+            />
+          )}
+          <DialogTitle className="text-lg font-bold tracking-tight">
+            {nombreNegocio || "Cuenta"}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Mesa {mesa} · {fechaFmt}
+          </DialogDescription>
+        </DialogHeader>
+
+        {cargando && !cuenta ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !cuenta || cuenta.items.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+            Aún no hay productos en tu cuenta.
+          </div>
+        ) : (
+          <>
+            <div className="max-h-[55vh] overflow-y-auto px-6 py-4">
+              <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-3 text-sm">
+                <div className="contents text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <span>Cant.</span>
+                  <span>Descripción</span>
+                  <span className="text-right">Total</span>
+                </div>
+                <div className="col-span-3 border-b border-dashed" />
+                {cuenta.items.map((it) => (
+                  <div key={it.id_item} className="contents">
+                    <span className="tabular-nums font-medium pt-0.5">
+                      {it.cantidad}×
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium leading-tight break-words">
+                        {it.nombre_producto}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {fmt.format(it.precio_unitario)} c/u
+                      </p>
+                      {it.extras.length > 0 && (
+                        <ul className="mt-0.5 text-xs text-muted-foreground">
+                          {it.extras.map((e, i) => (
+                            <li key={i} className="flex justify-between gap-2">
+                              <span>+ {e.nombre}</span>
+                              {e.precio > 0 && (
+                                <span className="tabular-nums">
+                                  {fmt.format(e.precio)}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {it.exclusiones.length > 0 && (
+                        <p className="text-xs text-muted-foreground italic">
+                          sin {it.exclusiones.map((x) => x.nombre).join(", ")}
+                        </p>
+                      )}
+                      {it.nota && (
+                        <p className="text-xs text-muted-foreground italic">
+                          Nota: {it.nota}
+                        </p>
+                      )}
+                    </div>
+                    <span className="tabular-nums font-semibold pt-0.5 text-right">
+                      {fmt.format(it.subtotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-dashed bg-muted/30">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-semibold uppercase tracking-wider">
+                  Total
+                </span>
+                <span className="text-2xl font-extrabold tabular-nums">
+                  {fmt.format(cuenta.total)}
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] text-center text-muted-foreground leading-relaxed">
+                Tu mesero ya fue notificado y se acercará a cobrar.
+                <br />
+                Gracias por tu visita 🙌
+              </p>
+            </div>
+          </>
+        )}
+
+        <DialogFooter className="px-6 pb-6 pt-2">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => onOpenChange(false)}
+          >
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
