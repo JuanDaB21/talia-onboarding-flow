@@ -68,7 +68,7 @@ function CartaPage() {
   const estadoQ = useQuery({
     queryKey: ["estadoMesaPublico", idMesa],
     queryFn: () => getEstado({ data: { idMesa } }),
-    refetchInterval: 15000,
+    ...POLL.LIVE,
     retry: false,
   });
 
