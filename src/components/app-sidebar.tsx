@@ -115,8 +115,11 @@ function gruposPorRol(rol: Rol | null) {
 }
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
+  const closeIfMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
