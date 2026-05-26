@@ -224,7 +224,7 @@ function MesaEnServicio() {
   const estadoQ = useQuery({
     queryKey: ["estadoCierre", idMesa],
     queryFn: () => estadoFn({ data: { idMesa } }),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
 
   const cerrarFn = useServerFn(cerrarMesa);
