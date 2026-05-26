@@ -128,6 +128,7 @@ function CartaPage() {
     return data.productos.filter((p) => p.id_categoria === catActiva);
   }, [data, catActiva]);
 
+  const themeId = data?.negocio?.tema_menu;
   const theme = useMemo(() => getMenuTheme(themeId), [themeId]);
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
 
