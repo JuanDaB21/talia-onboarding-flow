@@ -12,7 +12,7 @@ export function ClientePanel({ rango }: { rango: Rango }) {
   const { data, isLoading } = useQuery({
     queryKey: ["comportamiento-cliente", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Analizando comportamiento…</p>;
