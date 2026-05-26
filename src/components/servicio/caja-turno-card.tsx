@@ -19,7 +19,7 @@ export function CajaTurnoCard() {
   const { data } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
     queryFn: () => fn(),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   // tick cada minuto para refrescar el cronómetro en vivo
