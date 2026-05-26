@@ -364,6 +364,15 @@ function CartaPage() {
         </div>
       </div>
 
+      <CuentaDialog
+        open={cuentaOpen}
+        onOpenChange={setCuentaOpen}
+        cuenta={cuenta}
+        cargando={cargandoCuenta}
+        mesa={mesa.identificador}
+        nombreNegocio={nombreNegocio}
+        logoUrl={logoUrl}
+      />
     </main>
   );
 
