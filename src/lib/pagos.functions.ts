@@ -11,6 +11,7 @@ const registrarPagoSchema = z.object({
   voucher: z.string().max(50).optional().nullable(),
   urlComprobante: z.string().max(500).optional().nullable(),
   itemIds: z.array(z.string().uuid()).min(1).max(200),
+  propina: z.number().min(0).max(10_000_000).optional().default(0),
 });
 
 const confirmarPagoSchema = z.object({
