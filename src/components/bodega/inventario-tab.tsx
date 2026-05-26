@@ -49,7 +49,7 @@ export function InventarioTab() {
     const { data } = await supabase
       .from("inventario_actual")
       .select(
-        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, stock_minimo)"
+        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, unidad_compra, factor_conversion, stock_minimo)"
       );
     setRows((data as unknown as Row[]) ?? []);
     setLoading(false);
