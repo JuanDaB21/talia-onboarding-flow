@@ -378,12 +378,14 @@ function CartaPage() {
         logoUrl={logoUrl}
       />
 
-      <ProductoDetalleDialog
-        producto={productoSel}
-        theme={theme}
-        themeStyle={themeStyle}
-        onClose={() => setProductoSel(null)}
-      />
+      <Suspense fallback={null}>
+        <ProductoDetalleDialog
+          producto={productoSel}
+          theme={theme}
+          themeStyle={themeStyle}
+          onClose={() => setProductoSel(null)}
+        />
+      </Suspense>
     </main>
   );
 }
