@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 export const Route = createFileRoute("/")({
   component: RootRedirect,
@@ -8,21 +8,20 @@ export const Route = createFileRoute("/")({
 
 function RootRedirect() {
   const navigate = useNavigate();
-  const [msg, setMsg] = useState("Cargando…");
+  const { user, loading } = useAuthUser();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        navigate({ to: "/dashboard", replace: true });
-      } else {
-        navigate({ to: "/login", replace: true });
-      }
-    }).catch(() => setMsg("No se pudo verificar la sesión."));
-  }, [navigate]);
+    if (loading) return;
+    if (user) {
+      navigate({ to: "/dashboard", replace: true });
+    } else {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [user, loading, navigate]);
 
   return (
     <main className="flex min-h-screen items-center justify-center">
-      <p className="text-sm text-muted-foreground">{msg}</p>
+      <p className="text-sm text-muted-foreground">Cargando…</p>
     </main>
   );
 }

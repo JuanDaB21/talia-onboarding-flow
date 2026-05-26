@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   createFileRoute,
   Outlet,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useMiStaff } from "@/hooks/use-mi-staff";
+import { useAuthUser } from "@/hooks/use-auth-user";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -16,19 +16,15 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
+  const { user, loading } = useAuthUser();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        navigate({ to: "/login" });
-        return;
-      }
-      setChecking(false);
-    });
-  }, [navigate]);
+    if (!loading && !user) {
+      navigate({ to: "/login" });
+    }
+  }, [loading, user, navigate]);
 
-  if (checking) {
+  if (loading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Cargando…</p>

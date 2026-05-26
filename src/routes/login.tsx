@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, LogIn } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,14 +47,11 @@ type LoginValues = z.infer<typeof loginSchema>;
 function LoginPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuthUser();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        navigate({ to: "/dashboard" });
-      }
-    });
-  }, [navigate]);
+    if (user) navigate({ to: "/dashboard" });
+  }, [user, navigate]);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
