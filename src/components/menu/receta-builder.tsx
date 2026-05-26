@@ -170,7 +170,8 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
     setIdSubcategoria("");
   };
 
-  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && tiempoPrep > 0 && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
+  const tiempoPrepNum = Math.floor(Number(tiempoPrep) || 0);
+  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && tiempoPrepNum > 0 && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
 
   const guardar = async () => {
     if (!puedeGuardar) {
