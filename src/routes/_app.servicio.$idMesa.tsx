@@ -96,7 +96,8 @@ function MesaEnServicio() {
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
     queryFn: () => getMesa({ data: { idMesa } }),
-    ...POLL.NORMAL,
+    // Sin polling: el canal `mesa-sesion-${idMesa}` invalida en cambios reales.
+    staleTime: 30_000,
   });
 
   // Realtime: refrescar cuando cambien items/pedidos/mesa, y avisar cuando algo pase a LISTO
