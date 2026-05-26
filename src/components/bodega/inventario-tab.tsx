@@ -28,6 +28,8 @@ interface Row {
     id_insumo: string;
     nombre_insumo: string;
     unidad_receta: string;
+    unidad_compra: string;
+    factor_conversion: number;
     stock_minimo: number;
   };
 }
