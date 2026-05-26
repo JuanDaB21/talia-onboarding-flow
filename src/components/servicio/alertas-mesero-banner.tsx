@@ -12,6 +12,7 @@ import {
   type MesaServicio,
 } from "@/lib/servicio.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { POLL } from "@/lib/query-config";
 
 function minsAgo(iso: string | null) {
   if (!iso) return 0;
