@@ -6,6 +6,7 @@ import { AlertTriangle, XCircle, Flame } from "lucide-react";
 import { getAlertasFugas } from "@/lib/analytics.functions";
 import { cn } from "@/lib/utils";
 import type { Rango } from "./range-selector";
+import { POLL } from "@/lib/query-config";
 
 export function AlertasPanel({ rango }: { rango: Rango }) {
   const fn = useServerFn(getAlertasFugas);
