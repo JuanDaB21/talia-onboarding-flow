@@ -329,10 +329,16 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
               <Input
                 id="tprep"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 step={1}
+                placeholder="Ej: 15"
                 value={tiempoPrep}
-                onChange={(e) => setTiempoPrep(Math.max(1, Math.floor(Number(e.target.value) || 0)))}
+                onChange={(e) => setTiempoPrep(e.target.value.replace(/[^0-9]/g, ""))}
+                onBlur={() => {
+                  const n = Math.floor(Number(tiempoPrep) || 0);
+                  setTiempoPrep(n > 0 ? String(n) : "");
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Las bebidas se sincronizan con la mitad del tiempo del plato más lento del pedido.
