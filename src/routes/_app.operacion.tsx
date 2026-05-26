@@ -203,7 +203,7 @@ function PersonalTurno() {
   const { data, isLoading } = useQuery({
     queryKey: ["personal-turno"],
     queryFn: () => fn(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
   const staff = data?.staff ?? [];
   return (
