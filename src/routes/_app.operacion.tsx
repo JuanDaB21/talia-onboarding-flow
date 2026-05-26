@@ -246,7 +246,7 @@ function MesasGrid() {
   const { data, isLoading } = useQuery({
     queryKey: ["mesas-operacion"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const mesas = data?.mesas ?? [];
   return (
