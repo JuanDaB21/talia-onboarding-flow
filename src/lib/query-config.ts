@@ -37,11 +37,10 @@ export const POLL = {
 } as const;
 
 /** Helper para polling condicional (ej. solo si un sheet está abierto). */
-export function pollWhen(active: boolean, preset: PollPreset): PollPreset | { refetchInterval: false; staleTime: number; refetchIntervalInBackground: false } {
-  if (active) return preset;
+export function pollWhen(active: boolean, preset: PollPreset) {
   return {
-    refetchInterval: false,
+    refetchInterval: (active ? preset.refetchInterval : false) as number | false,
     staleTime: preset.staleTime,
-    refetchIntervalInBackground: false,
+    refetchIntervalInBackground: false as const,
   };
 }
