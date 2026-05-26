@@ -41,7 +41,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
   const [idSubcategoria, setIdSubcategoria] = useState("");
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [tiempoPrep, setTiempoPrep] = useState<number>(15);
+  const [tiempoPrep, setTiempoPrep] = useState<string>("15");
   const [ingredientes, setIngredientes] = useState<IngredienteInput[]>([]);
   const [search, setSearch] = useState("");
 
@@ -81,7 +81,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         setDescripcion(r.descripcion ?? "");
         setIdCategoria(r.id_categoria);
         setIdSubcategoria(r.id_subcategoria);
-        setTiempoPrep(Number(r.tiempo_preparacion_min ?? 15));
+        setTiempoPrep(String(r.tiempo_preparacion_min ?? 15));
       }
       if (d) {
         setIngredientes(
@@ -170,7 +170,8 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
     setIdSubcategoria("");
   };
 
-  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && tiempoPrep > 0 && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
+  const tiempoPrepNum = Math.floor(Number(tiempoPrep) || 0);
+  const puedeGuardar = idCategoria && idSubcategoria && nombre.trim() && tiempoPrepNum > 0 && ingredientes.length > 0 && ingredientes.every((x) => x.cantidad > 0);
 
   const guardar = async () => {
     if (!puedeGuardar) {
@@ -196,7 +197,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
-          p_tiempo_preparacion_min: tiempoPrep,
+          p_tiempo_preparacion_min: tiempoPrepNum,
         });
         if (error) throw error;
         // Obtener id_producto recién creado
@@ -214,7 +215,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_nombre: nombre,
           p_descripcion: descripcion,
           p_ingredientes: payload as unknown as never,
-          p_tiempo_preparacion_min: tiempoPrep,
+          p_tiempo_preparacion_min: tiempoPrepNum,
         });
         if (error) throw error;
       }
@@ -328,10 +329,16 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
               <Input
                 id="tprep"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 step={1}
+                placeholder="Ej: 15"
                 value={tiempoPrep}
-                onChange={(e) => setTiempoPrep(Math.max(1, Math.floor(Number(e.target.value) || 0)))}
+                onChange={(e) => setTiempoPrep(e.target.value.replace(/[^0-9]/g, ""))}
+                onBlur={() => {
+                  const n = Math.floor(Number(tiempoPrep) || 0);
+                  setTiempoPrep(n > 0 ? String(n) : "");
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Las bebidas se sincronizan con la mitad del tiempo del plato más lento del pedido.
