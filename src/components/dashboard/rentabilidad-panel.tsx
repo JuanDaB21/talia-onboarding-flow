@@ -22,7 +22,7 @@ export function RentabilidadPanel({ rango }: { rango: Rango }) {
   const { data, isLoading } = useQuery({
     queryKey: ["ingenieria-menu", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Calculando ingeniería del menú…</p>;
