@@ -38,7 +38,7 @@ function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["kpis-hoy"],
     queryFn: () => fn(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   const setRango = (r: Rango) => navigate({ search: { tab, rango: r } });
