@@ -11,6 +11,7 @@ const registrarPagoSchema = z.object({
   voucher: z.string().max(50).optional().nullable(),
   urlComprobante: z.string().max(500).optional().nullable(),
   itemIds: z.array(z.string().uuid()).min(1).max(200),
+  propina: z.number().min(0).max(10_000_000).optional().default(0),
 });
 
 const confirmarPagoSchema = z.object({
@@ -104,6 +105,7 @@ export const registrarPago = createServerFn({ method: "POST" })
       p_voucher: data.voucher ?? "",
       p_url_comprobante: data.urlComprobante ?? "",
       p_item_ids: data.itemIds,
+      p_propina: data.propina ?? 0,
     });
     if (error) throw new Error(error.message);
     return { idPago: id as string };
@@ -284,19 +286,19 @@ export interface ResumenCaja {
   transferencia_pendiente: number;
   datafono: number;
   total: number;
+  propinas: number;
 }
 
 export const resumenCajaTurno = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    // Turno: pagos del día de este mesero
     const desde = new Date();
     desde.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
       .from("pagos")
-      .select("metodo, monto, estado_confirmacion")
+      .select("metodo, monto, propina, estado_confirmacion")
       .eq("id_mesero", userId)
       .gte("created_at", desde.toISOString());
     if (error) throw new Error(error.message);
@@ -307,9 +309,11 @@ export const resumenCajaTurno = createServerFn({ method: "GET" })
       transferencia_pendiente: 0,
       datafono: 0,
       total: 0,
+      propinas: 0,
     };
     for (const p of data ?? []) {
       const m = Number(p.monto);
+      const tip = Number(p.propina ?? 0);
       if (p.estado_confirmacion === "RECHAZADO") continue;
       if (p.metodo === "EFECTIVO") r.efectivo += m;
       else if (p.metodo === "DATAFONO") r.datafono += m;
@@ -317,7 +321,10 @@ export const resumenCajaTurno = createServerFn({ method: "GET" })
         if (p.estado_confirmacion === "CONFIRMADO") r.transferencia_confirmada += m;
         else r.transferencia_pendiente += m;
       }
-      if (p.estado_confirmacion !== "PENDIENTE") r.total += m;
+      if (p.estado_confirmacion !== "PENDIENTE") {
+        r.total += m;
+        r.propinas += tip;
+      }
     }
     return r;
   });
