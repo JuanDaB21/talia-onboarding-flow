@@ -8,6 +8,7 @@ import {
   Camera,
   CheckCircle2,
   CreditCard,
+  HandCoins,
   Loader2,
   Smartphone,
   X,
@@ -34,7 +35,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
 });
 
 type Metodo = "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO";
-type Paso = "items" | "metodo";
+type Paso = "propina" | "items" | "metodo";
 
 interface Props {
   open: boolean;
@@ -54,16 +55,23 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     enabled: open,
   });
 
-  const [paso, setPaso] = useState<Paso>("items");
+  const [paso, setPaso] = useState<Paso>("propina");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [metodo, setMetodo] = useState<Metodo>("EFECTIVO");
+  // Propina decidida por el cliente al inicio del cobro.
+  // Si elige porcentaje guardamos el pct y se aplica al total seleccionado.
+  // Si escribe monto personalizado, guardamos el valor absoluto.
+  const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
+  const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
 
   // Reset al abrir
   useEffect(() => {
     if (open) {
-      setPaso("items");
+      setPaso("propina");
       setSelected(new Set());
       setMetodo("EFECTIVO");
+      setPropinaPct(0.1);
+      setPropinaCustom(null);
     }
   }, [open]);
 
@@ -73,6 +81,11 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     () => items.filter((i) => selected.has(i.id_item)).reduce((a, b) => a + b.subtotal, 0),
     [items, selected],
   );
+  const propina =
+    propinaCustom !== null
+      ? Math.max(0, Math.floor(propinaCustom))
+      : Math.round(totalSeleccionado * (propinaPct ?? 0));
+  const totalConPropina = totalSeleccionado + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -109,15 +122,16 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       qc.invalidateQueries({ queryKey: ["pagos"] });
       qc.invalidateQueries({ queryKey: ["caja"] });
 
-      // ¿Quedan items pendientes?
       itemsQ.refetch().then((r) => {
         const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
         if (restantes.length === 0 && !esTransfer) {
           onOpenChange(false);
           navigate({ to: "/servicio" });
         } else {
-          setPaso("items");
+          setPaso("propina");
           setSelected(new Set());
+          setPropinaPct(0.1);
+          setPropinaCustom(null);
         }
       });
     },
@@ -127,24 +141,32 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
+  const tituloPaso =
+    paso === "propina"
+      ? "Propina"
+      : paso === "items"
+        ? "Selecciona los productos a cobrar"
+        : "Método de pago";
+
+  const backTo: Paso | null =
+    paso === "items" ? "propina" : paso === "metodo" ? "items" : null;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
         <SheetHeader className="px-5 pt-5 pb-3 border-b">
           <div className="flex items-center gap-2">
-            {paso === "metodo" && (
+            {backTo && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 -ml-1"
-                onClick={() => setPaso("items")}
+                onClick={() => setPaso(backTo)}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <SheetTitle className="text-lg">
-              {paso === "items" ? "Selecciona los productos a cobrar" : "Método de pago"}
-            </SheetTitle>
+            <SheetTitle className="text-lg">{tituloPaso}</SheetTitle>
           </div>
         </SheetHeader>
 
@@ -152,6 +174,20 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
+        ) : paso === "propina" ? (
+          <PasoPropina
+            propinaPct={propinaPct}
+            propinaCustom={propinaCustom}
+            onPickPct={(pct) => {
+              setPropinaPct(pct);
+              setPropinaCustom(null);
+            }}
+            onCustom={(val) => {
+              setPropinaCustom(val);
+              setPropinaPct(null);
+            }}
+            onContinue={() => setPaso("items")}
+          />
         ) : paso === "items" ? (
           <PasoItems
             items={items}
@@ -161,6 +197,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             onClear={clear}
             totalSeleccionado={totalSeleccionado}
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
+            propina={propina}
             onContinue={() => setPaso("metodo")}
           />
         ) : (
@@ -168,6 +205,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             metodo={metodo}
             setMetodo={setMetodo}
             total={totalSeleccionado}
+            propina={propina}
+            totalConPropina={totalConPropina}
+            onEditarPropina={() => setPaso("propina")}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -176,7 +216,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 voucher: extras.voucher ?? null,
                 urlComprobante: extras.urlComprobante ?? null,
                 itemIds: Array.from(selected),
-                propina: extras.propina ?? 0,
+                propina,
               })
             }
             isLoading={pagarMut.isPending}
@@ -184,6 +224,100 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function PasoPropina({
+  propinaPct,
+  propinaCustom,
+  onPickPct,
+  onCustom,
+  onContinue,
+}: {
+  propinaPct: number | null;
+  propinaCustom: number | null;
+  onPickPct: (pct: number) => void;
+  onCustom: (val: number | null) => void;
+  onContinue: () => void;
+}) {
+  const [customStr, setCustomStr] = useState<string>(
+    propinaCustom !== null ? String(propinaCustom) : "",
+  );
+
+  const opciones: { pct: number; label: string }[] = [
+    { pct: 0, label: "Sin propina" },
+    { pct: 0.05, label: "5%" },
+    { pct: 0.1, label: "10%" },
+    { pct: 0.15, label: "15%" },
+  ];
+
+  return (
+    <>
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+        <div className="rounded-2xl bg-primary/5 border border-primary/20 p-5 text-center space-y-2">
+          <HandCoins className="h-10 w-10 mx-auto text-primary" />
+          <h3 className="text-xl font-bold">Pregúntale al cliente</h3>
+          <p className="text-sm text-muted-foreground">
+            ¿Desea dejar propina? Muéstrale el celular para que elija.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {opciones.map((o) => {
+            const active = propinaCustom === null && propinaPct === o.pct;
+            return (
+              <button
+                key={o.pct}
+                type="button"
+                onClick={() => {
+                  onPickPct(o.pct);
+                  setCustomStr("");
+                }}
+                className={`rounded-xl border-2 px-3 py-6 text-center transition-colors ${
+                  active
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card hover:bg-muted"
+                }`}
+              >
+                <div className="text-2xl font-bold">{o.label}</div>
+                {o.pct > 0 && (
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    sobre el total
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-xl border p-4 space-y-2">
+          <Label htmlFor="propina-custom" className="text-sm">
+            O un monto fijo (opcional)
+          </Label>
+          <Input
+            id="propina-custom"
+            inputMode="numeric"
+            placeholder="Ej: 5000"
+            value={customStr}
+            onChange={(e) => {
+              const v = e.target.value.replace(/[^\d]/g, "");
+              setCustomStr(v);
+              onCustom(v === "" ? null : Number(v));
+            }}
+            className={propinaCustom !== null ? "border-primary" : ""}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Si escribes un monto se usa este valor en vez del porcentaje.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t bg-card px-5 py-4">
+        <Button size="lg" className="w-full" onClick={onContinue}>
+          Continuar
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -195,6 +329,7 @@ function PasoItems({
   onClear,
   totalSeleccionado,
   totalPendiente,
+  propina,
   onContinue,
 }: {
   items: ItemCobrable[];
@@ -204,9 +339,9 @@ function PasoItems({
   onClear: () => void;
   totalSeleccionado: number;
   totalPendiente: number;
+  propina: number;
   onContinue: () => void;
 }) {
-  // Separar pendientes vs pagados, agrupar pendientes por pedido
   const { grupos, pagados } = useMemo(() => {
     const m = new Map<number, ItemCobrable[]>();
     const pag: ItemCobrable[] = [];
@@ -227,19 +362,35 @@ function PasoItems({
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
   const hayPendientes = grupos.length > 0;
+  const totalConPropina = totalSeleccionado + propina;
 
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
-            Pendiente por pagar: <span className="font-semibold text-foreground">{fmt.format(totalPendiente)}</span>
+            Pendiente por pagar:{" "}
+            <span className="font-semibold text-foreground">
+              {fmt.format(totalPendiente)}
+            </span>
           </span>
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSelectAll} disabled={!hayPendientes}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onSelectAll}
+              disabled={!hayPendientes}
+            >
               Todo
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClear} disabled={selected.size === 0}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onClear}
+              disabled={selected.size === 0}
+            >
               <X className="h-3 w-3 mr-1" /> Limpiar
             </Button>
           </div>
@@ -272,8 +423,8 @@ function PasoItems({
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">
-                          {it.cantidad > 1 ? `${it.cantidad}× ` : ""}{it.nombre_producto}
-
+                          {it.cantidad > 1 ? `${it.cantidad}× ` : ""}
+                          {it.nombre_producto}
                         </p>
                       </div>
                       <p className="text-sm font-semibold tabular-nums shrink-0">
@@ -314,7 +465,8 @@ function PasoItems({
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600/70 shrink-0" />
                   <span className="flex-1 truncate line-through">
-                    {it.cantidad > 1 ? `${it.cantidad}× ` : ""}{it.nombre_producto}
+                    {it.cantidad > 1 ? `${it.cantidad}× ` : ""}
+                    {it.nombre_producto}
                   </span>
                   <span className="tabular-nums shrink-0">
                     {fmt.format(it.subtotal)}
@@ -326,13 +478,22 @@ function PasoItems({
         )}
       </div>
 
-
       <div className="border-t bg-card px-5 py-4 space-y-3">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm text-muted-foreground">Total a cobrar</span>
-          <span className="text-2xl font-bold tabular-nums text-primary">
-            {fmt.format(totalSeleccionado)}
-          </span>
+        <div className="space-y-1 text-sm">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Subtotal</span>
+            <span className="tabular-nums">{fmt.format(totalSeleccionado)}</span>
+          </div>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span>Propina</span>
+            <span className="tabular-nums">{fmt.format(propina)}</span>
+          </div>
+          <div className="flex items-baseline justify-between pt-1">
+            <span className="text-sm text-muted-foreground">Total a cobrar</span>
+            <span className="text-2xl font-bold tabular-nums text-primary">
+              {fmt.format(totalConPropina)}
+            </span>
+          </div>
         </div>
         <Button
           size="lg"
@@ -351,17 +512,22 @@ function PasoMetodo({
   metodo,
   setMetodo,
   total,
+  propina,
+  totalConPropina,
+  onEditarPropina,
   onPagar,
   isLoading,
 }: {
   metodo: Metodo;
   setMetodo: (m: Metodo) => void;
   total: number;
+  propina: number;
+  totalConPropina: number;
+  onEditarPropina: () => void;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;
     urlComprobante?: string;
-    propina?: number;
   }) => void;
   isLoading: boolean;
 }) {
@@ -370,20 +536,6 @@ function PasoMetodo({
   const [recibido, setRecibido] = useState("");
   const [urlComprobante, setUrlComprobante] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
-  // Propina: sugerida 10% del total; el mesero puede editar (incluida en 0).
-  const sugerida = Math.round(total * 0.1);
-  const [propinaStr, setPropinaStr] = useState<string>(String(sugerida));
-  const [propinaTocada, setPropinaTocada] = useState(false);
-  // Si el total cambia y el usuario no la ha editado, recalcula la sugerencia.
-  useEffect(() => {
-    if (!propinaTocada) setPropinaStr(String(Math.round(total * 0.1)));
-  }, [total, propinaTocada]);
-  const propina = Math.max(0, Math.floor(Number(propinaStr) || 0));
-  const totalConPropina = total + propina;
-  const setPropinaPct = (pct: number) => {
-    setPropinaTocada(true);
-    setPropinaStr(String(Math.round(total * pct)));
-  };
   const { idNegocio } = useCurrentNegocio();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -447,7 +599,16 @@ function PasoMetodo({
             <span className="tabular-nums font-medium">{fmt.format(total)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Propina</span>
+            <span className="text-muted-foreground">
+              Propina
+              <button
+                type="button"
+                onClick={onEditarPropina}
+                className="ml-2 text-xs underline text-primary hover:opacity-80"
+              >
+                editar
+              </button>
+            </span>
             <span className="tabular-nums font-medium">{fmt.format(propina)}</span>
           </div>
           <div className="h-px bg-border my-1" />
@@ -458,51 +619,6 @@ function PasoMetodo({
             <span className="text-3xl font-bold tabular-nums text-primary">
               {fmt.format(totalConPropina)}
             </span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm">Propina</Label>
-            <span className="text-[11px] text-muted-foreground">Sugerida 10%</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[0, 0.05, 0.1, 0.15].map((pct) => {
-              const val = Math.round(total * pct);
-              const active = propinaTocada
-                ? propina === val
-                : pct === 0.1;
-              return (
-                <button
-                  key={pct}
-                  type="button"
-                  onClick={() => setPropinaPct(pct)}
-                  className={`rounded-lg border px-2 py-2 text-sm transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card hover:bg-muted"
-                  }`}
-                >
-                  {pct === 0 ? "Sin" : `${Math.round(pct * 100)}%`}
-                </button>
-              );
-            })}
-          </div>
-          <div>
-            <Label htmlFor="propina" className="text-xs text-muted-foreground">
-              O monto personalizado
-            </Label>
-            <Input
-              id="propina"
-              inputMode="numeric"
-              value={propinaStr}
-              onChange={(e) => {
-                setPropinaTocada(true);
-                setPropinaStr(e.target.value.replace(/[^\d]/g, ""));
-              }}
-              placeholder="0"
-              className="mt-1"
-            />
           </div>
         </div>
 
@@ -644,7 +760,6 @@ function PasoMetodo({
               subtipo: subtipo || undefined,
               voucher: voucher || undefined,
               urlComprobante: urlComprobante ?? undefined,
-              propina,
             })
           }
         >
