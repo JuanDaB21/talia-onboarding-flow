@@ -47,6 +47,7 @@ import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
+import { POLL } from "@/lib/query-config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,7 +96,7 @@ function MesaEnServicio() {
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
     queryFn: () => getMesa({ data: { idMesa } }),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   // Realtime: refrescar cuando cambien items/pedidos/mesa, y avisar cuando algo pase a LISTO
@@ -223,7 +224,7 @@ function MesaEnServicio() {
   const estadoQ = useQuery({
     queryKey: ["estadoCierre", idMesa],
     queryFn: () => estadoFn({ data: { idMesa } }),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
 
   const cerrarFn = useServerFn(cerrarMesa);

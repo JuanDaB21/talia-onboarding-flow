@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ResponsiveSheet } from "@/components/bodega/responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { UsuarioForm } from "./usuario-form";
 import { eliminarUsuarioStaff } from "@/lib/usuarios.functions";
 

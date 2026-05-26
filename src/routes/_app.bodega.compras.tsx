@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
-import { ResponsiveSheet } from "@/components/bodega/responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { CompraForm } from "@/components/bodega/compra-form";
 
 export const Route = createFileRoute("/_app/bodega/compras")({

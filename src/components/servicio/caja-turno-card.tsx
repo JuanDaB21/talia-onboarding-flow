@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, LogIn } from "lucide-react";
 import { getMiStaff } from "@/lib/turno.functions";
+import { POLL } from "@/lib/query-config";
 
 function formatDuracion(ms: number) {
   if (ms < 0) ms = 0;
@@ -18,7 +19,7 @@ export function CajaTurnoCard() {
   const { data } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
     queryFn: () => fn(),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   // tick cada minuto para refrescar el cronómetro en vivo

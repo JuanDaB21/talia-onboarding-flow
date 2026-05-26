@@ -8,6 +8,7 @@ import { getIngenieriaMenu, type Cuadrante, type ProductoMenu } from "@/lib/anal
 import { formatMoney } from "@/lib/format";
 import type { Rango } from "./range-selector";
 import { Star, TrendingDown, HelpCircle, Dog } from "lucide-react";
+import { POLL } from "@/lib/query-config";
 
 const CUAD_META: Record<Cuadrante, { label: string; desc: string; icon: typeof Star; cls: string }> = {
   STAR: { label: "Estrellas", desc: "Alta rentabilidad y popularidad. Manténlos visibles.", icon: Star, cls: "bg-amber-500/10 text-amber-700 border-amber-300 dark:text-amber-300" },
@@ -21,7 +22,7 @@ export function RentabilidadPanel({ rango }: { rango: Rango }) {
   const { data, isLoading } = useQuery({
     queryKey: ["ingenieria-menu", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Calculando ingeniería del menú…</p>;

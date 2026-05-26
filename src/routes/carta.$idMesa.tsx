@@ -23,6 +23,7 @@ import {
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
+import { POLL } from "@/lib/query-config";
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
@@ -67,7 +68,7 @@ function CartaPage() {
   const estadoQ = useQuery({
     queryKey: ["estadoMesaPublico", idMesa],
     queryFn: () => getEstado({ data: { idMesa } }),
-    refetchInterval: 15000,
+    ...POLL.LIVE,
     retry: false,
   });
 

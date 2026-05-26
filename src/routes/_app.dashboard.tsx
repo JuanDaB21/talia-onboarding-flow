@@ -14,6 +14,7 @@ import { RentabilidadPanel } from "@/components/dashboard/rentabilidad-panel";
 import { ClientePanel } from "@/components/dashboard/cliente-panel";
 import { OperacionPanel } from "@/components/dashboard/operacion-panel";
 import { AlertasPanel } from "@/components/dashboard/alertas-panel";
+import { POLL } from "@/lib/query-config";
 
 const searchSchema = z.object({
   tab: z.enum(["rentabilidad", "cliente", "operacion", "alertas"]).optional().default("rentabilidad"),
@@ -37,7 +38,7 @@ function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["kpis-hoy"],
     queryFn: () => fn(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   const setRango = (r: Rango) => navigate({ search: { tab, rango: r } });

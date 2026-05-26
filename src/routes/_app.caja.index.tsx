@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { AdminGate } from "@/components/admin/admin-gate";
 import { getEstadoCaja, abrirCaja, listarCierres } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
+import { POLL } from "@/lib/query-config";
 
 export const Route = createFileRoute("/_app/caja/")({
   head: () => ({ meta: [{ title: "Caja — Talia" }] }),
@@ -29,7 +30,7 @@ function CajaPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["estado-caja"],
     queryFn: () => getEstado(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
 
   const [desde, setDesde] = useState("");

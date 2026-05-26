@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
+import { POLL, pollWhen } from "@/lib/query-config";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -30,7 +31,7 @@ export function PagosPendientesSheet({
     queryKey: ["pagos", "pendientes"],
     queryFn: () => listar(),
     enabled: open,
-    refetchInterval: open ? 10_000 : false,
+    ...pollWhen(open, POLL.REALTIME),
   });
 
   useEffect(() => {

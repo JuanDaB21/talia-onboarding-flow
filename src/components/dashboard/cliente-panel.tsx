@@ -5,13 +5,14 @@ import { getComportamientoCliente } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
 import { Heatmap } from "./heatmap";
 import type { Rango } from "./range-selector";
+import { POLL } from "@/lib/query-config";
 
 export function ClientePanel({ rango }: { rango: Rango }) {
   const fn = useServerFn(getComportamientoCliente);
   const { data, isLoading } = useQuery({
     queryKey: ["comportamiento-cliente", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Analizando comportamiento…</p>;

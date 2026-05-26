@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ResponsiveSheet } from "./responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Badge } from "@/components/ui/badge";
 import { labelDe } from "@/lib/unidades";
 import {

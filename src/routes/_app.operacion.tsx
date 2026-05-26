@@ -11,6 +11,7 @@ import { AdminGate } from "@/components/admin/admin-gate";
 import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno } from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { formatMoney } from "@/lib/format";
+import { POLL } from "@/lib/query-config";
 
 export const Route = createFileRoute("/_app/operacion")({
   head: () => ({ meta: [{ title: "Operación en vivo — Talia" }] }),
@@ -48,7 +49,7 @@ function PagosPendientes() {
   const { data, isLoading } = useQuery({
     queryKey: ["pagos-pendientes"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -150,7 +151,7 @@ function Alertas() {
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-operacion"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const alertas = data?.alertas ?? [];
   return (
@@ -202,7 +203,7 @@ function PersonalTurno() {
   const { data, isLoading } = useQuery({
     queryKey: ["personal-turno"],
     queryFn: () => fn(),
-    refetchInterval: 30_000,
+    ...POLL.NORMAL,
   });
   const staff = data?.staff ?? [];
   return (
@@ -245,7 +246,7 @@ function MesasGrid() {
   const { data, isLoading } = useQuery({
     queryKey: ["mesas-operacion"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const mesas = data?.mesas ?? [];
   return (

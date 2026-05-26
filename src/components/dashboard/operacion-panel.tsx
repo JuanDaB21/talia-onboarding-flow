@@ -6,13 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getEficienciaOperativa } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
 import type { Rango } from "./range-selector";
+import { POLL } from "@/lib/query-config";
 
 export function OperacionPanel({ rango }: { rango: Rango }) {
   const fn = useServerFn(getEficienciaOperativa);
   const { data, isLoading } = useQuery({
     queryKey: ["eficiencia-operativa", rango],
     queryFn: () => fn({ data: { rango } }),
-    refetchInterval: 60_000,
+    ...POLL.SLOW,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Midiendo eficiencia…</p>;

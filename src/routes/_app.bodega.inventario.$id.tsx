@@ -7,7 +7,7 @@ import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ResponsiveSheet } from "@/components/bodega/responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { InsumoForm } from "@/components/bodega/insumo-form";
 import { AjustarStockForm } from "@/components/bodega/ajustar-stock-form";
 import {

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ResponsiveSheet } from "./responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { InsumoForm } from "./insumo-form";
 import { labelDe } from "@/lib/unidades";
 
