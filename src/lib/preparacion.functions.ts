@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const destinoSchema = z.object({ destino: z.enum(["COCINA", "BARRA"]) });
 const avanzarSchema = z.object({
   idItem: z.string().uuid(),
-  nuevoEstado: z.enum(["EN_PREPARACION", "LISTO", "ENTREGADO"]),
+  nuevoEstado: z.enum(["EN_PREPARACION", "LISTO"]),
 });
 const iniciarComandaSchema = z.object({
   idPedido: z.string().uuid(),
