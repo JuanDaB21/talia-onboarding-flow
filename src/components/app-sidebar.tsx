@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -58,6 +58,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMiStaff, type Rol } from "@/hooks/use-mi-staff";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { iniciarTurno, finalizarTurno } from "@/lib/turno.functions";
 
 const BODEGA_NAV = [
@@ -122,18 +123,14 @@ export function AppSidebar() {
   };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const [email, setEmail] = useState<string>("");
+  const { user } = useAuthUser();
+  const email = user?.email ?? "";
   const { rol, enTurno, turnoIniciadoAt, invalidate } = useMiStaff();
   const iniciar = useServerFn(iniciarTurno);
   const finalizar = useServerFn(finalizarTurno);
   const [confirmCerrarOpen, setConfirmCerrarOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? "");
-    });
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

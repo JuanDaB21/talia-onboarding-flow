@@ -1,69 +1,117 @@
-# Estandarización y mejora de performance
+# Plan de optimización de rendimiento
 
-## Hallazgos del análisis
+## Diagnóstico
 
-Al revisar `src/components` y `src/routes` (129 archivos `.tsx`) encontré varios patrones inconsistentes que afectan performance, mantenibilidad y consumo:
+Análisis del proyecto (129 archivos `.tsx`, 24k líneas). Los cuellos de botella más relevantes son:
 
-1. **Polling con intervalos hardcoded e inconsistentes** (18 lugares): `10_000`, `15_000`, `15000`, `20_000`, `30_000`, `60_000`. Cada componente decide su propio ritmo, y varios refetch corren en background incluso cuando la pestaña no está visible.
-2. **Componentes que consultan Supabase directamente** (11 archivos): formularios de `bodega`, `menu`, `configuracion` y `register` hacen `supabase.from(...)` en lugar de pasar por `createServerFn`. Esto rompe el patrón del resto del proyecto, no aprovecha caché de React Query y carga el bundle del cliente con queries.
-3. **Componentes reutilizables aislados en un módulo**: `ResponsiveSheet` y `Combobox` viven en `src/components/bodega/` pero son genéricos. Otros módulos (menu, configuracion, servicio) reimplementan Sheet+Dialog responsive a mano.
-4. **Rutas muy grandes** (>900 líneas): `_app.servicio.$idMesa.tsx` (925), `carta.$idMesa.tsx` (1222), `_app.operacion.tsx` (286). Todo en un archivo = bundle más grande para esa ruta y peor code-splitting.
-5. **Empty states ad-hoc**: 15+ lugares con "No hay…" duplicado en JSX.
-6. **Sin `staleTime`** en la mayoría de `useQuery`: cada montaje refetchea aunque los datos sigan frescos.
+1. **QueryClient sin defaults**: cada uno de los 28 `useQuery` refetchea en cada mount y al volver el foco. Sin `staleTime` ni `gcTime` globales, la app pide datos constantemente.
+2. **0 rutas usan `loader:`** para precargar datos. El patrón actual es "monta componente → spinner → fetch → render", lo que produce flashes de vacío y peor TTI.
+3. **Realtime + polling sobre el mismo dato**: 8 canales `supabase.channel(...)` y 18 `refetchInterval` corren en paralelo en varios componentes (`servicio.index`, `bodega/inventario-tab`, `servicio.$idMesa`, etc.). Realtime ya invalida; el polling es duplicado y consume red/CPU.
+4. **Rutas gigantes sin code-splitting**:
+   - `carta.$idMesa.tsx` — 1223 líneas (menú público que cargan los clientes con QR; debería ser ligero).
+   - `_app.servicio.$idMesa.tsx` — 926 líneas.
+   - `_app.configuracion.apariencia.tsx` — 595 líneas.
+   - `servicio/pagar-sheet.tsx` — 688 líneas.
+   Todo se mete en el chunk de la ruta, hay sheets/dialogs que solo se abren a veces pero siempre se descargan.
+5. **`supabase.auth.getUser()` duplicado en 4 sitios** (`_app.tsx`, `app-sidebar.tsx`, `index.tsx`, `login.tsx`) — cada mount dispara un fetch; deberían compartir un contexto/hook único.
+6. **11 componentes** consultan `supabase.from/rpc` directo en el cliente para *lectura* (recetas, categorías, insumos, productos) — bypasea la caché de React Query y agranda el bundle del cliente con queries de Supabase.
+7. **10+ `<img>` sin `loading="lazy"` ni dimensiones**: en `carta.$idMesa` (lista de productos del menú público) generan CLS y descarga simultánea de muchas imágenes.
+8. **Listas sin `React.memo`**: `KanbanBoard`, `ProductoCard` del menú público, items de mesas — cada actualización de la query global re-renderiza toda la lista.
+9. **Polling sin desactivar en background** ya se arregló parcialmente con `POLL.*`, pero los **8 canales realtime** quedan activos siempre — bien para datos críticos, mal cuando se duplican con polling.
 
-## Plan de cambios
+## Estrategia
 
-### 1. Centralizar polling y caché (mayor impacto/menor riesgo)
-- Crear `src/lib/query-config.ts` con presets:
-  - `POLL.REALTIME` (10s) — alertas mesero, llamados
-  - `POLL.LIVE` (15s) — servicio, mesas, cocina
-  - `POLL.NORMAL` (30s) — caja, dashboard
-  - `POLL.SLOW` (60s) — paneles del dashboard, turno
-  - Cada preset incluye `refetchInterval`, `staleTime` y `refetchIntervalInBackground: false` para no consumir red con pestaña inactiva.
-- Reemplazar los 18 sitios con `...POLL.LIVE` etc.
-- Beneficio inmediato: menos requests cuando la app no está en foco (estimado −40 a −60% de requests de polling).
+Optimizar en capas, de **más impacto y menos riesgo** hacia detalle:
 
-### 2. Mover componentes genéricos a `src/components/ui/` o `src/components/common/`
-- `responsive-sheet.tsx` → `src/components/ui/responsive-sheet.tsx`
-- `combobox.tsx` → `src/components/ui/combobox.tsx`
-- Crear `src/components/common/empty-state.tsx` (icono + título + descripción + acción opcional) y reemplazar los "No hay X" duplicados.
-- Crear `src/components/common/loading-state.tsx` (skeleton/spinner estándar).
-- Actualizar imports en bodega y aplicar en los demás módulos donde haya patrón similar.
+### Capa 1 — Defaults globales del QueryClient (impacto: alto, riesgo: bajo)
+En `src/router.tsx`:
+- `staleTime: 30_000` (datos frescos por 30s por defecto)
+- `gcTime: 5 * 60_000` (mantener en cache 5 min después de desmontar)
+- `refetchOnWindowFocus: false` (evita ráfagas al cambiar de pestaña/app — los presets `POLL.*` ya cubren refresco)
+- `refetchOnReconnect: "always"` (solo refrescar al recuperar red)
+- `retry: 1` con `retryDelay` exponencial (menos reintentos en caída → mejor UX)
+- Mantener `defaultPreloadStaleTime: 0` como exige TanStack Query.
 
-### 3. Migrar queries directas a server functions
-- Inventariar los 11 componentes con `supabase.from/rpc` directo y mover su lectura a una función en `src/lib/<modulo>.functions.ts` (las mutaciones se quedan; el foco es lectura).
-- Envolver cada lectura en `useQuery` con `queryKey` consistente y preset de caché.
-- Reduce código duplicado, mejora SSR-readiness y permite invalidación coordinada.
+Esto solo cambia comportamiento por defecto; los presets `POLL.*` siguen sobreescribiendo donde hacen falta.
 
-### 4. Code-splitting de rutas pesadas
-- Extraer los sub-componentes grandes de `carta.$idMesa.tsx` y `_app.servicio.$idMesa.tsx` a archivos en `src/components/menu-publico/` y `src/components/servicio/` (modal de detalle, ProductoCard variants, sheets, etc.). Los archivos ya estaban previstos en el plan anterior pero quedaron inline.
-- Esto reduce el bundle de cada ruta y mejora TTI.
+### Capa 2 — Eliminar polling redundante donde ya hay realtime (impacto: alto)
+Auditoría:
+| Archivo | Realtime | Polling | Acción |
+|---|---|---|---|
+| `routes/_app.servicio.index.tsx` (mesas) | Sí | LIVE | Quitar polling (realtime invalida) |
+| `routes/_app.servicio.$idMesa.tsx` (sesión) | Sí | NORMAL | Quitar polling de sesión, mantener `catalogoServicio` |
+| `components/configuracion/mesas/mesas-tab.tsx` | Sí | — | OK |
+| `components/bodega/inventario-tab.tsx` | Sí | — | OK |
+| `components/preparacion/kanban-board.tsx` | Sí | — | OK |
+| `components/servicio/alertas-mesero-banner.tsx` | Sí | REALTIME | Quitar polling REALTIME (queda canal) |
+| `components/servicio/pagos-pendientes-sheet.tsx` | Sí | REALTIME(open) | Bajar a LIVE o quitar; canal ya invalida |
+| `routes/_app.bodega.inventario.$id.tsx` (movs) | Sí | — | OK |
+| `routes/_app.dashboard.tsx`, `caja`, `operacion` | No | NORMAL/LIVE | Mantener (no hay realtime) |
 
-### 5. Estandarizar claves de `useQuery`
-- Convención: `[<modulo>, <recurso>, ...filtros]` (ej. `['servicio', 'mesas', negocioId]`).
-- Documentar en `src/lib/query-config.ts` como comentario de referencia.
-- Permite invalidación granular sin pisar otros módulos.
+Reducción estimada de requests: −30 a −50% en pantallas de servicio.
+
+### Capa 3 — Centralizar la sesión de usuario (impacto: medio)
+- Crear `src/hooks/use-auth-user.ts` (basado en `supabase.auth.getSession()` + listener `onAuthStateChange`) cacheado en React Query con key `["auth", "user"]` y `staleTime: Infinity`.
+- Reemplazar los 4 `useEffect → supabase.auth.getUser()` por `useAuthUser()`. Una sola llamada por sesión en lugar de N.
+
+### Capa 4 — Code-splitting de sheets/dialogs pesados (impacto: alto en TTI)
+Convertir a `React.lazy()` + `Suspense` los componentes que solo se abren bajo demanda:
+- `servicio/pagar-sheet.tsx` (688 ln) — solo al pagar.
+- `servicio/agregar-producto-sheet.tsx`, `item-editor-sheet.tsx`, `editar-item-dialog.tsx`.
+- `bodega/compra-form.tsx`, `compra-detail-sheet.tsx`, `ajustar-stock-form.tsx`, `insumo-form.tsx` (360 ln), `proveedor-form.tsx`.
+- `menu/receta-builder.tsx` (517 ln) — solo en edición de receta.
+- `servicio/pagos-pendientes-sheet.tsx`.
+
+Cada uno deja de pesar en el chunk inicial de su ruta.
+
+### Capa 5 — Optimizar el menú público `carta.$idMesa.tsx` (1223 ln, lo cargan clientes en móvil con 4G)
+- Extraer `ProductoCard`, `ProductoDetalleDialog`, `CategoryNav`, `ThemedHeader` a archivos en `src/components/menu-publico/`.
+- Hacer `lazy()` el `ProductoDetalleDialog` (solo al hacer tap en un producto).
+- Añadir `loading="lazy"`, `decoding="async"` y `width/height` (o `aspect-ratio`) a TODAS las `<img>` del menú.
+- `React.memo` en `ProductoCard` (lista típica de 20-80 productos; cada cambio de filtro re-renderiza todo).
+- Aplicar mismo tratamiento a las 10 `<img>` que detecté en otras vistas (`operacion`, `bodega/inventario.$id`).
+
+### Capa 6 — Migrar lecturas directas a `createServerFn` + `useQuery` (impacto: medio, esfuerzo medio)
+Los 11 componentes que hacen `supabase.from(...)` directo para *lectura* pasan por servidor (mutaciones se quedan como están para minimizar riesgo):
+- `menu/receta-builder.tsx` — categorías + subcategorías + insumos
+- `menu/categorias-master-detail.tsx` — categorías + subcategorías
+- `bodega/compra-form.tsx` — opciones de proveedores/insumos
+- (y los que solo hacen mutación: `productos-tab`, `recetas-table`, `insumo-form`, `proveedor-form`, `ajustar-stock-form`, `nueva-mesa-dialog`, `producto-form` → se dejan; ya el plan anterior aclaró este alcance)
+
+Beneficio: cache compartida entre componentes que piden lo mismo + menos JS del SDK en el bundle del cliente.
+
+### Capa 7 — Memoización de listas y cálculos derivados (impacto: medio)
+- `React.memo` con comparador shallow en: `ProductoCard` (carta), filas de Kanban (`comanda-card.tsx`), filas de `historial-compras-table` / `historial-movimientos-table`.
+- `useMemo` para filtros/ordenamientos en `servicio.index`, `operacion`, `inventario-tab`.
+
+### Capa 8 — Loaders opcionales para datos críticos en navegación (impacto: medio, riesgo bajo)
+- En rutas internas con autenticación (`_authenticated` no aplica aquí pero el patrón equivalente es `_app.tsx`), agregar `loader: ({ context }) => context.queryClient.ensureQueryData(...)` para los datos clave de:
+  - `_app.servicio.index` → mesas
+  - `_app.dashboard` → kpis
+  - `_app.caja.index` → estado-caja
+- Combinado con `defaultPreloadStaleTime: 0` esto da SWR sin flashes.
 
 ## Fuera de alcance
 
-- No tocar lógica de negocio (cálculos, RPCs, RLS).
-- No cambiar el diseño visual de ningún componente.
-- No migrar todos los formularios a server functions en una sola pasada — solo las **lecturas**; las mutaciones quedan igual para evitar regresiones.
+- No cambiar lógica de negocio (RPCs, RLS, triggers, cálculos).
+- No tocar el diseño visual de ningún componente.
 - No introducir nuevas dependencias.
+- No mover los formularios de mutación a server functions (lo evita romper validación/typing existente).
+- No cambiar `supabase/config.toml` ni la generación de tipos.
 
-## Archivos principales a tocar
+## Orden de ejecución y archivos
 
-- **Nuevos**: `src/lib/query-config.ts`, `src/components/ui/responsive-sheet.tsx`, `src/components/ui/combobox.tsx`, `src/components/common/empty-state.tsx`, `src/components/common/loading-state.tsx`.
-- **Modificados (polling/caché)**: las 18 rutas/componentes con `refetchInterval`.
-- **Modificados (imports)**: bodega/* que usan `ResponsiveSheet` y `Combobox`.
-- **Refactor (lectura → server fn + useQuery)**: `productos-tab`, `recetas-table`, `categorias-master-detail`, `proveedores-tab/insumos-tab`, formularios de bodega/menu que cargan opciones.
-- **Split**: `carta.$idMesa.tsx` y `_app.servicio.$idMesa.tsx`.
+1. **Capa 1**: `src/router.tsx`.
+2. **Capa 2**: 4 archivos (eliminar `refetchInterval` que se duplica con canal).
+3. **Capa 3**: `src/hooks/use-auth-user.ts` (nuevo) + 4 archivos para usar el hook.
+4. **Capa 5** (alta prioridad por ser ruta pública con QR): refactor de `carta.$idMesa.tsx` + nuevos archivos en `src/components/menu-publico/`.
+5. **Capa 4**: `lazy()` de ~9 sheets/dialogs.
+6. **Capa 7**: `React.memo` + `useMemo` puntuales.
+7. **Capa 6** (esfuerzo mayor): migrar lecturas directas.
+8. **Capa 8**: loaders en 3 rutas internas.
 
-## Orden sugerido de ejecución
+## Recomendación de pase inicial
 
-1. Crear `query-config.ts` + aplicar presets (cambio mecánico, gran beneficio).
-2. Mover `responsive-sheet` y `combobox` a `ui/` + crear `empty-state`/`loading-state`.
-3. Migrar lecturas directas a server functions + useQuery con keys estándar.
-4. Split de rutas pesadas.
+Capas **1 + 2 + 3 + 5 + 7** son el "golpe seco" — pocos archivos, muy alto impacto, sin riesgo de romper lógica. Las capas 4, 6 y 8 son trabajo más detallado que vale la pena tras validar las primeras.
 
-¿Avanzo con los 4 pasos o prefieres que limite el primer pase solo a los pasos 1 y 2 (mayor impacto, menor riesgo) y revisamos antes de seguir?
+¿Avanzo con las 5 capas recomendadas, o prefieres todas las 8?
