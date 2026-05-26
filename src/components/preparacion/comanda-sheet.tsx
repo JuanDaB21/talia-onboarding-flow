@@ -140,7 +140,7 @@ export function ComandaSheet({
 
 interface ItemRowProps {
   item: ItemPreparacion;
-  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO" | "ENTREGADO") => Promise<void>;
+  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
   busy: boolean;
 }
 
