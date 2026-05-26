@@ -5,6 +5,7 @@ import { getComportamientoCliente } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
 import { Heatmap } from "./heatmap";
 import type { Rango } from "./range-selector";
+import { POLL } from "@/lib/query-config";
 
 export function ClientePanel({ rango }: { rango: Rango }) {
   const fn = useServerFn(getComportamientoCliente);
