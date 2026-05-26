@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, CreditCard, ImageIcon, Loader2, Plus, X } from "lucide-react";
+import { Bell, CreditCard, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,12 @@ import {
 } from "@/lib/menu-publico.functions";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 import { POLL } from "@/lib/query-config";
+import { ProductoCard } from "@/components/menu-publico/producto-card";
+
+// El detalle de producto solo se carga cuando el cliente toca un producto.
+const ProductoDetalleDialog = lazy(
+  () => import("@/components/menu-publico/producto-detalle-dialog"),
+);
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
