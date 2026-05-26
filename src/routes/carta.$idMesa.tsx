@@ -333,8 +333,8 @@ function CartaPage() {
                   color: "var(--menu-primary-foreground)",
                   borderRadius: "var(--menu-radius)",
                 }}
-                onClick={() => solicitarMut.mutate("CUENTA")}
-                disabled={solicitarMut.isPending}
+                onClick={handlePedirCuenta}
+                disabled={cargandoCuenta}
               >
                 <CreditCard className="h-5 w-5" />
                 Pedir la cuenta
