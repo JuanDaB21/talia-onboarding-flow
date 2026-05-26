@@ -204,29 +204,40 @@ function PasoItems({
   totalPendiente: number;
   onContinue: () => void;
 }) {
-  // Agrupar por pedido
-  const grupos = useMemo(() => {
+  // Separar pendientes vs pagados, agrupar pendientes por pedido
+  const { grupos, pagados } = useMemo(() => {
     const m = new Map<number, ItemCobrable[]>();
+    const pag: ItemCobrable[] = [];
     for (const it of items) {
+      if (it.pagado) {
+        pag.push(it);
+        continue;
+      }
       const arr = m.get(it.pedido_numero) ?? [];
       arr.push(it);
       m.set(it.pedido_numero, arr);
     }
-    return Array.from(m.entries()).sort((a, b) => a[0] - b[0]);
+    return {
+      grupos: Array.from(m.entries()).sort((a, b) => a[0] - b[0]),
+      pagados: pag,
+    };
   }, [items]);
+
+  const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
+  const hayPendientes = grupos.length > 0;
 
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
-            Pendiente total: <span className="font-semibold text-foreground">{fmt.format(totalPendiente)}</span>
+            Pendiente por pagar: <span className="font-semibold text-foreground">{fmt.format(totalPendiente)}</span>
           </span>
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSelectAll}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onSelectAll} disabled={!hayPendientes}>
               Todo
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClear}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClear} disabled={selected.size === 0}>
               <X className="h-3 w-3 mr-1" /> Limpiar
             </Button>
           </div>
@@ -244,31 +255,23 @@ function PasoItems({
                   <li
                     key={it.id_item}
                     className={`rounded-lg border p-3 transition-colors ${
-                      it.pagado
-                        ? "opacity-50 bg-muted/40"
-                        : isSel
-                          ? "bg-primary/5 border-primary"
-                          : "bg-card hover:bg-muted/40 cursor-pointer"
+                      isSel
+                        ? "bg-primary/5 border-primary"
+                        : "bg-card hover:bg-muted/40 cursor-pointer"
                     }`}
-                    onClick={() => !it.pagado && onToggle(it.id_item)}
+                    onClick={() => onToggle(it.id_item)}
                   >
                     <div className="flex items-start gap-3">
                       <Checkbox
-                        checked={it.pagado || isSel}
-                        disabled={it.pagado}
+                        checked={isSel}
                         className="mt-0.5"
-                        onCheckedChange={() => !it.pagado && onToggle(it.id_item)}
+                        onCheckedChange={() => onToggle(it.id_item)}
                         onClick={(e) => e.stopPropagation()}
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">
                           {it.cantidad}× {it.nombre_producto}
                         </p>
-                        {it.pagado && (
-                          <Badge variant="secondary" className="mt-1 text-[10px]">
-                            Pagado
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-sm font-semibold tabular-nums shrink-0">
                         {fmt.format(it.subtotal)}
@@ -280,12 +283,46 @@ function PasoItems({
             </ul>
           </div>
         ))}
-        {items.length === 0 && (
+
+        {!hayPendientes && pagados.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">
             No hay items cobrables todavía. Confirma el pedido primero.
           </p>
         )}
+
+        {!hayPendientes && pagados.length > 0 && (
+          <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+            <CheckCircle2 className="h-5 w-5 mx-auto mb-1 text-emerald-600" />
+            Todos los productos están pagados.
+          </div>
+        )}
+
+        {pagados.length > 0 && (
+          <section className="pt-2 mt-4 border-t space-y-2">
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="font-semibold">Pagado</span>
+              <span className="tabular-nums">{fmt.format(totalPagado)}</span>
+            </div>
+            <ul className="space-y-1">
+              {pagados.map((it) => (
+                <li
+                  key={it.id_item}
+                  className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600/70 shrink-0" />
+                  <span className="flex-1 truncate line-through">
+                    {it.cantidad}× {it.nombre_producto}
+                  </span>
+                  <span className="tabular-nums shrink-0">
+                    {fmt.format(it.subtotal)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
+
 
       <div className="border-t bg-card px-5 py-4 space-y-3">
         <div className="flex items-baseline justify-between">
