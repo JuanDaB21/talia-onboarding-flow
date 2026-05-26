@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ResponsiveSheet } from "@/components/bodega/responsive-sheet";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { ProductoForm } from "./producto-form";
 
 export interface Producto {

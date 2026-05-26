@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Combobox, type ComboboxOption } from "@/components/bodega/combobox";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 
 const itemSchema = z.object({
   id_insumo: z.string().uuid("Selecciona insumo"),
