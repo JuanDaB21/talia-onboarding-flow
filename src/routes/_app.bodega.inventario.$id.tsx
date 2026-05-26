@@ -19,7 +19,7 @@ import {
   type MovimientoRow,
 } from "@/components/bodega/historial-movimientos-table";
 import { CompraDetailSheet } from "@/components/bodega/compra-detail-sheet";
-import { labelDe } from "@/lib/unidades";
+import { labelDe, formatStockInteligente } from "@/lib/unidades";
 
 export const Route = createFileRoute("/_app/bodega/inventario/$id")({
   head: () => ({ meta: [{ title: "Detalle de inventario — Bodega" }] }),
