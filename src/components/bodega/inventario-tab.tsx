@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
-import { labelDe } from "@/lib/unidades";
+import { labelDe, formatStockInteligente } from "@/lib/unidades";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +28,8 @@ interface Row {
     id_insumo: string;
     nombre_insumo: string;
     unidad_receta: string;
+    unidad_compra: string;
+    factor_conversion: number;
     stock_minimo: number;
   };
 }
@@ -47,7 +49,7 @@ export function InventarioTab() {
     const { data } = await supabase
       .from("inventario_actual")
       .select(
-        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, stock_minimo)"
+        "cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, unidad_compra, factor_conversion, stock_minimo)"
       );
     setRows((data as unknown as Row[]) ?? []);
     setLoading(false);
@@ -176,13 +178,23 @@ export function InventarioTab() {
                   >
                     <TableCell className="font-medium">{r.insumos.nombre_insumo}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {Number(r.cantidad_actual).toLocaleString()}
+                      {formatStockInteligente(
+                        Number(r.cantidad_actual),
+                        r.insumos.unidad_receta,
+                        r.insumos.unidad_compra,
+                        Number(r.insumos.factor_conversion),
+                      )}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       {labelDe(r.insumos.unidad_receta)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-right tabular-nums">
-                      {Number(r.insumos.stock_minimo).toLocaleString()}
+                      {formatStockInteligente(
+                        Number(r.insumos.stock_minimo),
+                        r.insumos.unidad_receta,
+                        r.insumos.unidad_compra,
+                        Number(r.insumos.factor_conversion),
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {low ? (

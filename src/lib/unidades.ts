@@ -89,3 +89,101 @@ export function formatFactor(n: number): string {
 export function labelDe(code?: string | null): string {
   return getUnidad(code)?.label ?? code ?? "";
 }
+
+// Etiquetas cortas para presentación
+const SHORT_LABEL: Record<string, string> = {
+  Kilogramo: "kg",
+  Libra: "lb",
+  Onza: "oz",
+  Gramo: "g",
+  Galon: "gal",
+  Litro: "L",
+  OnzaLiquida: "fl oz",
+  Mililitro: "ml",
+  Unidad: "u",
+  Caja: "caja",
+  Paquete: "paquete",
+  Bandeja: "bandeja",
+  Docena: "docena",
+};
+
+function shortLabel(code?: string | null): string {
+  if (!code) return "";
+  return SHORT_LABEL[code] ?? code.toLowerCase();
+}
+
+function pluralizar(code: string, n: number): string {
+  const base = shortLabel(code);
+  if (n === 1) return base;
+  // pluralización simple ES
+  if (base.endsWith("s")) return base;
+  if (base === "u") return "u";
+  return base + "s";
+}
+
+function trimNum(n: number, decimals = 2): string {
+  const rounded = Math.round(n * 10 ** decimals) / 10 ** decimals;
+  return rounded.toLocaleString(undefined, { maximumFractionDigits: decimals });
+}
+
+/**
+ * Formato inteligente para mostrar una cantidad almacenada en `unidadReceta`.
+ * - PESO/VOLUMEN: combina la unidad mayor (compra si aplica, sino kg/L) con la menor.
+ *   Ej: 19750 g -> "19 kg 750 g", 750 g -> "750 g", 3250 ml -> "3 L 250 ml"
+ * - UNIDAD con factor > 1 (Caja/Paquete/Bandeja/Docena): "2 cajas y 18 unidades"
+ * - UNIDAD simple: "18 unidades"
+ */
+export function formatStockInteligente(
+  cantidad: number,
+  unidadReceta?: string | null,
+  unidadCompra?: string | null,
+  factorConversion?: number | null,
+): string {
+  const n = Number(cantidad);
+  if (!isFinite(n)) return "0";
+  const ur = getUnidad(unidadReceta);
+  if (!ur) return n.toLocaleString();
+
+  const signo = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+
+  if (ur.familia === "PESO" || ur.familia === "VOLUMEN") {
+    // unidad menor = unidad de receta
+    // unidad mayor: usa la unidad de compra si pertenece a la misma familia y es mayor, sino kg/L
+    const uc = getUnidad(unidadCompra);
+    let mayor = uc && uc.familia === ur.familia && uc.base > ur.base ? uc : null;
+    if (!mayor) {
+      mayor = ur.familia === "PESO" ? getUnidad("Kilogramo")! : getUnidad("Litro")!;
+    }
+    const factor = mayor.base / ur.base; // cuántas unidades de receta en 1 mayor
+    if (abs < factor) {
+      return `${signo}${trimNum(abs, 0)} ${shortLabel(ur.code)}`;
+    }
+    const enteras = Math.floor(abs / factor);
+    const resto = abs - enteras * factor;
+    if (resto < 0.5) {
+      return `${signo}${enteras.toLocaleString()} ${shortLabel(mayor.code)}`;
+    }
+    return `${signo}${enteras.toLocaleString()} ${shortLabel(mayor.code)} ${trimNum(resto, 0)} ${shortLabel(ur.code)}`;
+  }
+
+  // UNIDAD
+  const factor = Number(factorConversion ?? 1);
+  const uc = getUnidad(unidadCompra);
+  const usaCompra = uc && uc.familia === "UNIDAD" && uc.manualFactor && factor > 1;
+
+  if (usaCompra) {
+    const enteras = Math.floor(abs / factor);
+    const sueltas = Math.round(abs - enteras * factor);
+    if (enteras === 0) {
+      return `${signo}${sueltas.toLocaleString()} ${pluralizar("Unidad", sueltas)}`;
+    }
+    if (sueltas === 0) {
+      return `${signo}${enteras.toLocaleString()} ${pluralizar(uc!.code, enteras)}`;
+    }
+    return `${signo}${enteras.toLocaleString()} ${pluralizar(uc!.code, enteras)} y ${sueltas.toLocaleString()} ${pluralizar("Unidad", sueltas)}`;
+  }
+
+  const redondeada = Math.round(abs);
+  return `${signo}${redondeada.toLocaleString()} ${pluralizar("Unidad", redondeada)}`;
+}
