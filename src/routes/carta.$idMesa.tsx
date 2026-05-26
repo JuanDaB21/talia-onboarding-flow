@@ -27,7 +27,7 @@ import { POLL } from "@/lib/query-config";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
-const ProductoDetalleDialog = lazy(
+const LazyProductoDetalleDialog = lazy(
   () => import("@/components/menu-publico/producto-detalle-dialog"),
 );
 
@@ -379,7 +379,7 @@ function CartaPage() {
       />
 
       <Suspense fallback={null}>
-        <ProductoDetalleDialog
+        <LazyProductoDetalleDialog
           producto={productoSel}
           theme={theme}
           themeStyle={themeStyle}
