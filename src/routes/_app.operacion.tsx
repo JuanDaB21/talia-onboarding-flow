@@ -151,7 +151,7 @@ function Alertas() {
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-operacion"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const alertas = data?.alertas ?? [];
   return (
