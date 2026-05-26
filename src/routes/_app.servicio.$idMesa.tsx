@@ -47,6 +47,7 @@ import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
+import { POLL } from "@/lib/query-config";
 import {
   AlertDialog,
   AlertDialogAction,
