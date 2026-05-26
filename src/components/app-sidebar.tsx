@@ -186,7 +186,7 @@ export function AppSidebar() {
       <SidebarMenuItem key={item.to}>
         <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <Link to={item.to as any}>
+          <Link to={item.to as any} onClick={closeIfMobile}>
             <Icon className="h-4 w-4" />
             <span>{item.label}</span>
           </Link>
