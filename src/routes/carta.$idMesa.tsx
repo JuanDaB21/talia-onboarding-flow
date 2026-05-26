@@ -196,7 +196,7 @@ function CartaPage() {
         >
           {logoUrl && (
             <div className="flex justify-center">
-              <img
+              <img loading="lazy" decoding="async"
                 src={logoUrl}
                 alt={nombreNegocio}
                 className="h-20 w-20 rounded-full object-contain bg-white/50 p-1"
@@ -418,7 +418,7 @@ function ThemedHeader({
         }}
       >
         {logoUrl && (
-          <img
+          <img loading="lazy" decoding="async"
             src={logoUrl}
             alt={nombreNegocio}
             className="mx-auto h-20 w-20 rounded-full object-contain bg-white/70 p-1 mb-3"
@@ -455,7 +455,7 @@ function ThemedHeader({
         }}
       >
         {logoUrl && (
-          <img
+          <img loading="lazy" decoding="async"
             src={logoUrl}
             alt={nombreNegocio}
             className="h-16 w-16 shrink-0 rounded-full object-contain bg-white/90 p-1"
@@ -501,7 +501,7 @@ function ThemedHeader({
             </h1>
           </div>
           {logoUrl && (
-            <img
+            <img loading="lazy" decoding="async"
               src={logoUrl}
               alt={nombreNegocio}
               className="h-14 w-14 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
@@ -550,7 +550,7 @@ function ThemedHeader({
         </h1>
       </div>
       {logoUrl && (
-        <img
+        <img loading="lazy" decoding="async"
           src={logoUrl}
           alt={nombreNegocio}
           className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
@@ -734,7 +734,7 @@ function CuentaDialog({
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 text-center items-center border-b border-dashed">
           {logoUrl && (
-            <img
+            <img loading="lazy" decoding="async"
               src={logoUrl}
               alt={nombreNegocio}
               className="h-14 w-14 rounded-full object-contain bg-muted p-1 mb-2"
