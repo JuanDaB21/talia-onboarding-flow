@@ -49,7 +49,7 @@ function PagosPendientes() {
   const { data, isLoading } = useQuery({
     queryKey: ["pagos-pendientes"],
     queryFn: () => fn(),
-    refetchInterval: 15_000,
+    ...POLL.LIVE,
   });
   const [busy, setBusy] = useState<string | null>(null);
 
