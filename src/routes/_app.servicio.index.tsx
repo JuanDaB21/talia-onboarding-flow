@@ -149,8 +149,18 @@ function ServicioIndex() {
         <div className="rounded-lg border bg-card p-12 text-center">
           <ChefHat className="mx-auto h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm text-muted-foreground">
-            No tienes mesas activas en este momento.
+            {data?.esAdmin
+              ? "Aún no tienes mesas creadas. Crea la primera para empezar a recibir pedidos."
+              : "No tienes mesas activas en este momento."}
           </p>
+          {data?.esAdmin && (
+            <Button asChild className="mt-4 gap-2">
+              <Link to="/configuracion/mesas">
+                <Plus className="h-4 w-4" />
+                Crear primera mesa
+              </Link>
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
