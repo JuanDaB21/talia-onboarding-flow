@@ -23,6 +23,7 @@ import {
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
+import { POLL } from "@/lib/query-config";
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
