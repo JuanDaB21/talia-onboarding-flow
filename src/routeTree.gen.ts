@@ -26,6 +26,7 @@ import { Route as AppBarraRouteImport } from './routes/_app.barra'
 import { Route as AppServicioIndexRouteImport } from './routes/_app.servicio.index'
 import { Route as AppMenuIndexRouteImport } from './routes/_app.menu.index'
 import { Route as AppConfiguracionIndexRouteImport } from './routes/_app.configuracion.index'
+import { Route as AppCajaIndexRouteImport } from './routes/_app.caja.index'
 import { Route as AppBodegaIndexRouteImport } from './routes/_app.bodega.index'
 import { Route as AppServicioIdMesaRouteImport } from './routes/_app.servicio.$idMesa'
 import { Route as AppMenuRecetasRouteImport } from './routes/_app.menu.recetas'
@@ -128,6 +129,11 @@ const AppConfiguracionIndexRoute = AppConfiguracionIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppConfiguracionRoute,
+} as any)
+const AppCajaIndexRoute = AppCajaIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCajaRoute,
 } as any)
 const AppBodegaIndexRoute = AppBodegaIndexRouteImport.update({
   id: '/',
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/menu/recetas': typeof AppMenuRecetasRouteWithChildren
   '/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/bodega/': typeof AppBodegaIndexRoute
+  '/caja/': typeof AppCajaIndexRoute
   '/configuracion/': typeof AppConfiguracionIndexRoute
   '/menu/': typeof AppMenuIndexRoute
   '/servicio/': typeof AppServicioIndexRoute
@@ -265,7 +272,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/barra': typeof AppBarraRoute
-  '/caja': typeof AppCajaRouteWithChildren
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/operacion': typeof AppOperacionRoute
@@ -280,6 +286,7 @@ export interface FileRoutesByTo {
   '/menu/productos': typeof AppMenuProductosRoute
   '/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/bodega': typeof AppBodegaIndexRoute
+  '/caja': typeof AppCajaIndexRoute
   '/configuracion': typeof AppConfiguracionIndexRoute
   '/menu': typeof AppMenuIndexRoute
   '/servicio': typeof AppServicioIndexRoute
@@ -318,6 +325,7 @@ export interface FileRoutesById {
   '/_app/menu/recetas': typeof AppMenuRecetasRouteWithChildren
   '/_app/servicio/$idMesa': typeof AppServicioIdMesaRoute
   '/_app/bodega/': typeof AppBodegaIndexRoute
+  '/_app/caja/': typeof AppCajaIndexRoute
   '/_app/configuracion/': typeof AppConfiguracionIndexRoute
   '/_app/menu/': typeof AppMenuIndexRoute
   '/_app/servicio/': typeof AppServicioIndexRoute
@@ -356,6 +364,7 @@ export interface FileRouteTypes {
     | '/menu/recetas'
     | '/servicio/$idMesa'
     | '/bodega/'
+    | '/caja/'
     | '/configuracion/'
     | '/menu/'
     | '/servicio/'
@@ -371,7 +380,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/barra'
-    | '/caja'
     | '/cocina'
     | '/dashboard'
     | '/operacion'
@@ -386,6 +394,7 @@ export interface FileRouteTypes {
     | '/menu/productos'
     | '/servicio/$idMesa'
     | '/bodega'
+    | '/caja'
     | '/configuracion'
     | '/menu'
     | '/servicio'
@@ -423,6 +432,7 @@ export interface FileRouteTypes {
     | '/_app/menu/recetas'
     | '/_app/servicio/$idMesa'
     | '/_app/bodega/'
+    | '/_app/caja/'
     | '/_app/configuracion/'
     | '/_app/menu/'
     | '/_app/servicio/'
@@ -562,6 +572,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/configuracion/'
       preLoaderRoute: typeof AppConfiguracionIndexRouteImport
       parentRoute: typeof AppConfiguracionRoute
+    }
+    '/_app/caja/': {
+      id: '/_app/caja/'
+      path: '/'
+      fullPath: '/caja/'
+      preLoaderRoute: typeof AppCajaIndexRouteImport
+      parentRoute: typeof AppCajaRoute
     }
     '/_app/bodega/': {
       id: '/_app/bodega/'
@@ -725,11 +742,13 @@ const AppBodegaRouteWithChildren = AppBodegaRoute._addFileChildren(
 
 interface AppCajaRouteChildren {
   AppCajaCierreRoute: typeof AppCajaCierreRoute
+  AppCajaIndexRoute: typeof AppCajaIndexRoute
   AppCajaCierresIdRoute: typeof AppCajaCierresIdRoute
 }
 
 const AppCajaRouteChildren: AppCajaRouteChildren = {
   AppCajaCierreRoute: AppCajaCierreRoute,
+  AppCajaIndexRoute: AppCajaIndexRoute,
   AppCajaCierresIdRoute: AppCajaCierresIdRoute,
 }
 
