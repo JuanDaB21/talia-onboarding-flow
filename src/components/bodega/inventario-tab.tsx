@@ -178,13 +178,23 @@ export function InventarioTab() {
                   >
                     <TableCell className="font-medium">{r.insumos.nombre_insumo}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {Number(r.cantidad_actual).toLocaleString()}
+                      {formatStockInteligente(
+                        Number(r.cantidad_actual),
+                        r.insumos.unidad_receta,
+                        r.insumos.unidad_compra,
+                        Number(r.insumos.factor_conversion),
+                      )}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       {labelDe(r.insumos.unidad_receta)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-right tabular-nums">
-                      {Number(r.insumos.stock_minimo).toLocaleString()}
+                      {formatStockInteligente(
+                        Number(r.insumos.stock_minimo),
+                        r.insumos.unidad_receta,
+                        r.insumos.unidad_compra,
+                        Number(r.insumos.factor_conversion),
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {low ? (
