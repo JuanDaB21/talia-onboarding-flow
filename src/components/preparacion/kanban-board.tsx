@@ -64,7 +64,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
 
   const handleAdvance = async (
     idItem: string,
-    nuevoEstado: "EN_PREPARACION" | "LISTO" | "ENTREGADO",
+    nuevoEstado: "EN_PREPARACION" | "LISTO",
   ) => {
     setBusyId(idItem);
     try {
