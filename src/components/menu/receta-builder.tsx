@@ -81,7 +81,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         setDescripcion(r.descripcion ?? "");
         setIdCategoria(r.id_categoria);
         setIdSubcategoria(r.id_subcategoria);
-        setTiempoPrep(Number(r.tiempo_preparacion_min ?? 15));
+        setTiempoPrep(String(r.tiempo_preparacion_min ?? 15));
       }
       if (d) {
         setIngredientes(
