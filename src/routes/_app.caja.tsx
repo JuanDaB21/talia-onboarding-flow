@@ -181,6 +181,12 @@ function CajaResumen({
             value={formatMoney(data.total_sistema)}
             bold
           />
+          <Row
+            label="Total sistema (con base)"
+            value={formatMoney(data.total_sistema + Number(data.caja!.base_inicial))}
+            bold
+          />
+
         </div>
 
         {data.efectivo_por_mesero.length > 0 && (
