@@ -237,68 +237,63 @@ function CartaPage() {
       style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
       className="min-h-screen pb-28"
     >
-      <header
-        className="sticky top-0 z-20 backdrop-blur"
-        style={{
-          background: "color-mix(in oklab, var(--menu-bg) 88%, transparent)",
-          borderBottom: "1px solid var(--menu-border)",
-        }}
-      >
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[11px] uppercase tracking-wider"
-              style={{ color: "var(--menu-muted)" }}
-            >
-              Mesa {mesa.identificador}
-            </p>
-            <h1
-              className="text-lg font-bold leading-tight truncate"
-              style={{ fontFamily: "var(--menu-heading-font)" }}
-            >
-              {nombreNegocio || "Nuestra carta"}
-            </h1>
-          </div>
-          {logoUrl && (
-            <img
-              src={logoUrl}
-              alt={nombreNegocio}
-              className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
-              style={{ borderColor: "var(--menu-border)", borderWidth: 1 }}
-            />
-          )}
+      <ThemedHeader
+        theme={theme}
+        mesa={mesa.identificador}
+        nombreNegocio={nombreNegocio}
+        logoUrl={logoUrl}
+      />
+      {categorias.length > 0 && (
+        <div
+          className="sticky z-10 backdrop-blur"
+          style={{
+            top: 0,
+            background: "color-mix(in oklab, var(--menu-bg) 92%, transparent)",
+            borderBottom: "1px solid var(--menu-border)",
+          }}
+        >
+          <CategoryNav
+            theme={theme}
+            categorias={categorias}
+            activa={catActiva}
+            onSelect={setCatActiva}
+          />
         </div>
-        {categorias.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-none">
-            <CategoryPill
-              label="Todo"
-              active={catActiva === null}
-              onClick={() => setCatActiva(null)}
-            />
-            {categorias.map((c) => (
-              <CategoryPill
-                key={c.id_categoria}
-                label={c.nombre}
-                active={catActiva === c.id_categoria}
-                onClick={() => setCatActiva(c.id_categoria)}
-              />
-            ))}
-          </div>
-        )}
-      </header>
+      )}
 
-      <section className="px-4 pt-4 space-y-3">
+      <section
+        className={
+          theme.productLayout === "hero-grid"
+            ? "px-4 pt-5 grid grid-cols-2 gap-3"
+            : theme.productLayout === "lista-densa"
+            ? "px-4 pt-5 divide-y"
+            : "px-4 pt-5 space-y-3"
+        }
+        style={
+          theme.productLayout === "lista-densa"
+            ? ({ borderColor: "var(--menu-border)" } as React.CSSProperties)
+            : undefined
+        }
+      >
         {productosFiltrados.length === 0 ? (
           <p
-            className="text-center text-sm py-12"
+            className="col-span-2 text-center text-sm py-12"
             style={{ color: "var(--menu-muted)" }}
           >
             No hay productos disponibles en esta categoría.
           </p>
         ) : (
-          productosFiltrados.map((p) => <ProductoCard key={p.id_producto} p={p} />)
+          productosFiltrados.map((p) => (
+            <ProductoCard
+              key={p.id_producto}
+              p={p}
+              theme={theme}
+              onClick={() => setProductoSel(p)}
+            />
+          ))
         )}
       </section>
+
 
       <div
         className="fixed inset-x-0 bottom-0 z-30 backdrop-blur"
