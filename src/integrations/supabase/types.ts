@@ -537,6 +537,7 @@ export type Database = {
           id_pago: string
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
+          propina: number
           subtipo: string | null
           url_comprobante: string | null
           voucher: string | null
@@ -552,6 +553,7 @@ export type Database = {
           id_pago?: string
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
+          propina?: number
           subtipo?: string | null
           url_comprobante?: string | null
           voucher?: string | null
@@ -567,6 +569,7 @@ export type Database = {
           id_pago?: string
           metodo?: Database["public"]["Enums"]["metodo_pago"]
           monto?: number
+          propina?: number
           subtipo?: string | null
           url_comprobante?: string | null
           voucher?: string | null
@@ -1215,17 +1218,30 @@ export type Database = {
         }
         Returns: string
       }
-      registrar_pago: {
-        Args: {
-          p_id_mesa: string
-          p_item_ids: string[]
-          p_metodo: Database["public"]["Enums"]["metodo_pago"]
-          p_subtipo: string
-          p_url_comprobante: string
-          p_voucher: string
-        }
-        Returns: string
-      }
+      registrar_pago:
+        | {
+            Args: {
+              p_id_mesa: string
+              p_item_ids: string[]
+              p_metodo: Database["public"]["Enums"]["metodo_pago"]
+              p_subtipo: string
+              p_url_comprobante: string
+              p_voucher: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_id_mesa: string
+              p_item_ids: string[]
+              p_metodo: Database["public"]["Enums"]["metodo_pago"]
+              p_propina?: number
+              p_subtipo: string
+              p_url_comprobante: string
+              p_voucher: string
+            }
+            Returns: string
+          }
       resumen_caja_dia: { Args: never; Returns: Json }
       solicitar_accion_cliente: {
         Args: { p_id_mesa: string; p_tipo: string }
