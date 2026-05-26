@@ -78,7 +78,7 @@ export function ComandaCard({ comanda, onOpen }: Props) {
             className="flex items-center gap-2 text-xs"
           >
             <span className="w-4 text-center">{ESTADO_ICON[it.estado_preparacion] ?? "·"}</span>
-            <span className="font-medium tabular-nums">×{it.cantidad}</span>
+            {it.cantidad > 1 && <span className="font-medium tabular-nums">×{it.cantidad}</span>}
             <span className="flex-1 truncate">{it.nombre_producto}</span>
             {it.tiene_alergia && (
               <AlertTriangle className="h-3 w-3 text-red-600 shrink-0" />
