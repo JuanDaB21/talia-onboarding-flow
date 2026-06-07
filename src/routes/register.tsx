@@ -242,14 +242,30 @@ function RegisterPage() {
                   error={form1.formState.errors.nombre?.message}
                   {...form1.register("nombre")}
                 />
-                <Field
-                  id="correo"
-                  label="Correo electrónico"
-                  type="email"
-                  autoComplete="email"
-                  error={form1.formState.errors.correo?.message}
-                  {...form1.register("correo")}
-                />
+                <div>
+                  <Field
+                    id="correo"
+                    label="Correo electrónico"
+                    type="email"
+                    autoComplete="email"
+                    error={form1.formState.errors.correo?.message}
+                    {...form1.register("correo")}
+                  />
+                  {!form1.formState.errors.correo &&
+                    correoCheck.status === "checking" && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Verificando disponibilidad...
+                      </p>
+                    )}
+                  {!form1.formState.errors.correo &&
+                    correoCheck.status === "ok" && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                        <Check className="h-3 w-3" />
+                        Correo disponible
+                      </p>
+                    )}
+                </div>
                 <Field
                   id="password"
                   label="Contraseña"
