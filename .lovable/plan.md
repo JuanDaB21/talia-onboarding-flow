@@ -1,35 +1,56 @@
-# Tabs en Inventario
+# Imprimir comanda (Admin / Cocina / Barra)
 
-Convertir la página `/bodega/inventario` en una vista con dos tabs.
+Añadir un botón **Imprimir comanda** en las tres vistas que abren detalle de un pedido/comanda. El botón abre una ventana nueva con un layout optimizado para impresora térmica de 80–90 mm y dispara `window.print()`.
 
-## Tab 1 — Stock
-Muestra el contenido actual de `InventarioTab` (sin cambios funcionales).
+## Dónde aparece el botón
 
-## Tab 2 — Historial
-Nueva vista que lista todos los movimientos de `movimientos_inventario` del negocio, no limitada a un insumo (a diferencia del historial ya existente en el detalle del insumo).
+1. **Cocina** (`/cocina`): dentro del `ComandaSheet` que se abre al tocar una `ComandaCard` en el kanban. Imprime la comanda de **Cocina** (items con `destino = 'COCINA'`).
+2. **Barra** (`/barra`): mismo `ComandaSheet`, imprime la comanda de **Barra**.
+3. **Admin / Servicio mesa** (`/servicio/$idMesa`): un botón en la barra de acciones del pedido. A diferencia de Cocina/Barra, desde aquí se ve el pedido completo, así que se imprimen **dos comandas separadas** (una "Cocina" y otra "Barra") si hay items para cada destino — la cabecera de cada comanda lo dice claramente.
 
-Columnas (reutilizando estilo de `HistorialMovimientosTable`):
-- Fecha
-- Insumo
-- Tipo (Compra, Ajuste +/−, Venta, Consumo, Merma, etc.)
-- Cantidad (con unidad del insumo)
-- Anterior → Nuevo
-- Motivo
-- Usuario responsable
+> Nota: si por "vista admin" se refieren a otra pantalla (p. ej. `/operacion` o `/dashboard`), avísame y la añado ahí también.
 
-Filtros sobre la tabla:
-- **Insumo**: `Select` con todos los insumos del negocio (orden alfabético) + opción "Todos".
-- **Responsable**: `Select` con los usuarios de `usuarios_staff` que tengan movimientos + opción "Todos".
-- Búsqueda libre opcional por motivo (nice-to-have, no crítico).
+## Formato de la comanda impresa
 
-Comportamiento:
-- Query a `movimientos_inventario` con joins a `insumos (nombre_insumo, unidad_receta)` y `usuarios_staff (id_usuario, nombre)`, ordenado por `created_at desc`, limit 200 (paginación simple "Cargar más" si la lista crece).
-- RLS ya restringe por `id_negocio`.
-- Loading con `LoadingState`, vacío con `EmptyState`.
-- Realtime: suscripción a `movimientos_inventario` filtrada por `id_negocio` para refrescar.
+Ancho fijo **90 mm** (configurable vía `@page { size: 90mm auto }` y `width: 90mm` en el contenedor). Diseño monoespaciado, alto contraste, sin colores.
 
-## Cambios de archivos
-- **Editar** `src/routes/_app.bodega.inventario.index.tsx`: envolver el contenido en `<Tabs>` (shadcn) con `TabsList` (Stock / Historial) y `TabsContent` renderizando `<InventarioTab />` y un nuevo `<HistorialInventarioTab />`. Mantener estado del tab activo en URL search param (`?tab=stock|historial`) usando `validateSearch` para que sea linkeable.
-- **Crear** `src/components/bodega/historial-inventario-tab.tsx`: componente con los filtros + tabla + realtime.
+Estructura:
 
-Sin cambios de base de datos ni de lógica de negocio.
+```text
+┌──────────────────────────┐
+│        COCINA            │   ← grande, bold, destino
+│   Nombre comercial       │
+│   Mesa 5                 │
+│   2026-06-07 14:32       │
+│   Pedido #a1b2 · Mesero  │
+├──────────────────────────┤
+│ x2  Hamburguesa clásica  │
+│     + Queso extra (1)    │
+│     - Sin cebolla        │
+│     ⚠ ALERGIA: maní      │
+│     Nota: término medio  │
+├──────────────────────────┤
+│ x1  Papas fritas         │
+│     Nota: extra sal      │
+├──────────────────────────┤
+│   ── Fin de comanda ──   │
+└──────────────────────────┘
+```
+
+Reglas:
+- Cabecera muestra **"COCINA"** o **"BARRA"** en grande (texto del destino, no del rol del usuario que imprime).
+- Por cada item: cantidad, nombre, extras (con `+`), exclusiones (con `−`), alergia destacada, nota completa.
+- En la vista admin, si hay items de ambos destinos, se imprimen dos hojas consecutivas (`page-break-after: always`) con encabezado distinto.
+
+## Implementación técnica
+
+- **Nuevo** `src/components/preparacion/comanda-print.ts`: helper `imprimirComanda({ destino, negocio, comanda })` y `imprimirComandasPedido({ negocio, pedido, items })`. Construye un documento HTML mínimo en un `window.open("", "_blank")`, escribe estilos `@media print` con `size: 90mm auto`, y llama `printWindow.print()` tras `onload`. Sin React, sin dependencias nuevas — solo `document.write` con escape de strings.
+- **Editar** `src/components/preparacion/comanda-sheet.tsx`: añadir botón "Imprimir" (icono `Printer`) en el `SheetHeader`, junto al "Iniciar toda la comanda". Recibe `destino: "COCINA" | "BARRA"` como prop (lo pasa `KanbanBoard`).
+- **Editar** `src/components/preparacion/kanban-board.tsx`: pasar la prop `destino` y `nombreNegocio` al `ComandaSheet`.
+- **Editar** `src/routes/_app.servicio.$idMesa.tsx`: añadir botón "Imprimir comanda" en la barra de acciones del pedido activo. Reconstruye la estructura `ItemPreparacion[]` desde los datos ya cargados (items + extras + exclusiones + nota + alergia) agrupados por `destino`, y llama al helper para imprimir una hoja por destino con items.
+
+Para el nombre comercial del negocio, reutilizar `negocio.nombre_comercial` (ya disponible vía `useCurrentNegocio` o se puede cargar una vez con un pequeño hook).
+
+## Fuera de alcance
+- Integración directa con impresoras ESC/POS (Bluetooth/USB). Se usa el diálogo de impresión nativo del navegador, que en kiosko/tablet conectado a impresora térmica funciona seleccionando esa impresora.
+- Reimpresión automática al confirmar pedido — solo manual por ahora.

@@ -16,6 +16,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Printer,
   Trash2,
   UserCheck,
   Utensils,
@@ -43,6 +44,7 @@ import {
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
+import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
@@ -79,6 +81,38 @@ function formatHora(s: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function imprimirComandasDePedido(
+  mesaIdentificador: string,
+  mesero: string | null,
+  pedido: PedidoSesion,
+) {
+  const destinos: Array<"COCINA" | "BARRA"> = ["COCINA", "BARRA"];
+  const comandas: ComandaPrintData[] = destinos
+    .map((destino) => {
+      const items = pedido.items
+        .filter((i) => (i.destino ?? "COCINA").toUpperCase() === destino)
+        .map((it) => ({
+          cantidad: it.cantidad,
+          nombre_producto: it.nombre_producto,
+          tiene_alergia: it.tiene_alergia,
+          nota: it.nota,
+          extras: it.extras.map((e) => ({ nombre: e.nombre })),
+          exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+        }));
+      return {
+        destino,
+        mesa_identificador: mesaIdentificador,
+        pedido_id: pedido.id_pedido,
+        pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
+        mesero,
+        items,
+      } satisfies ComandaPrintData;
+    })
+    .filter((c) => c.items.length > 0);
+  if (comandas.length === 0) return;
+  void imprimirComandas(comandas);
 }
 
 function MesaEnServicio() {
@@ -319,6 +353,7 @@ function MesaEnServicio() {
           onEditItem={(it) => setEditing(it)}
           onDeleteItem={(idItem) => delMut.mutate(idItem)}
           onAddMore={() => setAddingTo(p.id_pedido)}
+          onPrint={() => imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, p)}
         />
       ))}
 
@@ -541,6 +576,7 @@ function PedidoConfirmadoCard({
   onEditItem,
   onDeleteItem,
   onAddMore,
+  onPrint,
 }: {
   pedido: PedidoSesion;
   numero: number;
@@ -549,6 +585,7 @@ function PedidoConfirmadoCard({
   onEditItem: (it: EditarItemDialogItem) => void;
   onDeleteItem: (idItem: string) => void;
   onAddMore: () => void;
+  onPrint: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const total = pedido.items.length;
@@ -629,6 +666,14 @@ function PedidoConfirmadoCard({
                 <Plus className="h-3.5 w-3.5" /> Agregar producto
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrint}
+              className="gap-1"
+            >
+              <Printer className="h-3.5 w-3.5" /> Imprimir comanda
+            </Button>
             {necesitaEntrega && (
               <Button
                 size="sm"

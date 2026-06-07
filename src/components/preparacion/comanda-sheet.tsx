@@ -6,6 +6,7 @@ import {
   MinusCircle,
   PlusCircle,
   PlayCircle,
+  Printer,
   StickyNote,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
 import { minutosTranscurridos, retrasoItem } from "./comanda-utils";
+import { imprimirComandas, type ComandaDestino } from "./comanda-print";
 
 interface Props {
   comanda: ComandaEstacion | null;
+  destino: ComandaDestino;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
@@ -55,6 +58,7 @@ function labelAccion(s: "EN_PREPARACION" | "LISTO" | null) {
 
 export function ComandaSheet({
   comanda,
+  destino,
   open,
   onOpenChange,
   onAdvance,
@@ -109,18 +113,47 @@ export function ComandaSheet({
             </div>
             <Progress value={pct} className="h-2" />
           </div>
-          {hayEnCola && (
+          <div className="mt-3 flex flex-col sm:flex-row gap-2">
+            {hayEnCola && (
+              <Button
+                onClick={onIniciarTodo}
+                disabled={iniciandoTodo}
+                variant="secondary"
+                className="flex-1"
+                size="sm"
+              >
+                <PlayCircle className="h-4 w-4 mr-2" />
+                Iniciar toda la comanda
+              </Button>
+            )}
             <Button
-              onClick={onIniciarTodo}
-              disabled={iniciandoTodo}
-              variant="secondary"
-              className="mt-3 w-full"
+              type="button"
+              variant="outline"
               size="sm"
+              className={hayEnCola ? "sm:w-auto" : "w-full"}
+              onClick={() =>
+                imprimirComandas([
+                  {
+                    destino,
+                    mesa_identificador: comanda.mesa_identificador,
+                    pedido_id: comanda.id_pedido,
+                    pedido_created_at: comanda.pedido_created_at,
+                    items: comanda.items.map((it) => ({
+                      cantidad: it.cantidad,
+                      nombre_producto: it.nombre_producto,
+                      tiene_alergia: it.tiene_alergia,
+                      nota: it.nota,
+                      extras: it.extras,
+                      exclusiones: it.exclusiones,
+                    })),
+                  },
+                ])
+              }
             >
-              <PlayCircle className="h-4 w-4 mr-2" />
-              Iniciar toda la comanda
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir comanda
             </Button>
-          )}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
