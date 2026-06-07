@@ -367,6 +367,9 @@ function MesaEnServicio() {
           onEdit={(it) => setEditing(it)}
           onConfirm={() => confMut.mutate(pedidoAbierto.id_pedido)}
           confirmando={confMut.isPending}
+          onPrint={() =>
+            imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, pedidoAbierto)
+          }
         />
       )}
 
