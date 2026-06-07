@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { forwardRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
+import { checkCorreoDisponible } from "@/lib/auth-check.functions";
 import {
   step1Schema,
   step2Schema,
@@ -75,7 +76,62 @@ function RegisterPage() {
     },
   });
 
-  const onStep1 = (values: Step1Values) => {
+  // Validación async del correo (debounced)
+  const correoValue = form1.watch("correo");
+  const [correoCheck, setCorreoCheck] = useState<{
+    status: "idle" | "checking" | "ok" | "taken" | "error";
+    correo: string;
+  }>({ status: "idle", correo: "" });
+
+  useEffect(() => {
+    const correo = (correoValue ?? "").trim().toLowerCase();
+    const formatoOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+    if (!formatoOk) {
+      setCorreoCheck({ status: "idle", correo: "" });
+      return;
+    }
+    setCorreoCheck({ status: "checking", correo });
+    const t = setTimeout(async () => {
+      try {
+        const res = await checkCorreoDisponible({ data: { correo } });
+        if (res.disponible) {
+          setCorreoCheck({ status: "ok", correo });
+          if (form1.formState.errors.correo?.type === "manual") {
+            form1.clearErrors("correo");
+          }
+        } else {
+          setCorreoCheck({ status: "taken", correo });
+          form1.setError("correo", {
+            type: "manual",
+            message: "Este correo ya está registrado",
+          });
+        }
+      } catch {
+        setCorreoCheck({ status: "error", correo });
+      }
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correoValue]);
+
+  const onStep1 = async (values: Step1Values) => {
+    const correo = values.correo.trim().toLowerCase();
+    if (correoCheck.status !== "ok" || correoCheck.correo !== correo) {
+      try {
+        const res = await checkCorreoDisponible({ data: { correo } });
+        if (!res.disponible) {
+          form1.setError("correo", {
+            type: "manual",
+            message: "Este correo ya está registrado",
+          });
+          setCorreoCheck({ status: "taken", correo });
+          return;
+        }
+        setCorreoCheck({ status: "ok", correo });
+      } catch {
+        // Si falla la verificación, dejamos pasar; el signUp final mostrará el error
+      }
+    }
     setStep1Data(values);
     setStep(2);
   };
@@ -186,14 +242,30 @@ function RegisterPage() {
                   error={form1.formState.errors.nombre?.message}
                   {...form1.register("nombre")}
                 />
-                <Field
-                  id="correo"
-                  label="Correo electrónico"
-                  type="email"
-                  autoComplete="email"
-                  error={form1.formState.errors.correo?.message}
-                  {...form1.register("correo")}
-                />
+                <div>
+                  <Field
+                    id="correo"
+                    label="Correo electrónico"
+                    type="email"
+                    autoComplete="email"
+                    error={form1.formState.errors.correo?.message}
+                    {...form1.register("correo")}
+                  />
+                  {!form1.formState.errors.correo &&
+                    correoCheck.status === "checking" && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Verificando disponibilidad...
+                      </p>
+                    )}
+                  {!form1.formState.errors.correo &&
+                    correoCheck.status === "ok" && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                        <Check className="h-3 w-3" />
+                        Correo disponible
+                      </p>
+                    )}
+                </div>
                 <Field
                   id="password"
                   label="Contraseña"
@@ -215,7 +287,11 @@ function RegisterPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={!form1.formState.isValid}
+                  disabled={
+                    !form1.formState.isValid ||
+                    correoCheck.status === "checking" ||
+                    correoCheck.status === "taken"
+                  }
                 >
                   Continuar
                   <ArrowRight className="ml-1 h-4 w-4" />
