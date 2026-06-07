@@ -926,17 +926,28 @@ function PedidoAbiertoCard({
             </ul>
           )}
 
-          <Button
-            className="w-full h-12"
-            disabled={pedido.items.length === 0 || confirmando}
-            onClick={onConfirm}
-          >
-            {confirmando ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Confirmar orden"
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="h-12 gap-1"
+              disabled={pedido.items.length === 0}
+              onClick={onPrint}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+            <Button
+              className="flex-1 h-12"
+              disabled={pedido.items.length === 0 || confirmando}
+              onClick={onConfirm}
+            >
+              {confirmando ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Confirmar orden"
+              )}
+            </Button>
+          </div>
         </aside>
       </div>
 
