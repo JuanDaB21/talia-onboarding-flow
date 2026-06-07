@@ -287,7 +287,11 @@ function RegisterPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={!form1.formState.isValid}
+                  disabled={
+                    !form1.formState.isValid ||
+                    correoCheck.status === "checking" ||
+                    correoCheck.status === "taken"
+                  }
                 >
                   Continuar
                   <ArrowRight className="ml-1 h-4 w-4" />
