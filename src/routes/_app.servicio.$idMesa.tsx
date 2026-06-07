@@ -83,6 +83,38 @@ function formatHora(s: string | null) {
   });
 }
 
+function imprimirComandasDePedido(
+  mesaIdentificador: string,
+  mesero: string | null,
+  pedido: PedidoSesion,
+) {
+  const destinos: Array<"COCINA" | "BARRA"> = ["COCINA", "BARRA"];
+  const comandas: ComandaPrintData[] = destinos
+    .map((destino) => {
+      const items = pedido.items
+        .filter((i) => (i.destino ?? "COCINA").toUpperCase() === destino)
+        .map((it) => ({
+          cantidad: it.cantidad,
+          nombre_producto: it.nombre_producto,
+          tiene_alergia: it.tiene_alergia,
+          nota: it.nota,
+          extras: it.extras.map((e) => ({ nombre: e.nombre })),
+          exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+        }));
+      return {
+        destino,
+        mesa_identificador: mesaIdentificador,
+        pedido_id: pedido.id_pedido,
+        pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
+        mesero,
+        items,
+      } satisfies ComandaPrintData;
+    })
+    .filter((c) => c.items.length > 0);
+  if (comandas.length === 0) return;
+  void imprimirComandas(comandas);
+}
+
 function MesaEnServicio() {
   const { idMesa } = Route.useParams();
   const qc = useQueryClient();
