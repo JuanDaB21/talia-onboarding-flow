@@ -16,6 +16,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Printer,
   Trash2,
   UserCheck,
   Utensils,
@@ -43,6 +44,7 @@ import {
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
+import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
