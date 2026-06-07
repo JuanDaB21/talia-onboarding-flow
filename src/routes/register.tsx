@@ -202,6 +202,7 @@ function RegisterPage() {
                   error={form1.formState.errors.password?.message}
                   {...form1.register("password")}
                 />
+                <PasswordChecklist password={form1.watch("password") ?? ""} />
                 <Field
                   id="confirm"
                   label="Confirmar contraseña"
