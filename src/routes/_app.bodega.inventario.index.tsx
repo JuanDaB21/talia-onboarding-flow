@@ -32,7 +32,10 @@ function InventarioPage() {
         value={tab}
         onValueChange={(v) =>
           navigate({
-            search: (prev) => ({ ...prev, tab: v as "stock" | "historial" }),
+            search: (prev: { tab: "stock" | "historial" }) => ({
+              ...prev,
+              tab: v as "stock" | "historial",
+            }),
           })
         }
         className="space-y-4"
