@@ -154,6 +154,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
 
       <ComandaSheet
         comanda={comandaAbierta}
+        destino={destino}
         open={openId !== null && comandaAbierta !== null}
         onOpenChange={(o) => !o && setOpenId(null)}
         onAdvance={handleAdvance}
