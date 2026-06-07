@@ -666,6 +666,14 @@ function PedidoConfirmadoCard({
                 <Plus className="h-3.5 w-3.5" /> Agregar producto
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrint}
+              className="gap-1"
+            >
+              <Printer className="h-3.5 w-3.5" /> Imprimir comanda
+            </Button>
             {necesitaEntrega && (
               <Button
                 size="sm"
