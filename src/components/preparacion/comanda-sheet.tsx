@@ -6,6 +6,7 @@ import {
   MinusCircle,
   PlusCircle,
   PlayCircle,
+  Printer,
   StickyNote,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
 import { minutosTranscurridos, retrasoItem } from "./comanda-utils";
+import { imprimirComandas, type ComandaDestino } from "./comanda-print";
 
 interface Props {
   comanda: ComandaEstacion | null;
+  destino: ComandaDestino;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
@@ -55,6 +58,7 @@ function labelAccion(s: "EN_PREPARACION" | "LISTO" | null) {
 
 export function ComandaSheet({
   comanda,
+  destino,
   open,
   onOpenChange,
   onAdvance,
