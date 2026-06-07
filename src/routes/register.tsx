@@ -235,18 +235,21 @@ function RegisterPage() {
                 <Field
                   id="nombre_comercial"
                   label="Nombre comercial"
+                  autoComplete="organization"
                   error={form2.formState.errors.nombre_comercial?.message}
                   {...form2.register("nombre_comercial")}
                 />
                 <Field
                   id="razon_social"
                   label="Razón social"
+                  autoComplete="off"
                   error={form2.formState.errors.razon_social?.message}
                   {...form2.register("razon_social")}
                 />
                 <Field
                   id="documento_tributario"
                   label="Documento tributario (RUC / NIT / RFC)"
+                  autoComplete="off"
                   error={form2.formState.errors.documento_tributario?.message}
                   {...form2.register("documento_tributario")}
                 />
@@ -254,13 +257,14 @@ function RegisterPage() {
                   id="telefono_contacto"
                   label="Teléfono de contacto"
                   type="tel"
-                  autoComplete="tel"
+                  autoComplete="tel-national"
                   error={form2.formState.errors.telefono_contacto?.message}
                   {...form2.register("telefono_contacto")}
                 />
                 <Field
                   id="direccion"
                   label="Dirección"
+                  autoComplete="street-address"
                   error={form2.formState.errors.direccion?.message}
                   {...form2.register("direccion")}
                 />
