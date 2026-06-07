@@ -3,7 +3,8 @@ import { forwardRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -201,6 +202,7 @@ function RegisterPage() {
                   error={form1.formState.errors.password?.message}
                   {...form1.register("password")}
                 />
+                <PasswordChecklist password={form1.watch("password") ?? ""} />
                 <Field
                   id="confirm"
                   label="Confirmar contraseña"
@@ -325,3 +327,32 @@ const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
     </div>
   );
 });
+
+function PasswordChecklist({ password }: { password: string }) {
+  const rules = [
+    { label: "Mínimo 8 caracteres", ok: password.length >= 8 },
+    { label: "Una letra mayúscula", ok: /[A-Z]/.test(password) },
+    { label: "Una letra minúscula", ok: /[a-z]/.test(password) },
+    { label: "Un número", ok: /[0-9]/.test(password) },
+  ];
+  return (
+    <ul className="space-y-1 rounded-md border bg-muted/30 p-2.5 text-xs">
+      {rules.map((r) => (
+        <li
+          key={r.label}
+          className={cn(
+            "flex items-center gap-2 transition-colors",
+            r.ok ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {r.ok ? (
+            <Check className="h-3.5 w-3.5 text-green-600" />
+          ) : (
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+          <span>{r.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
