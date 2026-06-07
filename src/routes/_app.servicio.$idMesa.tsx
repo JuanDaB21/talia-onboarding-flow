@@ -797,6 +797,7 @@ function PedidoAbiertoCard({
   onEdit,
   onConfirm,
   confirmando,
+  onPrint,
 }: {
   pedido: PedidoSesion;
   mesa: MesaSesion;
@@ -805,6 +806,7 @@ function PedidoAbiertoCard({
   onEdit: (it: EditarItemDialogItem) => void;
   onConfirm: () => void;
   confirmando: boolean;
+  onPrint: () => void;
 }) {
   const getCat = useServerFn(getCatalogoServicio);
   const catQ = useQuery({
