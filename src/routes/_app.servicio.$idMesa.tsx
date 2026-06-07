@@ -321,6 +321,7 @@ function MesaEnServicio() {
           onEditItem={(it) => setEditing(it)}
           onDeleteItem={(idItem) => delMut.mutate(idItem)}
           onAddMore={() => setAddingTo(p.id_pedido)}
+          onPrint={() => imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, p)}
         />
       ))}
 
@@ -543,6 +544,7 @@ function PedidoConfirmadoCard({
   onEditItem,
   onDeleteItem,
   onAddMore,
+  onPrint,
 }: {
   pedido: PedidoSesion;
   numero: number;
@@ -551,6 +553,7 @@ function PedidoConfirmadoCard({
   onEditItem: (it: EditarItemDialogItem) => void;
   onDeleteItem: (idItem: string) => void;
   onAddMore: () => void;
+  onPrint: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const total = pedido.items.length;
