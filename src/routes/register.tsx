@@ -76,7 +76,62 @@ function RegisterPage() {
     },
   });
 
-  const onStep1 = (values: Step1Values) => {
+  // Validación async del correo (debounced)
+  const correoValue = form1.watch("correo");
+  const [correoCheck, setCorreoCheck] = useState<{
+    status: "idle" | "checking" | "ok" | "taken" | "error";
+    correo: string;
+  }>({ status: "idle", correo: "" });
+
+  useEffect(() => {
+    const correo = (correoValue ?? "").trim().toLowerCase();
+    const formatoOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+    if (!formatoOk) {
+      setCorreoCheck({ status: "idle", correo: "" });
+      return;
+    }
+    setCorreoCheck({ status: "checking", correo });
+    const t = setTimeout(async () => {
+      try {
+        const res = await checkCorreoDisponible({ data: { correo } });
+        if (res.disponible) {
+          setCorreoCheck({ status: "ok", correo });
+          if (form1.formState.errors.correo?.type === "manual") {
+            form1.clearErrors("correo");
+          }
+        } else {
+          setCorreoCheck({ status: "taken", correo });
+          form1.setError("correo", {
+            type: "manual",
+            message: "Este correo ya está registrado",
+          });
+        }
+      } catch {
+        setCorreoCheck({ status: "error", correo });
+      }
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correoValue]);
+
+  const onStep1 = async (values: Step1Values) => {
+    const correo = values.correo.trim().toLowerCase();
+    if (correoCheck.status !== "ok" || correoCheck.correo !== correo) {
+      try {
+        const res = await checkCorreoDisponible({ data: { correo } });
+        if (!res.disponible) {
+          form1.setError("correo", {
+            type: "manual",
+            message: "Este correo ya está registrado",
+          });
+          setCorreoCheck({ status: "taken", correo });
+          return;
+        }
+        setCorreoCheck({ status: "ok", correo });
+      } catch {
+        // Si falla la verificación, dejamos pasar; el signUp final mostrará el error
+      }
+    }
     setStep1Data(values);
     setStep(2);
   };
