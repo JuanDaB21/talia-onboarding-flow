@@ -4,14 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getComportamientoCliente } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
 import { Heatmap } from "./heatmap";
-import type { Rango } from "./range-selector";
 import { POLL } from "@/lib/query-config";
 
-export function ClientePanel({ rango }: { rango: Rango }) {
+export function ClientePanel({ desde, hasta }: { desde: string; hasta: string }) {
   const fn = useServerFn(getComportamientoCliente);
   const { data, isLoading } = useQuery({
-    queryKey: ["comportamiento-cliente", rango],
-    queryFn: () => fn({ data: { rango } }),
+    queryKey: ["comportamiento-cliente", desde, hasta],
+    queryFn: () => fn({ data: { desde, hasta } }),
     ...POLL.SLOW,
   });
 

@@ -5,14 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getEficienciaOperativa } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
-import type { Rango } from "./range-selector";
 import { POLL } from "@/lib/query-config";
 
-export function OperacionPanel({ rango }: { rango: Rango }) {
+export function OperacionPanel({ desde, hasta }: { desde: string; hasta: string }) {
   const fn = useServerFn(getEficienciaOperativa);
   const { data, isLoading } = useQuery({
-    queryKey: ["eficiencia-operativa", rango],
-    queryFn: () => fn({ data: { rango } }),
+    queryKey: ["eficiencia-operativa", desde, hasta],
+    queryFn: () => fn({ data: { desde, hasta } }),
     ...POLL.SLOW,
   });
 

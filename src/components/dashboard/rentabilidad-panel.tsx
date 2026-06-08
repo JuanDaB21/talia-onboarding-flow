@@ -1,4 +1,3 @@
-
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getIngenieriaMenu, type Cuadrante, type ProductoMenu } from "@/lib/analytics.functions";
 import { formatMoney } from "@/lib/format";
-import type { Rango } from "./range-selector";
 import { Star, TrendingDown, HelpCircle, Dog } from "lucide-react";
 import { POLL } from "@/lib/query-config";
 
@@ -17,11 +15,11 @@ const CUAD_META: Record<Cuadrante, { label: string; desc: string; icon: typeof S
   DOG: { label: "Perros", desc: "Bajo todo. Candidatos a eliminar.", icon: Dog, cls: "bg-destructive/10 text-destructive border-destructive/30" },
 };
 
-export function RentabilidadPanel({ rango }: { rango: Rango }) {
+export function RentabilidadPanel({ desde, hasta }: { desde: string; hasta: string }) {
   const fn = useServerFn(getIngenieriaMenu);
   const { data, isLoading } = useQuery({
-    queryKey: ["ingenieria-menu", rango],
-    queryFn: () => fn({ data: { rango } }),
+    queryKey: ["ingenieria-menu", desde, hasta],
+    queryFn: () => fn({ data: { desde, hasta } }),
     ...POLL.SLOW,
   });
 
