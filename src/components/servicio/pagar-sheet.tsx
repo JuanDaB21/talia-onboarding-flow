@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   CreditCard,
   Loader2,
+  QrCode as QrCodeIcon,
   Smartphone,
   X,
 } from "lucide-react";
