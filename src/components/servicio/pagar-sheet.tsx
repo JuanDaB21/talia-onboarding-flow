@@ -15,6 +15,12 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +32,10 @@ import {
   registrarPago,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
+import {
+  listarMetodosPagoQr,
+  type MetodoPagoQr,
+} from "@/lib/metodos-pago.functions";
 import { useNavigate } from "@tanstack/react-router";
 
 const fmt = new Intl.NumberFormat("es-CO", {
