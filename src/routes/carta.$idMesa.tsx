@@ -812,17 +812,27 @@ function CuentaDialog({
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-dashed bg-muted/30">
-              <div className="flex items-baseline justify-between">
+            <div className="px-6 py-4 border-t border-dashed bg-muted/30 space-y-2">
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="tabular-nums">{fmt.format(cuenta.total)}</span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-muted-foreground">Propina sugerida (10%)</span>
+                <span className="tabular-nums">
+                  {fmt.format(Math.round(cuenta.total * 0.1))}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between pt-2 border-t border-dashed">
                 <span className="text-sm font-semibold uppercase tracking-wider">
                   Total
                 </span>
                 <span className="text-2xl font-extrabold tabular-nums">
-                  {fmt.format(cuenta.total)}
+                  {fmt.format(cuenta.total + Math.round(cuenta.total * 0.1))}
                 </span>
               </div>
               <p className="mt-2 text-[11px] text-center text-muted-foreground leading-relaxed">
-                Tu mesero ya fue notificado y se acercará a cobrar.
+                La propina es sugerida y puede ajustarse al momento de pagar con tu mesero.
                 <br />
                 Gracias por tu visita 🙌
               </p>
