@@ -375,6 +375,98 @@ function PropinaResumenRow({
   );
 }
 
+function BonoRow({
+  idBono,
+  setIdBono,
+  descuento,
+  bonoInfo,
+  disabled,
+}: {
+  idBono: string | null;
+  setIdBono: (v: string | null) => void;
+  descuento: number;
+  bonoInfo: BonoPreview | null;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const listFn = useServerFn(listarBonos);
+  const bonosQ = useQuery({
+    queryKey: ["bonos", "activos"],
+    queryFn: () => listFn({}),
+  });
+  const bonos = (bonosQ.data?.bonos ?? []).filter((b: Bono) => b.activo);
+
+  if (!idBono) {
+    return (
+      <div className="flex items-center justify-between text-sm">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
+            >
+              <Ticket className="h-3.5 w-3.5 mr-1" />
+              Agregar bono
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar bono..." />
+              <CommandList>
+                <CommandEmpty>Sin bonos activos</CommandEmpty>
+                <CommandGroup>
+                  {bonos.map((b) => (
+                    <CommandItem
+                      key={b.id_bono}
+                      value={b.nombre}
+                      onSelect={() => {
+                        setIdBono(b.id_bono);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="flex-1">{b.nombre}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        -{b.porcentaje}%
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <span className="tabular-nums text-muted-foreground">—</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+        <Ticket className="h-3.5 w-3.5" />
+        <span>
+          Bono {bonoInfo ? `· ${bonoInfo.nombre} (${bonoInfo.porcentaje}%)` : ""}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+          onClick={() => setIdBono(null)}
+        >
+          Quitar
+        </Button>
+      </div>
+      <span className="tabular-nums font-medium text-emerald-700 dark:text-emerald-400">
+        -{fmt.format(descuento)}
+      </span>
+    </div>
+  );
+}
+
 type BonoPreview = {
   nombre: string;
   porcentaje: number;
