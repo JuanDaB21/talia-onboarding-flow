@@ -119,11 +119,13 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
     const mapItem = (i: any): ItemPreparacion => {
       const p = i.pedidos;
       const prod = i.productos;
+      const subcat = prod?.receta_master?.subcategorias?.nombre ?? null;
       return {
         id_item: i.id_item,
         id_pedido: i.id_pedido,
         id_producto: i.id_producto,
         nombre_producto: prod?.nombre_producto ?? "—",
+        nombre_subcategoria: subcat,
         cantidad: Number(i.cantidad),
         tiene_alergia: Boolean(i.tiene_alergia),
         nota: i.nota,
