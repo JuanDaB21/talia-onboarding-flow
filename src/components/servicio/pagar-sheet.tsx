@@ -663,55 +663,14 @@ function PasoMetodo({
         )}
 
         {metodo === "TRANSFERENCIA" && (
-          <div className="space-y-3">
-            <div>
-              <Label>Plataforma</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {["Nequi", "Daviplata", "Bancolombia", "Otra"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubtipo(s)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      subtipo === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card hover:bg-muted"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label>Comprobante</Label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFile}
-              />
-              <Button
-                type="button"
-                variant={urlComprobante ? "secondary" : "outline"}
-                className="w-full mt-1"
-                onClick={() => fileRef.current?.click()}
-                disabled={subiendo}
-              >
-                {subiendo ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Camera className="h-4 w-4 mr-2" />
-                )}
-                {urlComprobante ? "Comprobante subido — cambiar" : "Tomar / subir foto"}
-              </Button>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Se enviará al administrador para que confirme la recepción.
-              </p>
-            </div>
-          </div>
+          <TransferenciaSection
+            subtipo={subtipo}
+            setSubtipo={setSubtipo}
+            urlComprobante={urlComprobante}
+            subiendo={subiendo}
+            fileRef={fileRef}
+            handleFile={handleFile}
+          />
         )}
 
         {metodo === "DATAFONO" && (
