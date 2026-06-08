@@ -107,7 +107,7 @@ export const registrarPago = createServerFn({ method: "POST" })
       p_url_comprobante: data.urlComprobante ?? "",
       p_item_ids: data.itemIds,
       p_propina: data.propina ?? 0,
-      p_id_bono: data.idBono ?? null,
+      p_id_bono: data.idBono ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { idPago: id as string };
