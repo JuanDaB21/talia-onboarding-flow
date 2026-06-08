@@ -37,7 +37,21 @@ import {
   listarMetodosPagoQr,
   type MetodoPagoQr,
 } from "@/lib/metodos-pago.functions";
+import {
+  listarBonos,
+  previsualizarBono,
+  type Bono,
+} from "@/lib/bonos.functions";
 import { useNavigate } from "@tanstack/react-router";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Ticket } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -72,6 +86,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   // Propina: 10% por defecto. Si el cliente escribe un monto fijo, se usa ese.
   const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
+  const [idBono, setIdBono] = useState<string | null>(null);
 
   // Reset al abrir
   useEffect(() => {
@@ -81,6 +96,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       setMetodo("EFECTIVO");
       setPropinaPct(0.1);
       setPropinaCustom(null);
+      setIdBono(null);
     }
   }, [open]);
 
@@ -90,11 +106,27 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     () => items.filter((i) => selected.has(i.id_item)).reduce((a, b) => a + b.subtotal, 0),
     [items, selected],
   );
+
+  // Preview del bono según items seleccionados
+  const previewFn = useServerFn(previsualizarBono);
+  const itemIdsArr = useMemo(() => Array.from(selected), [selected]);
+  const bonoPreviewQ = useQuery({
+    queryKey: ["bonoPreview", idBono, itemIdsArr],
+    queryFn: () =>
+      previewFn({
+        data: { idBono: idBono!, itemIds: itemIdsArr },
+      }),
+    enabled: !!idBono && itemIdsArr.length > 0,
+  });
+  const descuentoBono = bonoPreviewQ.data?.descuento ?? 0;
+  const bonoInfo = bonoPreviewQ.data ?? null;
+
+  const subtotalConDescuento = Math.max(0, totalSeleccionado - descuentoBono);
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(totalSeleccionado * (propinaPct ?? 0));
-  const totalConPropina = totalSeleccionado + propina;
+      : Math.round(subtotalConDescuento * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuento + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -115,6 +147,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     urlComprobante: string | null;
     itemIds: string[];
     propina: number;
+    idBono: string | null;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => pagarFn({ data: input }),
@@ -130,6 +163,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
       qc.invalidateQueries({ queryKey: ["pagos"] });
       qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["bonos"] });
 
       itemsQ.refetch().then((r) => {
         const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
@@ -141,6 +175,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           setSelected(new Set());
           setPropinaPct(0.1);
           setPropinaCustom(null);
+          setIdBono(null);
         }
       });
     },
@@ -204,6 +239,10 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
             propina={propina}
             propinaProps={propinaProps}
+            idBono={idBono}
+            setIdBono={setIdBono}
+            descuentoBono={descuentoBono}
+            bonoInfo={bonoInfo}
             onContinue={() => setPaso("metodo")}
           />
         ) : (
@@ -214,6 +253,8 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             propina={propina}
             totalConPropina={totalConPropina}
             propinaProps={propinaProps}
+            descuentoBono={descuentoBono}
+            bonoInfo={bonoInfo}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -223,6 +264,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 urlComprobante: extras.urlComprobante ?? null,
                 itemIds: Array.from(selected),
                 propina,
+                idBono,
               })
             }
             isLoading={pagarMut.isPending}
@@ -333,6 +375,13 @@ function PropinaResumenRow({
   );
 }
 
+type BonoPreview = {
+  nombre: string;
+  porcentaje: number;
+  descuento: number;
+  descuento_neto: number;
+};
+
 function PasoItems({
   items,
   selected,
@@ -343,6 +392,10 @@ function PasoItems({
   totalPendiente,
   propina,
   propinaProps,
+  idBono,
+  setIdBono,
+  descuentoBono,
+  bonoInfo,
   onContinue,
 }: {
   items: ItemCobrable[];
@@ -354,6 +407,10 @@ function PasoItems({
   totalPendiente: number;
   propina: number;
   propinaProps: PropinaProps;
+  idBono: string | null;
+  setIdBono: (v: string | null) => void;
+  descuentoBono: number;
+  bonoInfo: BonoPreview | null;
   onContinue: () => void;
 }) {
   const { grupos, pagados } = useMemo(() => {
@@ -376,7 +433,7 @@ function PasoItems({
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
   const hayPendientes = grupos.length > 0;
-  const totalConPropina = totalSeleccionado + propina;
+  const totalConPropina = Math.max(0, totalSeleccionado - descuentoBono) + propina;
 
   return (
     <>
@@ -498,6 +555,13 @@ function PasoItems({
             <span>Subtotal</span>
             <span className="tabular-nums">{fmt.format(totalSeleccionado)}</span>
           </div>
+          <BonoRow
+            idBono={idBono}
+            setIdBono={setIdBono}
+            descuento={descuentoBono}
+            bonoInfo={bonoInfo}
+            disabled={selected.size === 0}
+          />
           <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
@@ -526,6 +590,8 @@ function PasoMetodo({
   propina,
   totalConPropina,
   propinaProps,
+  descuentoBono,
+  bonoInfo,
   onPagar,
   isLoading,
 }: {
@@ -535,6 +601,8 @@ function PasoMetodo({
   propina: number;
   totalConPropina: number;
   propinaProps: PropinaProps;
+  descuentoBono: number;
+  bonoInfo: BonoPreview | null;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;

@@ -14,6 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
+      bono_aplicaciones: {
+        Row: {
+          created_at: string
+          id_aplicacion: string
+          id_bono: string | null
+          id_mesa: string | null
+          id_mesero: string | null
+          id_negocio: string
+          id_pago: string
+          monto_descuento: number
+          monto_descuento_neto: number
+          nombre_bono: string
+          porcentaje_aplicado: number
+          subtotal_items: number
+        }
+        Insert: {
+          created_at?: string
+          id_aplicacion?: string
+          id_bono?: string | null
+          id_mesa?: string | null
+          id_mesero?: string | null
+          id_negocio: string
+          id_pago: string
+          monto_descuento: number
+          monto_descuento_neto: number
+          nombre_bono: string
+          porcentaje_aplicado: number
+          subtotal_items: number
+        }
+        Update: {
+          created_at?: string
+          id_aplicacion?: string
+          id_bono?: string | null
+          id_mesa?: string | null
+          id_mesero?: string | null
+          id_negocio?: string
+          id_pago?: string
+          monto_descuento?: number
+          monto_descuento_neto?: number
+          nombre_bono?: string
+          porcentaje_aplicado?: number
+          subtotal_items?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bono_aplicaciones_id_bono_fkey"
+            columns: ["id_bono"]
+            isOneToOne: false
+            referencedRelation: "bonos"
+            referencedColumns: ["id_bono"]
+          },
+          {
+            foreignKeyName: "bono_aplicaciones_id_mesa_fkey"
+            columns: ["id_mesa"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id_mesa"]
+          },
+          {
+            foreignKeyName: "bono_aplicaciones_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "bono_aplicaciones_id_pago_fkey"
+            columns: ["id_pago"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id_pago"]
+          },
+        ]
+      }
+      bonos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id_bono: string
+          id_negocio: string
+          nombre: string
+          porcentaje: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id_bono?: string
+          id_negocio: string
+          nombre: string
+          porcentaje: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id_bono?: string
+          id_negocio?: string
+          nombre?: string
+          porcentaje?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonos_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       caja_dia: {
         Row: {
           abierta_at: string
@@ -571,7 +683,10 @@ export type Database = {
           confirmado_at: string | null
           confirmado_por: string | null
           created_at: string
+          descuento_bono: number
+          descuento_neto: number
           estado_confirmacion: Database["public"]["Enums"]["estado_pago"]
+          id_bono: string | null
           id_mesa: string
           id_mesero: string | null
           id_negocio: string
@@ -587,7 +702,10 @@ export type Database = {
           confirmado_at?: string | null
           confirmado_por?: string | null
           created_at?: string
+          descuento_bono?: number
+          descuento_neto?: number
           estado_confirmacion?: Database["public"]["Enums"]["estado_pago"]
+          id_bono?: string | null
           id_mesa: string
           id_mesero?: string | null
           id_negocio: string
@@ -603,7 +721,10 @@ export type Database = {
           confirmado_at?: string | null
           confirmado_por?: string | null
           created_at?: string
+          descuento_bono?: number
+          descuento_neto?: number
           estado_confirmacion?: Database["public"]["Enums"]["estado_pago"]
+          id_bono?: string | null
           id_mesa?: string
           id_mesero?: string | null
           id_negocio?: string
@@ -615,7 +736,15 @@ export type Database = {
           url_comprobante?: string | null
           voucher?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pagos_id_bono_fkey"
+            columns: ["id_bono"]
+            isOneToOne: false
+            referencedRelation: "bonos"
+            referencedColumns: ["id_bono"]
+          },
+        ]
       }
       pedido_item_exclusiones: {
         Row: {
@@ -1158,6 +1287,7 @@ export type Database = {
         Args: { p_id_item: string; p_nuevo_estado: string }
         Returns: string
       }
+      calcular_costo_items: { Args: { p_item_ids: string[] }; Returns: Json }
       cerrar_caja: {
         Args: {
           p_datafono_fisico: number
@@ -1263,30 +1393,19 @@ export type Database = {
         }
         Returns: string
       }
-      registrar_pago:
-        | {
-            Args: {
-              p_id_mesa: string
-              p_item_ids: string[]
-              p_metodo: Database["public"]["Enums"]["metodo_pago"]
-              p_subtipo: string
-              p_url_comprobante: string
-              p_voucher: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_id_mesa: string
-              p_item_ids: string[]
-              p_metodo: Database["public"]["Enums"]["metodo_pago"]
-              p_propina?: number
-              p_subtipo: string
-              p_url_comprobante: string
-              p_voucher: string
-            }
-            Returns: string
-          }
+      registrar_pago: {
+        Args: {
+          p_id_bono?: string
+          p_id_mesa: string
+          p_item_ids: string[]
+          p_metodo: Database["public"]["Enums"]["metodo_pago"]
+          p_propina?: number
+          p_subtipo: string
+          p_url_comprobante: string
+          p_voucher: string
+        }
+        Returns: string
+      }
       resumen_caja_dia: { Args: never; Returns: Json }
       solicitar_accion_cliente: {
         Args: { p_id_mesa: string; p_tipo: string }
