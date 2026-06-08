@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminGate } from "@/components/admin/admin-gate";
 import { getKpisHoy } from "@/lib/admin.functions";
 import { formatMoney } from "@/lib/format";
-import { RangeSelector, type Rango } from "@/components/dashboard/range-selector";
+import { RangeSelector, type DateRangeValue, presetToDates } from "@/components/dashboard/range-selector";
 import { RentabilidadPanel } from "@/components/dashboard/rentabilidad-panel";
 import { ClientePanel } from "@/components/dashboard/cliente-panel";
 import { OperacionPanel } from "@/components/dashboard/operacion-panel";
@@ -18,8 +18,19 @@ import { POLL } from "@/lib/query-config";
 
 const searchSchema = z.object({
   tab: z.enum(["rentabilidad", "cliente", "operacion", "alertas"]).optional().default("rentabilidad"),
-  rango: z.enum(["hoy", "7d", "30d"]).optional().default("hoy"),
+  rango: z.enum(["hoy", "7d", "30d", "custom"]).optional().default("hoy"),
+  desde: z.string().optional(),
+  hasta: z.string().optional(),
 });
+
+function resolveRange(search: z.infer<typeof searchSchema>): Required<DateRangeValue> {
+  const rango = search.rango ?? "hoy";
+  if (rango === "custom" && search.desde && search.hasta) {
+    return { rango, desde: search.desde, hasta: search.hasta };
+  }
+  const { desde, hasta } = presetToDates(rango);
+  return { rango, desde: desde.toISOString(), hasta: hasta.toISOString() };
+}
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Talia" }] }),
@@ -32,8 +43,10 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function DashboardPage() {
-  const { tab, rango } = Route.useSearch();
+  const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const range = resolveRange(search);
+
   const fn = useServerFn(getKpisHoy);
   const { data, isLoading } = useQuery({
     queryKey: ["kpis-hoy"],
@@ -41,9 +54,19 @@ function DashboardPage() {
     ...POLL.NORMAL,
   });
 
-  const setRango = (r: Rango) => navigate({ search: { tab, rango: r } });
+  const setRange = (v: DateRangeValue) => {
+    navigate({ search: { tab: search.tab, rango: v.rango, desde: v.desde, hasta: v.hasta } });
+  };
+
   const setTab = (t: string) =>
-    navigate({ search: { tab: t as "rentabilidad" | "cliente" | "operacion" | "alertas", rango } });
+    navigate({
+      search: {
+        tab: t as "rentabilidad" | "cliente" | "operacion" | "alertas",
+        rango: range.rango,
+        desde: range.desde,
+        hasta: range.hasta,
+      },
+    });
 
   return (
     <div className="space-y-6">
@@ -78,20 +101,20 @@ function DashboardPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <h2 className="text-lg font-semibold tracking-tight">Analítica</h2>
-        <RangeSelector value={rango} onChange={setRango} />
+        <RangeSelector value={range} onChange={setRange} />
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={search.tab} onValueChange={setTab}>
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="rentabilidad">Rentabilidad</TabsTrigger>
           <TabsTrigger value="cliente">Cliente</TabsTrigger>
           <TabsTrigger value="operacion">Operación</TabsTrigger>
           <TabsTrigger value="alertas">Alertas</TabsTrigger>
         </TabsList>
-        <TabsContent value="rentabilidad" className="mt-6"><RentabilidadPanel rango={rango} /></TabsContent>
-        <TabsContent value="cliente" className="mt-6"><ClientePanel rango={rango} /></TabsContent>
-        <TabsContent value="operacion" className="mt-6"><OperacionPanel rango={rango} /></TabsContent>
-        <TabsContent value="alertas" className="mt-6"><AlertasPanel rango={rango} /></TabsContent>
+        <TabsContent value="rentabilidad" className="mt-6"><RentabilidadPanel desde={range.desde} hasta={range.hasta} /></TabsContent>
+        <TabsContent value="cliente" className="mt-6"><ClientePanel desde={range.desde} hasta={range.hasta} /></TabsContent>
+        <TabsContent value="operacion" className="mt-6"><OperacionPanel desde={range.desde} hasta={range.hasta} /></TabsContent>
+        <TabsContent value="alertas" className="mt-6"><AlertasPanel desde={range.desde} hasta={range.hasta} /></TabsContent>
       </Tabs>
     </div>
   );

@@ -5,14 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, XCircle, Flame } from "lucide-react";
 import { getAlertasFugas } from "@/lib/analytics.functions";
 import { cn } from "@/lib/utils";
-import type { Rango } from "./range-selector";
 import { POLL } from "@/lib/query-config";
 
-export function AlertasPanel({ rango }: { rango: Rango }) {
+export function AlertasPanel({ desde, hasta }: { desde: string; hasta: string }) {
   const fn = useServerFn(getAlertasFugas);
   const { data, isLoading } = useQuery({
-    queryKey: ["alertas-fugas", rango],
-    queryFn: () => fn({ data: { rango } }),
+    queryKey: ["alertas-fugas", desde, hasta],
+    queryFn: () => fn({ data: { desde, hasta } }),
     ...POLL.REALTIME,
   });
 
