@@ -222,7 +222,7 @@ export function HistorialInventarioTab() {
                   Anterior → Nuevo
                 </TableHead>
                 <TableHead className="hidden sm:table-cell">Motivo</TableHead>
-                <TableHead className="hidden md:table-cell">Responsable</TableHead>
+                <TableHead className="hidden sm:table-cell">Responsable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
