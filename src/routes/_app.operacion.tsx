@@ -3,13 +3,25 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno } from "@/lib/admin.functions";
+import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno, type StaffEnTurno } from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
+import { inhabilitarStaff } from "@/lib/usuarios.functions";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
@@ -214,12 +226,35 @@ function Alertas() {
 
 function PersonalTurno() {
   const fn = useServerFn(getPersonalEnTurno);
+  const qc = useQueryClient();
+  const { staff: yo } = useMiStaff();
   const { data, isLoading } = useQuery({
     queryKey: ["personal-turno"],
     queryFn: () => fn(),
     ...POLL.NORMAL,
   });
   const staff = data?.staff ?? [];
+  const [target, setTarget] = useState<StaffEnTurno | null>(null);
+  const [busy, setBusy] = useState(false);
+  const inhabilitar = useServerFn(inhabilitarStaff);
+
+  const handleInhabilitar = async () => {
+    if (!target) return;
+    setBusy(true);
+    try {
+      await inhabilitar({ data: { id_usuario: target.id_usuario } });
+      toast.success(`${target.nombre} fue inhabilitado`);
+      qc.invalidateQueries({ queryKey: ["personal-turno"] });
+    } catch (e) {
+      toast.error("No se pudo inhabilitar", {
+        description: e instanceof Error ? e.message : "",
+      });
+    } finally {
+      setBusy(false);
+      setTarget(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -233,24 +268,68 @@ function PersonalTurno() {
         {!isLoading && staff.length === 0 && (
           <p className="text-sm text-muted-foreground">Nadie está en turno.</p>
         )}
-        {staff.map((s) => (
-          <div key={s.id_usuario} className="flex items-center justify-between rounded-md border p-2">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">{s.nombre}</div>
-              <div className="text-xs text-muted-foreground">
-                {s.rol}
-                {s.turno_iniciado_at &&
-                  ` · desde ${new Date(s.turno_iniciado_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+        {staff.map((s) => {
+          const esYo = yo?.id_usuario === s.id_usuario;
+          const esSuper = s.rol === "SUPERADMIN";
+          return (
+            <div key={s.id_usuario} className="flex items-center justify-between gap-2 rounded-md border p-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{s.nombre}</div>
+                <div className="text-xs text-muted-foreground">
+                  {s.rol}
+                  {s.turno_iniciado_at &&
+                    ` · desde ${new Date(s.turno_iniciado_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {s.rol === "MESERO" && (
+                  <Badge variant={s.mesas_asignadas > 0 ? "default" : "outline"}>
+                    {s.mesas_asignadas} mesa{s.mesas_asignadas === 1 ? "" : "s"}
+                  </Badge>
+                )}
+                {!esYo && !esSuper && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setTarget(s)}
+                    title="Inhabilitar"
+                  >
+                    <UserX className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
-            {s.rol === "MESERO" && (
-              <Badge variant={s.mesas_asignadas > 0 ? "default" : "outline"}>
-                {s.mesas_asignadas} mesa{s.mesas_asignadas === 1 ? "" : "s"}
-              </Badge>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
+
+      <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Inhabilitar a {target?.nombre}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              La cuenta quedará INACTIVA y se cerrará su turno. Un administrador
+              deberá reactivarla desde Configuración para volver a ingresar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                handleInhabilitar();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busy ? "Inhabilitando…" : "Inhabilitar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

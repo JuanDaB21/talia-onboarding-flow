@@ -149,3 +149,76 @@ export const eliminarUsuarioStaff = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+export const inhabilitarStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({ id_usuario: z.string().uuid().optional() })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const callerId = context.userId;
+    const idNegocio = await getCallerNegocio(callerId);
+
+    // Determinar usuario objetivo
+    const targetId = data.id_usuario ?? callerId;
+    const esAuto = targetId === callerId;
+
+    // Si es para otra persona, validar permisos del caller
+    if (!esAuto) {
+      const { data: caller } = await supabaseAdmin
+        .from("usuarios_staff")
+        .select("rol")
+        .eq("id_usuario", callerId)
+        .maybeSingle();
+      const rolCaller = caller?.rol;
+      if (
+        rolCaller !== "ADMIN" &&
+        rolCaller !== "SUPERADMIN" &&
+        rolCaller !== "CAJERO"
+      ) {
+        throw new Error("No autorizado");
+      }
+      await assertTargetSameNegocio(targetId, idNegocio);
+    }
+
+    // Verificar target y rol
+    const { data: target } = await supabaseAdmin
+      .from("usuarios_staff")
+      .select("rol, id_negocio")
+      .eq("id_usuario", targetId)
+      .maybeSingle();
+    if (!target) throw new Error("Usuario no encontrado");
+    if (target.id_negocio !== idNegocio) throw new Error("No autorizado");
+    if (target.rol === "SUPERADMIN")
+      throw new Error("No se puede inhabilitar a un superadministrador");
+
+    // Si es mesero, no debe tener mesas abiertas
+    if (target.rol === "MESERO") {
+      const { data: mesasAb } = await supabaseAdmin
+        .from("mesas")
+        .select("identificador")
+        .eq("id_mesero_asignado", targetId)
+        .neq("estado", "LIBRE");
+      if (mesasAb && mesasAb.length > 0) {
+        throw new Error(
+          `Tiene ${mesasAb.length} mesa(s) con cuenta abierta: ${mesasAb
+            .map((m) => m.identificador)
+            .join(", ")}`,
+        );
+      }
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from("usuarios_staff")
+      .update({
+        estado: "INACTIVO",
+        esta_en_turno: false,
+        turno_iniciado_at: null,
+      })
+      .eq("id_usuario", targetId);
+    if (updErr) throw new Error(updErr.message);
+
+    return { ok: true };
+  });
