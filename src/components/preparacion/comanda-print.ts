@@ -130,7 +130,16 @@ const STYLES = `
   .mesa { font-size: 16pt; font-weight: bold; margin-top: 1mm; }
   .meta { font-size: 9pt; }
   hr { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
-  ul.items { list-style: none; padding: 0; margin: 0; }
+  ul.items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+  .subcat {
+    margin: 2mm 0 1mm 0;
+    font-size: 11pt;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.5mm;
+  }
   li.item { padding: 2mm 0; border-bottom: 1px dotted #000; }
   li.item:last-child { border-bottom: none; }
   .item-head { display: flex; gap: 2mm; align-items: baseline; }
