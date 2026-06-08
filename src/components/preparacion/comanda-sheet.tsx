@@ -159,14 +159,33 @@ export function ComandaSheet({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {comanda.items.map((it) => (
-            <ItemRow
-              key={it.id_item}
-              item={it}
-              onAdvance={onAdvance}
-              busy={busyId === it.id_item}
-            />
-          ))}
+          {(() => {
+            const nodes: React.ReactNode[] = [];
+            let currentSub: string | null | undefined = undefined;
+            comanda.items.forEach((it) => {
+              const sub = it.nombre_subcategoria ?? null;
+              if (sub !== currentSub) {
+                nodes.push(
+                  <div
+                    key={`sub-${sub ?? "otros"}-${it.id_item}`}
+                    className="pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b"
+                  >
+                    {sub ?? "Otros"}
+                  </div>,
+                );
+                currentSub = sub;
+              }
+              nodes.push(
+                <ItemRow
+                  key={it.id_item}
+                  item={it}
+                  onAdvance={onAdvance}
+                  busy={busyId === it.id_item}
+                />,
+              );
+            });
+            return nodes;
+          })()}
         </div>
       </SheetContent>
     </Sheet>
