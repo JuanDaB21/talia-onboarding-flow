@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, LogIn } from "lucide-react";
+import { Clock, LogIn, UserX } from "lucide-react";
+import { toast } from "sonner";
 import { getMiStaff } from "@/lib/turno.functions";
+import { inhabilitarStaff } from "@/lib/usuarios.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { POLL } from "@/lib/query-config";
 
 function formatDuracion(ms: number) {
@@ -16,18 +31,22 @@ function formatDuracion(ms: number) {
 
 export function CajaTurnoCard() {
   const fn = useServerFn(getMiStaff);
+  const inhabilitar = useServerFn(inhabilitarStaff);
+  const navigate = useNavigate();
   const { data } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
     queryFn: () => fn(),
     ...POLL.SLOW,
   });
 
-  // tick cada minuto para refrescar el cronómetro en vivo
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!data || !data.esta_en_turno || !data.turno_iniciado_at) return null;
 
@@ -38,6 +57,23 @@ export function CajaTurnoCard() {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const handleInhabilitar = async () => {
+    setBusy(true);
+    try {
+      await inhabilitar({ data: {} });
+      toast.success("Tu cuenta fue inhabilitada");
+      await supabase.auth.signOut();
+      navigate({ to: "/login" });
+    } catch (e) {
+      toast.error("No se pudo inhabilitar", {
+        description: e instanceof Error ? e.message : "",
+      });
+    } finally {
+      setBusy(false);
+      setOpen(false);
+    }
+  };
 
   return (
     <section className="rounded-xl border bg-card p-4">
@@ -62,6 +98,43 @@ export function CajaTurnoCard() {
           value={formatDuracion(trabajado)}
         />
       </div>
+
+      <div className="mt-3 flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          onClick={() => setOpen(true)}
+        >
+          <UserX className="mr-1 h-4 w-4" />
+          Inhabilitarme
+        </Button>
+      </div>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Inhabilitar tu cuenta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tu cuenta quedará INACTIVA y se cerrará tu sesión. Un
+              administrador deberá reactivarla para volver a ingresar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                handleInhabilitar();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busy ? "Inhabilitando…" : "Inhabilitarme"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
