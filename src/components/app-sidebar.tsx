@@ -13,8 +13,6 @@ import {
   FolderTree,
   BookOpen,
   Package,
-  Users,
-  Utensils,
   ConciergeBell,
   Flame,
   Wine,
@@ -23,8 +21,6 @@ import {
   LayoutDashboard,
   Activity,
   Wallet,
-  Palette,
-  QrCode,
   Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
