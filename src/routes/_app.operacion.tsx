@@ -173,10 +173,9 @@ function Alertas() {
         )}
         {alertas.map((a) => {
           const severo = a.retraso_min > a.minutos_planeados * 0.5;
-          return (
+          const content = (
             <div
-              key={a.id_item}
-              className={`rounded-md border p-3 ${severo ? "border-destructive/50 bg-destructive/5" : "border-amber-500/40 bg-amber-500/5"}`}
+              className={`rounded-md border p-3 ${severo ? "border-destructive/50 bg-destructive/5" : "border-amber-500/40 bg-amber-500/5"} ${a.id_mesa ? "transition-colors hover:bg-accent/40 cursor-pointer" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -195,6 +194,17 @@ function Alertas() {
                 </div>
               </div>
             </div>
+          );
+          if (!a.id_mesa) return <div key={a.id_item}>{content}</div>;
+          return (
+            <Link
+              key={a.id_item}
+              to="/servicio/$idMesa"
+              params={{ idMesa: a.id_mesa }}
+              className="block"
+            >
+              {content}
+            </Link>
           );
         })}
       </CardContent>
