@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ROLES_UI = ["ADMIN", "MESERO", "COCINA", "BARRA"] as const;
+export const ROLES_UI = ["ADMIN", "CAJERO", "MESERO", "COCINA", "BARRA"] as const;
 export const rolStaffUiSchema = z.enum(ROLES_UI);
 export type RolStaffUi = z.infer<typeof rolStaffUiSchema>;
 

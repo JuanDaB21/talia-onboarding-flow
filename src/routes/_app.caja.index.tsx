@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AdminGate } from "@/components/admin/admin-gate";
+import { RoleGate } from "@/components/admin/role-gate";
 import { getEstadoCaja, abrirCaja, listarCierres } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
@@ -18,9 +18,9 @@ import { POLL } from "@/lib/query-config";
 export const Route = createFileRoute("/_app/caja/")({
   head: () => ({ meta: [{ title: "Caja — Talia" }] }),
   component: () => (
-    <AdminGate>
+    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
       <CajaPage />
-    </AdminGate>
+    </RoleGate>
   ),
 });
 

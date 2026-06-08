@@ -5,7 +5,7 @@ export interface MiStaff {
   id_usuario: string;
   id_negocio: string;
   nombre: string;
-  rol: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA";
+  rol: "SUPERADMIN" | "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA";
   esta_en_turno: boolean;
   turno_iniciado_at: string | null;
 }

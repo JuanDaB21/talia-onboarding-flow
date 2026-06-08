@@ -21,7 +21,7 @@ interface Usuario {
   id_usuario: string;
   nombre: string;
   correo: string;
-  rol: "ADMIN" | "MESERO" | "COCINA" | "BARRA" | "SUPERADMIN";
+  rol: "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA" | "SUPERADMIN";
   estado: "ACTIVO" | "INACTIVO" | "SUSPENDIDO";
 }
 

@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink } from
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AdminGate } from "@/components/admin/admin-gate";
+import { RoleGate } from "@/components/admin/role-gate";
 import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno } from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { formatMoney } from "@/lib/format";
@@ -16,9 +16,9 @@ import { POLL } from "@/lib/query-config";
 export const Route = createFileRoute("/_app/operacion")({
   head: () => ({ meta: [{ title: "Operación en vivo — Talia" }] }),
   component: () => (
-    <AdminGate>
+    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
       <OperacionPage />
-    </AdminGate>
+    </RoleGate>
   ),
 });
 

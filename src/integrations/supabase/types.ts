@@ -1423,7 +1423,13 @@ export type Database = {
         | "PARCIAL"
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
       metodo_pago: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO"
-      rol_staff: "SUPERADMIN" | "ADMIN" | "MESERO" | "COCINA" | "BARRA"
+      rol_staff:
+        | "SUPERADMIN"
+        | "ADMIN"
+        | "MESERO"
+        | "COCINA"
+        | "BARRA"
+        | "CAJERO"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1562,7 +1568,7 @@ export const Constants = {
       ],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
       metodo_pago: ["EFECTIVO", "TRANSFERENCIA", "DATAFONO"],
-      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA"],
+      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA", "CAJERO"],
     },
   },
 } as const

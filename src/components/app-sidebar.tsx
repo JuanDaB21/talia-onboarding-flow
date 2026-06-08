@@ -91,18 +91,38 @@ function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
     return {
       admin: true,
+      dashboard: true,
+      caja: true,
       bodega: true,
       menu: true,
+      operacion: true,
       servicio: true,
       cocina: true,
       barra: true,
       config: true,
     };
   }
+  if (rol === "CAJERO") {
+    return {
+      admin: true,
+      dashboard: false,
+      caja: true,
+      bodega: false,
+      menu: false,
+      operacion: true,
+      servicio: true,
+      cocina: false,
+      barra: false,
+      config: false,
+    };
+  }
   return {
     admin: false,
+    dashboard: false,
+    caja: false,
     bodega: false,
     menu: false,
+    operacion: false,
     servicio: rol === "MESERO",
     cocina: rol === "COCINA",
     barra: rol === "BARRA",
@@ -212,13 +232,20 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
-        {(grupos.servicio || grupos.cocina || grupos.barra) &&
+        {grupos.admin &&
+          renderGroup(
+            "Administración",
+            ADMIN_NAV.filter((item) => {
+              if (item.to === "/dashboard") return grupos.dashboard;
+              if (item.to === "/caja") return grupos.caja;
+              return false;
+            }),
+          )}
+        {(grupos.operacion || grupos.servicio || grupos.cocina || grupos.barra) &&
           renderGroup(
             "Servicio",
             SERVICIO_NAV.filter((item) => {
-              if (grupos.admin) return true;
-              if (item.to === "/operacion") return false;
+              if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
               if (item.to === "/cocina") return grupos.cocina;
               if (item.to === "/barra") return grupos.barra;

@@ -206,7 +206,7 @@ export const listarPagosPendientes = createServerFn({ method: "GET" })
       .select("rol")
       .eq("id_usuario", userId)
       .maybeSingle();
-    const esAdmin = yo?.rol === "ADMIN" || yo?.rol === "SUPERADMIN";
+    const esAdmin = yo?.rol === "ADMIN" || yo?.rol === "SUPERADMIN" || yo?.rol === "CAJERO";
     if (!esAdmin) return { pagos: [] as PagoPendiente[], esAdmin: false };
 
     const { data, error } = await supabase

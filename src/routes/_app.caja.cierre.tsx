@@ -10,16 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { AdminGate } from "@/components/admin/admin-gate";
+import { RoleGate } from "@/components/admin/role-gate";
 import { getEstadoCaja, cerrarCaja } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/caja/cierre")({
   head: () => ({ meta: [{ title: "Cerrar caja — Talia" }] }),
   component: () => (
-    <AdminGate>
+    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
       <CierreWizard />
-    </AdminGate>
+    </RoleGate>
   ),
 });
 

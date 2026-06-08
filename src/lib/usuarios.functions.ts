@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const ROLES_UI = ["ADMIN", "MESERO", "COCINA", "BARRA"] as const;
+const ROLES_UI = ["ADMIN", "CAJERO", "MESERO", "COCINA", "BARRA"] as const;
 const rolEnum = z.enum(ROLES_UI);
 const estadoEnum = z.enum(["ACTIVO", "INACTIVO"]);
 
