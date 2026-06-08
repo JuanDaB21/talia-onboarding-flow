@@ -67,6 +67,19 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_app/servicio/$idMesa")({
   head: () => ({ meta: [{ title: "Mesa en servicio" }] }),
   component: MesaEnServicio,
+  errorComponent: ({ error, reset }) => (
+    <div className="mx-auto max-w-md p-6 text-center space-y-3">
+      <p className="text-sm text-muted-foreground">
+        {error instanceof Error ? error.message : "No se pudo cargar la mesa"}
+      </p>
+      <div className="flex gap-2 justify-center">
+        <Link to="/servicio" className="text-sm underline">Volver a mesas</Link>
+        <button type="button" onClick={() => reset()} className="text-sm underline">
+          Reintentar
+        </button>
+      </div>
+    </div>
+  ),
 });
 
 const fmt = new Intl.NumberFormat("es-CO", {
