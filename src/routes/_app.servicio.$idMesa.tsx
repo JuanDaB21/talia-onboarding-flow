@@ -475,6 +475,13 @@ function MesaEnServicio() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReasignarMeseroDialog
+        open={reasignarOpen}
+        onOpenChange={setReasignarOpen}
+        idMesa={idMesa}
+        meseroActualId={mesa.id_mesero_asignado}
+      />
     </div>
   );
 }
