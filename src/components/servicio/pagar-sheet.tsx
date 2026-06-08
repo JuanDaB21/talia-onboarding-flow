@@ -9,12 +9,19 @@ import {
   CheckCircle2,
   CreditCard,
   Loader2,
+  QrCode as QrCodeIcon,
   Smartphone,
   X,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +33,10 @@ import {
   registrarPago,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
+import {
+  listarMetodosPagoQr,
+  type MetodoPagoQr,
+} from "@/lib/metodos-pago.functions";
 import { useNavigate } from "@tanstack/react-router";
 
 const fmt = new Intl.NumberFormat("es-CO", {
@@ -653,55 +664,14 @@ function PasoMetodo({
         )}
 
         {metodo === "TRANSFERENCIA" && (
-          <div className="space-y-3">
-            <div>
-              <Label>Plataforma</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {["Nequi", "Daviplata", "Bancolombia", "Otra"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubtipo(s)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      subtipo === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card hover:bg-muted"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label>Comprobante</Label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFile}
-              />
-              <Button
-                type="button"
-                variant={urlComprobante ? "secondary" : "outline"}
-                className="w-full mt-1"
-                onClick={() => fileRef.current?.click()}
-                disabled={subiendo}
-              >
-                {subiendo ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Camera className="h-4 w-4 mr-2" />
-                )}
-                {urlComprobante ? "Comprobante subido — cambiar" : "Tomar / subir foto"}
-              </Button>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Se enviará al administrador para que confirme la recepción.
-              </p>
-            </div>
-          </div>
+          <TransferenciaSection
+            subtipo={subtipo}
+            setSubtipo={setSubtipo}
+            urlComprobante={urlComprobante}
+            subiendo={subiendo}
+            fileRef={fileRef}
+            handleFile={handleFile}
+          />
         )}
 
         {metodo === "DATAFONO" && (
@@ -786,6 +756,188 @@ function MetodoBtn({
     >
       {icon}
       <span className="text-xs font-medium">{label}</span>
+    </button>
+  );
+}
+
+function TransferenciaSection({
+  subtipo,
+  setSubtipo,
+  urlComprobante,
+  subiendo,
+  fileRef,
+  handleFile,
+}: {
+  subtipo: string;
+  setSubtipo: (s: string) => void;
+  urlComprobante: string | null;
+  subiendo: boolean;
+  fileRef: React.MutableRefObject<HTMLInputElement | null>;
+  handleFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const listar = useServerFn(listarMetodosPagoQr);
+  const qrQ = useQuery({
+    queryKey: ["metodosPagoQr"],
+    queryFn: () => listar(),
+  });
+  const qrs = qrQ.data ?? [];
+  const [qrOpen, setQrOpen] = useState<MetodoPagoQr | null>(null);
+
+  const plataformasFijas: Array<"Nequi" | "Daviplata" | "Bancolombia"> = [
+    "Nequi",
+    "Daviplata",
+    "Bancolombia",
+  ];
+  const otras = qrs.filter((q) => q.plataforma === "Otra");
+
+  const handleClick = (label: string, registro: MetodoPagoQr | null) => {
+    setSubtipo(label);
+    if (registro?.signed_url) setQrOpen(registro);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label>Plataforma</Label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {plataformasFijas.map((s) => {
+            const r = qrs.find((q) => q.plataforma === s) ?? null;
+            return (
+              <PlataformaBtn
+                key={s}
+                label={s}
+                active={subtipo === s}
+                hasQr={!!r?.signed_url}
+                onClick={() => handleClick(s, r)}
+              />
+            );
+          })}
+          {otras.map((r) => {
+            const label = r.etiqueta || "Otra";
+            return (
+              <PlataformaBtn
+                key={r.id_qr}
+                label={label}
+                active={subtipo === label}
+                hasQr={!!r.signed_url}
+                onClick={() => handleClick(label, r)}
+              />
+            );
+          })}
+          {otras.length === 0 && (
+            <PlataformaBtn
+              label="Otra"
+              active={subtipo === "Otra"}
+              hasQr={false}
+              onClick={() => handleClick("Otra", null)}
+            />
+          )}
+        </div>
+        {subtipo &&
+          !qrs.find(
+            (q) =>
+              q.plataforma === subtipo ||
+              (q.plataforma === "Otra" && q.etiqueta === subtipo),
+          )?.signed_url && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Sin QR configurado. Pídele al admin que lo cargue en Configuración
+              → Métodos de pago.
+            </p>
+          )}
+      </div>
+      <div>
+        <Label>Comprobante</Label>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFile}
+        />
+        <Button
+          type="button"
+          variant={urlComprobante ? "secondary" : "outline"}
+          className="w-full mt-1"
+          onClick={() => fileRef.current?.click()}
+          disabled={subiendo}
+        >
+          {subiendo ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Camera className="h-4 w-4 mr-2" />
+          )}
+          {urlComprobante
+            ? "Comprobante subido — cambiar"
+            : "Tomar / subir foto"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Se enviará al administrador para que confirme la recepción.
+        </p>
+      </div>
+
+      <Dialog open={!!qrOpen} onOpenChange={(o) => !o && setQrOpen(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Escanea con {qrOpen?.etiqueta || qrOpen?.plataforma}
+            </DialogTitle>
+          </DialogHeader>
+          {qrOpen?.titular && (
+            <p className="text-sm text-muted-foreground -mt-2">
+              {qrOpen.titular}
+            </p>
+          )}
+          {qrOpen?.signed_url && (
+            <div className="rounded-xl bg-white p-4 flex items-center justify-center">
+              <img
+                src={qrOpen.signed_url}
+                alt={`QR ${qrOpen.plataforma}`}
+                className="w-full max-w-sm aspect-square object-contain"
+              />
+            </div>
+          )}
+          <Button onClick={() => setQrOpen(null)} className="w-full">
+            Cerrar
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function PlataformaBtn({
+  label,
+  active,
+  hasQr,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  hasQr: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative rounded-lg border px-3 py-2 text-sm transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-card hover:bg-muted"
+      }`}
+    >
+      {label}
+      {hasQr && (
+        <span
+          className={`ml-1.5 inline-flex items-center align-middle ${
+            active ? "opacity-90" : "text-muted-foreground"
+          }`}
+          title="QR disponible"
+        >
+          <QrCodeIcon className="h-3.5 w-3.5" />
+        </span>
+      )}
     </button>
   );
 }

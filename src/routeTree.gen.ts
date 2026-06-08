@@ -33,6 +33,7 @@ import { Route as AppMenuRecetasRouteImport } from './routes/_app.menu.recetas'
 import { Route as AppMenuProductosRouteImport } from './routes/_app.menu.productos'
 import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.categorias'
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
+import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
 import { Route as AppConfiguracionAparienciaRouteImport } from './routes/_app.configuracion.apariencia'
 import { Route as AppCajaCierreRouteImport } from './routes/_app.caja.cierre'
@@ -166,6 +167,12 @@ const AppConfiguracionUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AppConfiguracionRoute,
   } as any)
+const AppConfiguracionMetodosPagoRoute =
+  AppConfiguracionMetodosPagoRouteImport.update({
+    id: '/metodos-pago',
+    path: '/metodos-pago',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionMesasRoute = AppConfiguracionMesasRouteImport.update({
   id: '/mesas',
   path: '/mesas',
@@ -250,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
+  '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
@@ -281,6 +289,7 @@ export interface FileRoutesByTo {
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
+  '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/_app/caja/cierre': typeof AppCajaCierreRoute
   '/_app/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
+  '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/_app/menu/categorias': typeof AppMenuCategoriasRoute
   '/_app/menu/productos': typeof AppMenuProductosRoute
@@ -358,6 +368,7 @@ export interface FileRouteTypes {
     | '/caja/cierre'
     | '/configuracion/apariencia'
     | '/configuracion/mesas'
+    | '/configuracion/metodos-pago'
     | '/configuracion/usuarios'
     | '/menu/categorias'
     | '/menu/productos'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/caja/cierre'
     | '/configuracion/apariencia'
     | '/configuracion/mesas'
+    | '/configuracion/metodos-pago'
     | '/configuracion/usuarios'
     | '/menu/categorias'
     | '/menu/productos'
@@ -426,6 +438,7 @@ export interface FileRouteTypes {
     | '/_app/caja/cierre'
     | '/_app/configuracion/apariencia'
     | '/_app/configuracion/mesas'
+    | '/_app/configuracion/metodos-pago'
     | '/_app/configuracion/usuarios'
     | '/_app/menu/categorias'
     | '/_app/menu/productos'
@@ -622,6 +635,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionUsuariosRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/metodos-pago': {
+      id: '/_app/configuracion/metodos-pago'
+      path: '/metodos-pago'
+      fullPath: '/configuracion/metodos-pago'
+      preLoaderRoute: typeof AppConfiguracionMetodosPagoRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/configuracion/mesas': {
       id: '/_app/configuracion/mesas'
       path: '/mesas'
@@ -758,6 +778,7 @@ const AppCajaRouteWithChildren =
 interface AppConfiguracionRouteChildren {
   AppConfiguracionAparienciaRoute: typeof AppConfiguracionAparienciaRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
+  AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
   AppConfiguracionUsuariosRoute: typeof AppConfiguracionUsuariosRoute
   AppConfiguracionIndexRoute: typeof AppConfiguracionIndexRoute
 }
@@ -765,6 +786,7 @@ interface AppConfiguracionRouteChildren {
 const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionAparienciaRoute: AppConfiguracionAparienciaRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
+  AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
   AppConfiguracionUsuariosRoute: AppConfiguracionUsuariosRoute,
   AppConfiguracionIndexRoute: AppConfiguracionIndexRoute,
 }
