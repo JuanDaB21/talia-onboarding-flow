@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { ProductosTab } from "@/components/menu/productos-tab";
 
@@ -9,6 +9,8 @@ export const Route = createFileRoute("/_app/menu/productos")({
 
 function ProductosPage() {
   const { idNegocio, loading } = useCurrentNegocio();
+  const search = useSearch({ strict: false });
+  const autoEditId = typeof search.editar === "string" ? search.editar : undefined;
   if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   if (!idNegocio) return <p className="text-sm text-destructive">No se encontró un negocio.</p>;
 
@@ -20,7 +22,7 @@ function ProductosPage() {
           Configura precios, imágenes y disponibilidad de cada producto del menú.
         </p>
       </header>
-      <ProductosTab idNegocio={idNegocio} />
+      <ProductosTab idNegocio={idNegocio} autoEditId={autoEditId} />
     </div>
   );
 }

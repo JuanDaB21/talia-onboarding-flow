@@ -231,10 +231,10 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         }
       }
 
-      toast.success(mode === "create" ? "Receta creada" : "Receta actualizada", {
-        description: mode === "create" ? "Se creó también el producto asociado." : undefined,
+      toast.success("Receta creada", {
+        description: "Se creó también el producto asociado.",
       });
-      navigate({ to: "/menu/recetas" });
+      navigate({ to: "/menu/productos", search: { editar: productoId } });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
       toast.error("No se pudo guardar", { description: msg });
