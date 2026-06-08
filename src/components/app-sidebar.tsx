@@ -72,11 +72,11 @@ const MENU_NAV = [
 ] as const;
 
 const SERVICIO_NAV = [
+  { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
+  { to: "/cocina", label: "Cocina", icon: Flame },
+  { to: "/barra", label: "Barra", icon: Wine },
 ] as const;
-
-const COCINA_NAV = [{ to: "/cocina", label: "Cocina", icon: Flame }] as const;
-const BARRA_NAV = [{ to: "/barra", label: "Barra", icon: Wine }] as const;
 
 const CONFIG_NAV = [
   { to: "/configuracion", label: "Configuración", icon: Settings },
