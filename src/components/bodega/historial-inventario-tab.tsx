@@ -168,7 +168,7 @@ export function HistorialInventarioTab() {
         <div className="relative flex-1">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por insumo o motivo…"
+            placeholder="Buscar por insumo, motivo o responsable…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
