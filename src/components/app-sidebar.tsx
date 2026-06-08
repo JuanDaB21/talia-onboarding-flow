@@ -232,13 +232,20 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
-        {(grupos.servicio || grupos.cocina || grupos.barra) &&
+        {grupos.admin &&
+          renderGroup(
+            "Administración",
+            ADMIN_NAV.filter((item) => {
+              if (item.to === "/dashboard") return grupos.dashboard;
+              if (item.to === "/caja") return grupos.caja;
+              return false;
+            }),
+          )}
+        {(grupos.operacion || grupos.servicio || grupos.cocina || grupos.barra) &&
           renderGroup(
             "Servicio",
             SERVICIO_NAV.filter((item) => {
-              if (grupos.admin) return true;
-              if (item.to === "/operacion") return false;
+              if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
               if (item.to === "/cocina") return grupos.cocina;
               if (item.to === "/barra") return grupos.barra;
