@@ -37,7 +37,21 @@ import {
   listarMetodosPagoQr,
   type MetodoPagoQr,
 } from "@/lib/metodos-pago.functions";
+import {
+  listarBonos,
+  previsualizarBono,
+  type Bono,
+} from "@/lib/bonos.functions";
 import { useNavigate } from "@tanstack/react-router";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Ticket } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
