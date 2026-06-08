@@ -8,13 +8,13 @@ import {
   Camera,
   CheckCircle2,
   CreditCard,
-  HandCoins,
   Loader2,
   Smartphone,
   X,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
 });
 
 type Metodo = "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO";
-type Paso = "propina" | "items" | "metodo";
+type Paso = "items" | "metodo";
 
 interface Props {
   open: boolean;
@@ -55,19 +55,17 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     enabled: open,
   });
 
-  const [paso, setPaso] = useState<Paso>("propina");
+  const [paso, setPaso] = useState<Paso>("items");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [metodo, setMetodo] = useState<Metodo>("EFECTIVO");
-  // Propina decidida por el cliente al inicio del cobro.
-  // Si elige porcentaje guardamos el pct y se aplica al total seleccionado.
-  // Si escribe monto personalizado, guardamos el valor absoluto.
+  // Propina: 10% por defecto. Si el cliente escribe un monto fijo, se usa ese.
   const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
 
   // Reset al abrir
   useEffect(() => {
     if (open) {
-      setPaso("propina");
+      setPaso("items");
       setSelected(new Set());
       setMetodo("EFECTIVO");
       setPropinaPct(0.1);
@@ -128,7 +126,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           onOpenChange(false);
           navigate({ to: "/servicio" });
         } else {
-          setPaso("propina");
+          setPaso("items");
           setSelected(new Set());
           setPropinaPct(0.1);
           setPropinaCustom(null);
@@ -142,14 +140,24 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   });
 
   const tituloPaso =
-    paso === "propina"
-      ? "Propina"
-      : paso === "items"
-        ? "Selecciona los productos a cobrar"
-        : "Método de pago";
+    paso === "items"
+      ? "Selecciona los productos a cobrar"
+      : "Método de pago";
 
-  const backTo: Paso | null =
-    paso === "items" ? "propina" : paso === "metodo" ? "items" : null;
+  const backTo: Paso | null = paso === "metodo" ? "items" : null;
+
+  const propinaProps = {
+    propinaPct,
+    propinaCustom,
+    onPickPct: (pct: number) => {
+      setPropinaPct(pct);
+      setPropinaCustom(null);
+    },
+    onCustom: (val: number | null) => {
+      setPropinaCustom(val);
+      setPropinaPct(null);
+    },
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -174,20 +182,6 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : paso === "propina" ? (
-          <PasoPropina
-            propinaPct={propinaPct}
-            propinaCustom={propinaCustom}
-            onPickPct={(pct) => {
-              setPropinaPct(pct);
-              setPropinaCustom(null);
-            }}
-            onCustom={(val) => {
-              setPropinaCustom(val);
-              setPropinaPct(null);
-            }}
-            onContinue={() => setPaso("items")}
-          />
         ) : paso === "items" ? (
           <PasoItems
             items={items}
@@ -198,6 +192,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             totalSeleccionado={totalSeleccionado}
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
             propina={propina}
+            propinaProps={propinaProps}
             onContinue={() => setPaso("metodo")}
           />
         ) : (
@@ -207,7 +202,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             total={totalSeleccionado}
             propina={propina}
             totalConPropina={totalConPropina}
-            onEditarPropina={() => setPaso("propina")}
+            propinaProps={propinaProps}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -227,97 +222,103 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   );
 }
 
-function PasoPropina({
-  propinaPct,
-  propinaCustom,
-  onPickPct,
-  onCustom,
-  onContinue,
-}: {
+type PropinaProps = {
   propinaPct: number | null;
   propinaCustom: number | null;
   onPickPct: (pct: number) => void;
   onCustom: (val: number | null) => void;
-  onContinue: () => void;
+};
+
+function PropinaResumenRow({
+  propina,
+  propinaProps,
+}: {
+  propina: number;
+  propinaProps: PropinaProps;
 }) {
+  const { propinaPct, propinaCustom, onPickPct, onCustom } = propinaProps;
   const [customStr, setCustomStr] = useState<string>(
     propinaCustom !== null ? String(propinaCustom) : "",
   );
 
-  const opciones: { pct: number; label: string }[] = [
-    { pct: 0, label: "Sin propina" },
-    { pct: 0.05, label: "5%" },
-    { pct: 0.1, label: "10%" },
-    { pct: 0.15, label: "15%" },
-  ];
+  useEffect(() => {
+    setCustomStr(propinaCustom !== null ? String(propinaCustom) : "");
+  }, [propinaCustom]);
+
+  const etiqueta =
+    propinaCustom !== null
+      ? "monto fijo"
+      : `${Math.round((propinaPct ?? 0) * 100)}%`;
+
+  const opciones = [0, 0.05, 0.1, 0.15];
 
   return (
-    <>
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
-        <div className="rounded-2xl bg-primary/5 border border-primary/20 p-5 text-center space-y-2">
-          <HandCoins className="h-10 w-10 mx-auto text-primary" />
-          <h3 className="text-xl font-bold">Pregúntale al cliente</h3>
-          <p className="text-sm text-muted-foreground">
-            ¿Desea dejar propina? Muéstrale el celular para que elija.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {opciones.map((o) => {
-            const active = propinaCustom === null && propinaPct === o.pct;
-            return (
-              <button
-                key={o.pct}
-                type="button"
-                onClick={() => {
-                  onPickPct(o.pct);
-                  setCustomStr("");
+    <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <span>Propina · {etiqueta}</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11px] font-normal text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
+            >
+              Editar
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-56 p-3 space-y-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                Porcentaje
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {opciones.map((pct) => {
+                  const active = propinaCustom === null && propinaPct === pct;
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => {
+                        onPickPct(pct);
+                        setCustomStr("");
+                      }}
+                      className={`rounded-md border px-1 py-1.5 text-xs transition-colors ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border bg-card hover:bg-muted"
+                      }`}
+                    >
+                      {Math.round(pct * 100)}%
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="propina-custom" className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Monto fijo
+              </Label>
+              <Input
+                id="propina-custom"
+                inputMode="numeric"
+                placeholder="0"
+                value={customStr}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setCustomStr(v);
+                  onCustom(v === "" ? null : Number(v));
                 }}
-                className={`rounded-xl border-2 px-3 py-6 text-center transition-colors ${
-                  active
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card hover:bg-muted"
-                }`}
-              >
-                <div className="text-2xl font-bold">{o.label}</div>
-                {o.pct > 0 && (
-                  <div className="text-[11px] text-muted-foreground mt-1">
-                    sobre el total
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="rounded-xl border p-4 space-y-2">
-          <Label htmlFor="propina-custom" className="text-sm">
-            O un monto fijo (opcional)
-          </Label>
-          <Input
-            id="propina-custom"
-            inputMode="numeric"
-            placeholder="Ej: 5000"
-            value={customStr}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^\d]/g, "");
-              setCustomStr(v);
-              onCustom(v === "" ? null : Number(v));
-            }}
-            className={propinaCustom !== null ? "border-primary" : ""}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Si escribes un monto se usa este valor en vez del porcentaje.
-          </p>
-        </div>
+                className={`mt-1 h-8 ${propinaCustom !== null ? "border-primary" : ""}`}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
-
-      <div className="border-t bg-card px-5 py-4">
-        <Button size="lg" className="w-full" onClick={onContinue}>
-          Continuar
-        </Button>
-      </div>
-    </>
+      <span className="tabular-nums font-medium text-foreground">
+        {fmt.format(propina)}
+      </span>
+    </div>
   );
 }
 
@@ -330,6 +331,7 @@ function PasoItems({
   totalSeleccionado,
   totalPendiente,
   propina,
+  propinaProps,
   onContinue,
 }: {
   items: ItemCobrable[];
@@ -340,6 +342,7 @@ function PasoItems({
   totalSeleccionado: number;
   totalPendiente: number;
   propina: number;
+  propinaProps: PropinaProps;
   onContinue: () => void;
 }) {
   const { grupos, pagados } = useMemo(() => {
@@ -484,10 +487,7 @@ function PasoItems({
             <span>Subtotal</span>
             <span className="tabular-nums">{fmt.format(totalSeleccionado)}</span>
           </div>
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>Propina</span>
-            <span className="tabular-nums">{fmt.format(propina)}</span>
-          </div>
+          <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
             <span className="text-2xl font-bold tabular-nums text-primary">
@@ -514,7 +514,7 @@ function PasoMetodo({
   total,
   propina,
   totalConPropina,
-  onEditarPropina,
+  propinaProps,
   onPagar,
   isLoading,
 }: {
@@ -523,7 +523,7 @@ function PasoMetodo({
   total: number;
   propina: number;
   totalConPropina: number;
-  onEditarPropina: () => void;
+  propinaProps: PropinaProps;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;
@@ -598,19 +598,7 @@ function PasoMetodo({
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums font-medium">{fmt.format(total)}</span>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              Propina
-              <button
-                type="button"
-                onClick={onEditarPropina}
-                className="ml-2 text-xs underline text-primary hover:opacity-80"
-              >
-                editar
-              </button>
-            </span>
-            <span className="tabular-nums font-medium">{fmt.format(propina)}</span>
-          </div>
+          <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="h-px bg-border my-1" />
           <div className="flex items-end justify-between">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
