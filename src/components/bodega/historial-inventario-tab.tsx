@@ -155,7 +155,8 @@ export function HistorialInventarioTab() {
       if (term) {
         const motivo = (r.motivo ?? "").toLowerCase();
         const nombre = (r.insumos?.nombre_insumo ?? "").toLowerCase();
-        if (!motivo.includes(term) && !nombre.includes(term)) return false;
+        const responsable = (r.usuarios_staff?.nombre ?? "").toLowerCase();
+        if (!motivo.includes(term) && !nombre.includes(term) && !responsable.includes(term)) return false;
       }
       return true;
     });
