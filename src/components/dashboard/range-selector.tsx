@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type RangoPreset = "hoy" | "7d" | "30d" | "custom";
 
@@ -52,6 +53,7 @@ export function RangeSelector({
   onChange: (v: DateRangeValue) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const isMobile = useIsMobile();
   const [range, setRange] = React.useState<{ from?: Date; to?: Date }>({
     from: value.desde ? new Date(value.desde) : undefined,
     to: value.hasta ? new Date(value.hasta) : undefined,
@@ -89,7 +91,7 @@ export function RangeSelector({
       : presetLabel(value.rango);
 
   return (
-    <div className="inline-flex rounded-md border bg-card p-1">
+    <div className="inline-flex flex-wrap rounded-md border bg-card p-1">
       {presets.map((p) =>
         p === "custom" ? (
           <Popover key={p} open={open} onOpenChange={setOpen}>
@@ -106,7 +108,13 @@ export function RangeSelector({
                 {value.rango === "custom" ? displayText : "Personalizado"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
+            <PopoverContent
+              className="w-auto max-w-[95vw] p-0"
+              align={isMobile ? "center" : "end"}
+              side="bottom"
+              sideOffset={8}
+              collisionPadding={12}
+            >
               <div className="p-3 pointer-events-auto">
                 <Calendar
                   mode="range"
@@ -117,7 +125,8 @@ export function RangeSelector({
                   onSelect={(selected) => {
                     setRange({ from: selected?.from, to: selected?.to });
                   }}
-                  numberOfMonths={2}
+                  numberOfMonths={isMobile ? 1 : 2}
+                  className="[&_button]:h-10 [&_button]:w-10 sm:[&_button]:h-9 sm:[&_button]:w-9"
                 />
                 <div className="flex justify-end gap-2 p-3 pt-0">
                   <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
