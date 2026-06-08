@@ -17,6 +17,7 @@ export interface ItemPreparacion {
   id_pedido: string;
   id_producto: string;
   nombre_producto: string;
+  nombre_subcategoria: string | null;
   cantidad: number;
   tiene_alergia: boolean;
   nota: string | null;
