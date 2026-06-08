@@ -485,12 +485,14 @@ function MesaHeader({
   pagando,
   onCerrar,
   estado,
+  onReasignar,
 }: {
   mesa: MesaSesion;
   onPagar: () => void;
   pagando: boolean;
   onCerrar: () => void;
   estado: import("@/lib/pagos.functions").EstadoCierreMesa | null;
+  onReasignar?: () => void;
 }) {
   const tiempo = mesa.asignada_at
     ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
@@ -513,11 +515,27 @@ function MesaHeader({
           value={`${tiempo} min`}
           icon={<Clock className="h-4 w-4" />}
         />
-        <Stat
-          label="Mesero"
-          value={mesa.mesero_nombre ?? "Sin asignar"}
-          icon={<UserCheck className="h-4 w-4" />}
-        />
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <UserCheck className="h-4 w-4" />
+            Mesero
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <p className="font-bold tabular-nums truncate text-lg">
+              {mesa.mesero_nombre ?? "Sin asignar"}
+            </p>
+            {onReasignar && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onReasignar}
+              >
+                Cambiar
+              </Button>
+            )}
+          </div>
+        </div>
         <Stat
           label="Pedidos activos"
           value={String(mesa.pedidos.length)}
