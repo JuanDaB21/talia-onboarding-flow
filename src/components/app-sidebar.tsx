@@ -84,7 +84,6 @@ const CONFIG_NAV = [
 
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/caja", label: "Caja", icon: Wallet },
 ] as const;
 
