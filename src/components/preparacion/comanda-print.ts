@@ -62,10 +62,28 @@ function renderItem(it: ComandaItemPrint): string {
   return `<li class="item">${head}${extras}${excl}${alergia}${nota}</li>`;
 }
 
+function renderItems(items: ComandaItemPrint[]): string {
+  if (!items.length) return `<p class="empty">Sin items para esta estación.</p>`;
+  // Asume items ya ordenados por subcategoría y nombre.
+  const out: string[] = [];
+  let currentSub: string | null | undefined = undefined;
+  items.forEach((it) => {
+    const sub = it.nombre_subcategoria ?? null;
+    if (sub !== currentSub) {
+      if (out.length) out.push(`</ul>`);
+      out.push(
+        `<div class="subcat">${escapeHtml(sub ?? "Otros")}</div><ul class="items">`,
+      );
+      currentSub = sub;
+    }
+    out.push(renderItem(it));
+  });
+  if (out.length) out.push(`</ul>`);
+  return out.join("");
+}
+
 function renderComanda(c: ComandaPrintData, negocio: string): string {
-  const items = c.items.length
-    ? `<ul class="items">${c.items.map(renderItem).join("")}</ul>`
-    : `<p class="empty">Sin items para esta estación.</p>`;
+  const items = renderItems(c.items);
   const mesero = c.mesero ? ` · ${escapeHtml(c.mesero)}` : "";
   const pedidoCorto = c.pedido_id.slice(0, 6);
   return `
