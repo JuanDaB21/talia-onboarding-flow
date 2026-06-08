@@ -214,8 +214,6 @@ export function AppSidebar() {
 
       <SidebarContent>
         {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
-        {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
-        {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.servicio && renderGroup("Servicio", SERVICIO_NAV)}
         {(grupos.cocina || grupos.barra) && (
           <SidebarGroup>
@@ -256,6 +254,8 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+        {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
+        {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.config && renderGroup("Configuración", CONFIG_NAV)}
       </SidebarContent>
 
