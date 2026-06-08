@@ -160,7 +160,7 @@ export function ComandaSheet({
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {(() => {
-            const nodes: React.ReactNode[] = [];
+            const nodes: ReactNode[] = [];
             let currentSub: string | null | undefined = undefined;
             comanda.items.forEach((it) => {
               const sub = it.nombre_subcategoria ?? null;
