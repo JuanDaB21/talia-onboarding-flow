@@ -3,13 +3,25 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink, UserX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno } from "@/lib/admin.functions";
+import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno, type StaffEnTurno } from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
+import { inhabilitarStaff } from "@/lib/usuarios.functions";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
