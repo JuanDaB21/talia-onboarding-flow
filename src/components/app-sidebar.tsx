@@ -91,18 +91,38 @@ function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
     return {
       admin: true,
+      dashboard: true,
+      caja: true,
       bodega: true,
       menu: true,
+      operacion: true,
       servicio: true,
       cocina: true,
       barra: true,
       config: true,
     };
   }
+  if (rol === "CAJERO") {
+    return {
+      admin: true,
+      dashboard: false,
+      caja: true,
+      bodega: false,
+      menu: false,
+      operacion: true,
+      servicio: true,
+      cocina: false,
+      barra: false,
+      config: false,
+    };
+  }
   return {
     admin: false,
+    dashboard: false,
+    caja: false,
     bodega: false,
     menu: false,
+    operacion: false,
     servicio: rol === "MESERO",
     cocina: rol === "COCINA",
     barra: rol === "BARRA",
