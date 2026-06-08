@@ -213,50 +213,23 @@ export function AppSidebar() {
 
       <SidebarContent>
         {grupos.admin && renderGroup("Administración", ADMIN_NAV)}
-        {grupos.servicio && renderGroup("Servicio", SERVICIO_NAV)}
-        {(grupos.cocina || grupos.barra) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Preparación</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {grupos.cocina &&
-                  COCINA_NAV.map((item) => {
-                    const Icon = item.icon;
-                    const active = pathname.startsWith(item.to);
-                    return (
-                      <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to} onClick={closeIfMobile}>
-                            <Icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                {grupos.barra &&
-                  BARRA_NAV.map((item) => {
-                    const Icon = item.icon;
-                    const active = pathname.startsWith(item.to);
-                    return (
-                      <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
-                          <Link to={item.to} onClick={closeIfMobile}>
-                            <Icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {(grupos.servicio || grupos.cocina || grupos.barra) &&
+          renderGroup(
+            "Servicio",
+            SERVICIO_NAV.filter((item) => {
+              if (grupos.admin) return true;
+              if (item.to === "/operacion") return false;
+              if (item.to === "/servicio") return grupos.servicio;
+              if (item.to === "/cocina") return grupos.cocina;
+              if (item.to === "/barra") return grupos.barra;
+              return false;
+            }),
+          )}
         {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
         {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.config && renderGroup("Configuración", CONFIG_NAV)}
       </SidebarContent>
+
 
       <SidebarFooter>
         <SidebarMenu>
