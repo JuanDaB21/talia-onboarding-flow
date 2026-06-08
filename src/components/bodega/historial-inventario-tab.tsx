@@ -267,7 +267,7 @@ export function HistorialInventarioTab() {
                     <TableCell className="hidden sm:table-cell text-sm max-w-[280px] truncate">
                       {r.motivo ?? "—"}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">
+                    <TableCell className="hidden sm:table-cell text-sm">
                       {r.usuarios_staff?.nombre ?? "—"}
                     </TableCell>
                   </TableRow>
