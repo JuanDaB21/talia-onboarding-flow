@@ -17,6 +17,7 @@ export interface ItemPreparacion {
   id_pedido: string;
   id_producto: string;
   nombre_producto: string;
+  nombre_subcategoria: string | null;
   cantidad: number;
   tiene_alergia: boolean;
   nota: string | null;
@@ -53,7 +54,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
       .select(
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
          estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
-         productos:id_producto(nombre_producto),
+         productos:id_producto(nombre_producto, receta_master:id_receta(subcategorias:id_subcategoria(nombre))),
          pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
       .eq("destino", data.destino)
@@ -70,7 +71,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
       .select(
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
          estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
-         productos:id_producto(nombre_producto),
+         productos:id_producto(nombre_producto, receta_master:id_receta(subcategorias:id_subcategoria(nombre))),
          pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
       .eq("destino", data.destino)
@@ -118,11 +119,13 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
     const mapItem = (i: any): ItemPreparacion => {
       const p = i.pedidos;
       const prod = i.productos;
+      const subcat = prod?.receta_master?.subcategorias?.nombre ?? null;
       return {
         id_item: i.id_item,
         id_pedido: i.id_pedido,
         id_producto: i.id_producto,
         nombre_producto: prod?.nombre_producto ?? "—",
+        nombre_subcategoria: subcat,
         cantidad: Number(i.cantidad),
         tiene_alergia: Boolean(i.tiene_alergia),
         nota: i.nota,
@@ -177,6 +180,18 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         grupos.set(it.id_pedido, g);
       }
       g.items.push(it);
+    });
+
+    // Ordenar items por subcategoría y luego por nombre (alfabético, es)
+    const collator = new Intl.Collator("es", { sensitivity: "base" });
+    grupos.forEach((g) => {
+      g.items.sort((a, b) => {
+        const sa = a.nombre_subcategoria ?? "\uffff";
+        const sb = b.nombre_subcategoria ?? "\uffff";
+        const cmp = collator.compare(sa, sb);
+        if (cmp !== 0) return cmp;
+        return collator.compare(a.nombre_producto, b.nombre_producto);
+      });
     });
 
     const comandas = Array.from(grupos.values()).sort(

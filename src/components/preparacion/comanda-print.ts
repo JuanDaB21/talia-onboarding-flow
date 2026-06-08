@@ -5,6 +5,7 @@ export type ComandaDestino = "COCINA" | "BARRA";
 export interface ComandaItemPrint {
   cantidad: number;
   nombre_producto: string;
+  nombre_subcategoria?: string | null;
   tiene_alergia?: boolean;
   nota?: string | null;
   extras?: { nombre: string; cantidad?: number }[];
@@ -61,10 +62,28 @@ function renderItem(it: ComandaItemPrint): string {
   return `<li class="item">${head}${extras}${excl}${alergia}${nota}</li>`;
 }
 
+function renderItems(items: ComandaItemPrint[]): string {
+  if (!items.length) return `<p class="empty">Sin items para esta estación.</p>`;
+  // Asume items ya ordenados por subcategoría y nombre.
+  const out: string[] = [];
+  let currentSub: string | null | undefined = undefined;
+  items.forEach((it) => {
+    const sub = it.nombre_subcategoria ?? null;
+    if (sub !== currentSub) {
+      if (out.length) out.push(`</ul>`);
+      out.push(
+        `<div class="subcat">${escapeHtml(sub ?? "Otros")}</div><ul class="items">`,
+      );
+      currentSub = sub;
+    }
+    out.push(renderItem(it));
+  });
+  if (out.length) out.push(`</ul>`);
+  return out.join("");
+}
+
 function renderComanda(c: ComandaPrintData, negocio: string): string {
-  const items = c.items.length
-    ? `<ul class="items">${c.items.map(renderItem).join("")}</ul>`
-    : `<p class="empty">Sin items para esta estación.</p>`;
+  const items = renderItems(c.items);
   const mesero = c.mesero ? ` · ${escapeHtml(c.mesero)}` : "";
   const pedidoCorto = c.pedido_id.slice(0, 6);
   return `
@@ -111,7 +130,16 @@ const STYLES = `
   .mesa { font-size: 16pt; font-weight: bold; margin-top: 1mm; }
   .meta { font-size: 9pt; }
   hr { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
-  ul.items { list-style: none; padding: 0; margin: 0; }
+  ul.items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+  .subcat {
+    margin: 2mm 0 1mm 0;
+    font-size: 11pt;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.5mm;
+  }
   li.item { padding: 2mm 0; border-bottom: 1px dotted #000; }
   li.item:last-child { border-bottom: none; }
   .item-head { display: flex; gap: 2mm; align-items: baseline; }
