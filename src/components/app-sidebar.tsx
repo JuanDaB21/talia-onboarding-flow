@@ -25,6 +25,7 @@ import {
   Wallet,
   Palette,
   QrCode,
+  Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -82,10 +83,7 @@ const COCINA_NAV = [{ to: "/cocina", label: "Cocina", icon: Flame }] as const;
 const BARRA_NAV = [{ to: "/barra", label: "Barra", icon: Wine }] as const;
 
 const CONFIG_NAV = [
-  { to: "/configuracion/usuarios", label: "Usuarios", icon: Users },
-  { to: "/configuracion/mesas", label: "Mesas", icon: Utensils },
-  { to: "/configuracion/metodos-pago", label: "Métodos de pago", icon: QrCode },
-  { to: "/configuracion/apariencia", label: "Menú público", icon: Palette },
+  { to: "/configuracion", label: "Configuración", icon: Settings },
 ] as const;
 
 const ADMIN_NAV = [
