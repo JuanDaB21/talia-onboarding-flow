@@ -1,43 +1,56 @@
-## Propina inline al cobrar (10% por defecto, edición discreta)
+## Métodos de pago con QR
 
-Hoy al cobrar el mesero ve una pantalla dedicada de "Propina" como **primer paso** del `PagarSheet` con botones grandes (Sin propina / 5% / 10% / 15% + monto fijo). La propina ya queda en el resumen del paso "Método", con un link "editar" que devuelve al primer paso.
+Permitir al admin subir un QR por cada plataforma de transferencia (Nequi, Daviplata, Bancolombia, Otra). Al cobrar, cuando el mesero elija la plataforma se muestra el QR a pantalla completa para que el cliente lo escanee.
 
-El cliente debería ver la propina al **momento del cobro**, ya prellenada al 10% del total, con un botón **discreto** para editarla, y poder bajarla a 0 — pero la línea de propina no se elimina.
+### 1. Backend
 
-### Cambios
+**Nueva tabla `metodos_pago_qr`** (migración):
+- `id_qr` uuid PK
+- `id_negocio` uuid FK → `negocio`
+- `plataforma` text (uno de: `Nequi`, `Daviplata`, `Bancolombia`, `Otra`)
+- `etiqueta` text nullable (para "Otra", ej. "Movii")
+- `url_qr` text (path en bucket)
+- `titular` text nullable (nombre / referencia visible)
+- `created_at`, `updated_at`
+- Unique `(id_negocio, plataforma, etiqueta)` para evitar duplicados.
+- RLS: SELECT/INSERT/UPDATE/DELETE para staff del mismo negocio (patrón existente vía `usuarios_staff`). GRANT a `authenticated` y `service_role`.
 
-**Editar `src/components/servicio/pagar-sheet.tsx`**
+**Bucket de storage `qr-metodos-pago`** (privado). Políticas RLS sobre `storage.objects`:
+- SELECT: cualquier staff autenticado del mismo negocio (path prefix `{id_negocio}/`).
+- INSERT/UPDATE/DELETE: solo ADMIN/SUPERADMIN del negocio.
 
-1. **Eliminar el paso dedicado `propina`.** El sheet ahora arranca en `items`.
-   - Quitar `"propina"` del tipo `Paso` y de las inicializaciones / resets.
-   - `setPaso("propina")` → `setPaso("items")` en `useEffect` de apertura y en el `onSuccess` del pago.
-   - Quitar el bloque `paso === "propina" ? <PasoPropina .../>` del render.
-   - Quitar `backTo` de `items` (ya no hay paso previo); en `metodo` el back vuelve a `items`.
+**`src/lib/metodos-pago.functions.ts`** (nuevo):
+- `listarMetodosPagoQr()` → devuelve la lista con URLs firmadas (10 min).
+- `guardarMetodoPagoQr({ plataforma, etiqueta?, path, titular? })` (admin).
+- `eliminarMetodoPagoQr({ idQr })` (admin).
+- Subida del archivo se hace desde el cliente con `supabase.storage.from("qr-metodos-pago").upload(...)` igual que comprobantes-pago, y luego se llama a `guardarMetodoPagoQr` con el path.
 
-2. **Estado de propina simplificado.** Mantener una sola fuente: `propinaPct` (default `0.1`) y `propinaCustom` (number | null). El cálculo de `propina` queda igual.
+### 2. UI · Configuración
 
-3. **Nuevo componente discreto `PropinaResumenRow`** que se reutiliza en el resumen del paso `items` (footer) y en el resumen del paso `metodo` (caja superior):
-   - Muestra `Propina · {pct}%` (o `monto fijo` si es custom) a la izquierda y `{fmt.format(propina)}` a la derecha.
-   - Junto al label un botón pequeño tipo ghost/link (`text-xs text-muted-foreground underline-offset-2 hover:underline`, sin color primario, sin íconos llamativos) con texto "Editar".
-   - Click abre un `Popover` (shadcn ya disponible) anclado al botón con:
-     - 4 chips compactos: `0%`, `5%`, `10%`, `15%` (sin botón "Sin propina" — `0%` es la forma de poner cero, la fila sigue visible mostrando `$0`).
-     - Input pequeño "Monto fijo" (numérico, ≥ 0) que al escribir setea `propinaCustom` y `propinaPct=null`.
-     - Sin botón "Eliminar" ni opción para ocultar la propina.
+**Sidebar**: agregar entrada `Métodos de pago` en `CONFIG_NAV` (icono `QrCode` de lucide), apuntando a `/configuracion/metodos-pago`.
 
-4. **Borrar `PasoPropina`** (componente local del archivo) cuando ya no se use, junto con su import `HandCoins` si queda huérfano.
+**Nueva ruta `src/routes/_app.configuracion.metodos-pago.tsx`** que monta `MetodosPagoTab` y exige `idNegocio` igual que `usuarios`.
 
-5. **`PasoMetodo`**: reemplazar el link `editar` actual (texto primario subrayado) por el nuevo `PropinaResumenRow` discreto. Quitar el prop `onEditarPropina`.
+**Nuevo componente `src/components/configuracion/metodos-pago-tab.tsx`**:
+- Lista de 4 tarjetas: Nequi, Daviplata, Bancolombia, y un bloque "Otras" con botón "Agregar otra".
+- Cada tarjeta muestra: nombre, miniatura del QR si existe (o placeholder), campo opcional "titular/referencia", botones "Subir / cambiar QR" y "Eliminar".
+- Validaciones: imagen ≤ 8MB, tipos image/*.
+- Solo visible/editable para ADMIN/SUPERADMIN (usar `useMiStaff`); para otros roles se redirige fuera (no debería verse pues sidebar lo filtra).
 
-6. **`PasoItems`**: en el footer agregar la fila propina con el mismo `PropinaResumenRow`. Ya muestra Subtotal + Propina + Total — solo se reemplaza la fila propina estática por la versión editable.
+### 3. UI · Cobro (mesero)
 
-### Detalles visuales
+En `src/components/servicio/pagar-sheet.tsx`, dentro de `PasoMetodo` cuando `metodo === "TRANSFERENCIA"`:
+- Cargar `listarMetodosPagoQr` (TanStack Query, key `["metodosPagoQr"]`) una vez al abrir el método transferencia.
+- Al hacer click en una plataforma (Nequi/Daviplata/Bancolombia/Otra) que tenga QR cargado, abrir un `Dialog` nuevo `QrDialog` mostrando:
+  - Título: "Escanea con {plataforma}".
+  - Subtítulo: titular si existe.
+  - Imagen QR grande (max-w 80vw / 400px), centrada, fondo blanco.
+  - Botón "Cerrar".
+- La selección de plataforma sigue funcionando como hoy (se sigue exigiendo `subtipo` + comprobante). El QR es solo una ayuda visual; el flujo de subir comprobante no cambia.
+- Si la plataforma no tiene QR cargado: badge sutil "Sin QR configurado" y un texto pequeño "Pídele al admin que cargue el QR en Configuración → Métodos de pago".
+- Para "Otra", si hay varios registros con distintas etiquetas, mostrar un selector compacto con cada etiqueta antes de abrir el QR.
 
-- Botón "Editar": `variant="ghost"`, `size="sm"`, `h-6 px-2 text-[11px] text-muted-foreground`. Sin `text-primary`, sin ícono, sin borde.
-- Popover ancho compacto (`w-56`), chips en grid 4 columnas con `text-xs`.
-- La línea de propina se renderiza siempre, incluso cuando vale `$0`, para dejar claro que el cliente decidió no dejar propina.
-
-### Fuera de alcance
-
-- No se modifica el backend ni el esquema (`registrarPago` ya recibe `propina: number`, acepta 0).
-- No se toca la `CuentaDialog` del cliente en `carta.$idMesa.tsx` — el cobro real es presencial mediante `PagarSheet` (el mesero le pasa el dispositivo al cliente).
-- No se cambia la lógica de selección de ítems ni los métodos de pago.
+### 4. Fuera de alcance
+- No se cambia el esquema de `pagos` ni `registrar_pago`.
+- No se muestra el QR en la vista del cliente (`carta.$idMesa.tsx`); el cobro real sigue siendo presencial vía el sheet del mesero.
+- No se agregan métodos de pago nuevos al enum `metodo` (sigue EFECTIVO/TRANSFERENCIA/DATAFONO).
