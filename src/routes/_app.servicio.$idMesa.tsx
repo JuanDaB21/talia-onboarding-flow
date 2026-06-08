@@ -376,7 +376,7 @@ function MesaEnServicio() {
         pagando={false}
         onCerrar={() => setCerrarOpen(true)}
         estado={estadoQ.data ?? null}
-        onReasignar={() => setReasignarOpen(true)}
+        onReasignar={puedeReasignar ? () => setReasignarOpen(true) : undefined}
       />
 
       {/* Pedidos confirmados */}
