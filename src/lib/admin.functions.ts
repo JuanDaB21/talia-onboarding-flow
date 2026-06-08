@@ -127,6 +127,7 @@ export const getAlertasOperacion = createServerFn({ method: "GET" })
       if (trans > planeado * 1.2) {
         alertas.push({
           id_item: it.id_item,
+          id_mesa: (anyIt.pedidos?.id_mesa as string | undefined) ?? null,
           identificador_mesa: mesasMap.get(anyIt.pedidos?.id_mesa) ?? "—",
           producto: anyIt.productos?.nombre_producto ?? "—",
           destino: (it.destino as string | null) ?? null,
