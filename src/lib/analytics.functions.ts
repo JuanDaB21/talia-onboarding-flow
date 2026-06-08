@@ -2,19 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const rangoSchema = z.object({ rango: z.enum(["hoy", "7d", "30d"]) });
-
-function rangoToDesde(rango: "hoy" | "7d" | "30d"): string {
-  const d = new Date();
-  if (rango === "hoy") {
-    d.setHours(0, 0, 0, 0);
-  } else if (rango === "7d") {
-    d.setDate(d.getDate() - 7);
-  } else {
-    d.setDate(d.getDate() - 30);
-  }
-  return d.toISOString();
-}
+const rangeSchema = z.object({ desde: z.string(), hasta: z.string() });
 
 // ============================================================
 // 1. INGENIERÍA DEL MENÚ
@@ -44,17 +32,18 @@ export interface IngenieriaMenu {
 
 export const getIngenieriaMenu = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => rangoSchema.parse(input))
+  .inputValidator((input) => rangeSchema.parse(input))
   .handler(async ({ data, context }): Promise<IngenieriaMenu> => {
     const { supabase } = context;
-    const desde = rangoToDesde(data.rango);
+    const { desde, hasta } = data;
 
     // Pedidos confirmados/pagados
     const { data: pedidos } = await supabase
       .from("pedidos")
       .select("id_pedido")
       .in("estado", ["CONFIRMADO", "PAGADO"])
-      .gte("created_at", desde);
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
     const idsP = (pedidos ?? []).map((p) => p.id_pedido);
 
     const ventas = new Map<string, number>();
@@ -155,17 +144,18 @@ export interface ComportamientoCliente {
 
 export const getComportamientoCliente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => rangoSchema.parse(input))
+  .inputValidator((input) => rangeSchema.parse(input))
   .handler(async ({ data, context }): Promise<ComportamientoCliente> => {
     const { supabase } = context;
-    const desde = rangoToDesde(data.rango);
+    const { desde, hasta } = data;
 
     // Heatmap por pagos confirmados
     const { data: pagos } = await supabase
       .from("pagos")
       .select("monto, created_at")
       .eq("estado_confirmacion", "CONFIRMADO")
-      .gte("created_at", desde);
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
     const heatmap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
     let ventas = 0;
     for (const p of pagos ?? []) {
@@ -179,7 +169,8 @@ export const getComportamientoCliente = createServerFn({ method: "POST" })
       .from("pedidos")
       .select("id_pedido, id_mesa, pagado_at")
       .eq("estado", "PAGADO")
-      .gte("pagado_at", desde);
+      .gte("pagado_at", desde)
+      .lte("pagado_at", hasta);
     const mesasCerradas = new Set((ped ?? []).map((p) => p.id_mesa)).size;
     const ticket = mesasCerradas > 0 ? ventas / mesasCerradas : 0;
 
@@ -188,6 +179,7 @@ export const getComportamientoCliente = createServerFn({ method: "POST" })
       .from("pedidos")
       .select("id_pedido")
       .gte("created_at", desde)
+      .lte("created_at", hasta)
       .in("estado", ["CONFIRMADO", "PAGADO"]);
     const idsR = (pedRango ?? []).map((p) => p.id_pedido);
     let conExtras = 0;
@@ -245,17 +237,18 @@ export interface EficienciaOperativa {
 
 export const getEficienciaOperativa = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => rangoSchema.parse(input))
+  .inputValidator((input) => rangeSchema.parse(input))
   .handler(async ({ data, context }): Promise<EficienciaOperativa> => {
     const { supabase } = context;
-    const desde = rangoToDesde(data.rango);
+    const { desde, hasta } = data;
 
     // Ciclo de mesa: pedidos pagados con created_at y pagado_at
     const { data: pedPag } = await supabase
       .from("pedidos")
       .select("id_mesa, created_at, pagado_at, id_mesero, total")
       .eq("estado", "PAGADO")
-      .gte("pagado_at", desde);
+      .gte("pagado_at", desde)
+      .lte("pagado_at", hasta);
     // Agrupar por mesa+pagado_at (un cierre)
     let sumaCiclo = 0;
     let nCiclo = 0;
@@ -274,6 +267,7 @@ export const getEficienciaOperativa = createServerFn({ method: "POST" })
       .from("pedido_items")
       .select("id_producto, destino, iniciado_at, listo_at, tiempo_planeado_min, productos:id_producto(nombre_producto)")
       .gte("listo_at", desde)
+      .lte("listo_at", hasta)
       .not("iniciado_at", "is", null)
       .not("listo_at", "is", null);
     const agg = new Map<string, { nombre: string; destino: string | null; real: number; plan: number; n: number }>();
@@ -320,6 +314,7 @@ export const getEficienciaOperativa = createServerFn({ method: "POST" })
         .select("listo_at, entregado_at, pedidos!inner(id_mesero)")
         .eq("pedidos.id_mesero", m.id_usuario)
         .gte("entregado_at", desde)
+        .lte("entregado_at", hasta)
         .not("listo_at", "is", null)
         .not("entregado_at", "is", null);
       let sumR = 0;
@@ -369,17 +364,18 @@ export interface AlertasFugas {
 
 export const getAlertasFugas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => rangoSchema.parse(input))
+  .inputValidator((input) => rangeSchema.parse(input))
   .handler(async ({ data, context }): Promise<AlertasFugas> => {
     const { supabase } = context;
-    const desde = rangoToDesde(data.rango);
+    const { desde, hasta } = data;
 
     // Cancelados (si existe estado CANCELADO)
     const { count: cancelados } = await supabase
       .from("pedido_items")
       .select("id_item", { count: "exact", head: true })
       .eq("estado_preparacion", "CANCELADO")
-      .gte("created_at", desde);
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
 
     // Cuello de botella en vivo
     const { count: enCola } = await supabase
@@ -393,7 +389,8 @@ export const getAlertasFugas = createServerFn({ method: "POST" })
       .from("pedidos")
       .select("id_pedido")
       .in("estado", ["CONFIRMADO", "PAGADO"])
-      .gte("created_at", desde);
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
     const idsP = (ped ?? []).map((p) => p.id_pedido);
 
     const teorico = new Map<string, number>();
@@ -432,7 +429,8 @@ export const getAlertasFugas = createServerFn({ method: "POST" })
     const { data: movs } = await supabase
       .from("movimientos_inventario")
       .select("id_insumo, tipo_movimiento, cantidad")
-      .gte("created_at", desde);
+      .gte("created_at", desde)
+      .lte("created_at", hasta);
     for (const m of movs ?? []) {
       const tipo = String(m.tipo_movimiento).toUpperCase();
       const c = Number(m.cantidad);
