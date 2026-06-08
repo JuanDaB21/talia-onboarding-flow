@@ -375,6 +375,13 @@ function PropinaResumenRow({
   );
 }
 
+type BonoPreview = {
+  nombre: string;
+  porcentaje: number;
+  descuento: number;
+  descuento_neto: number;
+};
+
 function PasoItems({
   items,
   selected,
@@ -385,6 +392,10 @@ function PasoItems({
   totalPendiente,
   propina,
   propinaProps,
+  idBono,
+  setIdBono,
+  descuentoBono,
+  bonoInfo,
   onContinue,
 }: {
   items: ItemCobrable[];
@@ -396,6 +407,10 @@ function PasoItems({
   totalPendiente: number;
   propina: number;
   propinaProps: PropinaProps;
+  idBono: string | null;
+  setIdBono: (v: string | null) => void;
+  descuentoBono: number;
+  bonoInfo: BonoPreview | null;
   onContinue: () => void;
 }) {
   const { grupos, pagados } = useMemo(() => {
@@ -418,7 +433,7 @@ function PasoItems({
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
   const hayPendientes = grupos.length > 0;
-  const totalConPropina = totalSeleccionado + propina;
+  const totalConPropina = Math.max(0, totalSeleccionado - descuentoBono) + propina;
 
   return (
     <>
