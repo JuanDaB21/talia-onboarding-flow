@@ -283,15 +283,17 @@ function MesasGrid() {
                     ? "bg-destructive/15 text-destructive border-destructive/40"
                     : "bg-amber-500/15 text-amber-700 border-amber-500/40";
             return (
-              <div
+              <Link
                 key={m.id_mesa}
-                className={`rounded-md border p-2 text-center text-xs ${color}`}
+                to="/servicio/$idMesa"
+                params={{ idMesa: m.id_mesa }}
+                className={`rounded-md border p-2 text-center text-xs transition-colors hover:opacity-80 ${color}`}
                 title={m.mesero_nombre ?? ""}
               >
                 <div className="text-sm font-bold">{m.identificador}</div>
                 <div className="truncate">{m.estado}</div>
                 {m.mesero_nombre && <div className="truncate opacity-70">{m.mesero_nombre}</div>}
-              </div>
+              </Link>
             );
           })}
         </div>
