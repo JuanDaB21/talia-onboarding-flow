@@ -555,6 +555,13 @@ function PasoItems({
             <span>Subtotal</span>
             <span className="tabular-nums">{fmt.format(totalSeleccionado)}</span>
           </div>
+          <BonoRow
+            idBono={idBono}
+            setIdBono={setIdBono}
+            descuento={descuentoBono}
+            bonoInfo={bonoInfo}
+            disabled={selected.size === 0}
+          />
           <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
@@ -583,6 +590,8 @@ function PasoMetodo({
   propina,
   totalConPropina,
   propinaProps,
+  descuentoBono,
+  bonoInfo,
   onPagar,
   isLoading,
 }: {
@@ -592,6 +601,8 @@ function PasoMetodo({
   propina: number;
   totalConPropina: number;
   propinaProps: PropinaProps;
+  descuentoBono: number;
+  bonoInfo: BonoPreview | null;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;
