@@ -155,7 +155,8 @@ export function HistorialInventarioTab() {
       if (term) {
         const motivo = (r.motivo ?? "").toLowerCase();
         const nombre = (r.insumos?.nombre_insumo ?? "").toLowerCase();
-        if (!motivo.includes(term) && !nombre.includes(term)) return false;
+        const responsable = (r.usuarios_staff?.nombre ?? "").toLowerCase();
+        if (!motivo.includes(term) && !nombre.includes(term) && !responsable.includes(term)) return false;
       }
       return true;
     });
@@ -167,7 +168,7 @@ export function HistorialInventarioTab() {
         <div className="relative flex-1">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por insumo o motivo…"
+            placeholder="Buscar por insumo, motivo o responsable…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -222,7 +223,7 @@ export function HistorialInventarioTab() {
                   Anterior → Nuevo
                 </TableHead>
                 <TableHead className="hidden sm:table-cell">Motivo</TableHead>
-                <TableHead className="hidden md:table-cell">Responsable</TableHead>
+                <TableHead className="hidden sm:table-cell">Responsable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -267,7 +268,7 @@ export function HistorialInventarioTab() {
                     <TableCell className="hidden sm:table-cell text-sm max-w-[280px] truncate">
                       {r.motivo ?? "—"}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">
+                    <TableCell className="hidden sm:table-cell text-sm">
                       {r.usuarios_staff?.nombre ?? "—"}
                     </TableCell>
                   </TableRow>
