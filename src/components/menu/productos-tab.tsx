@@ -22,7 +22,7 @@ export interface Producto {
   activo: boolean;
 }
 
-export function ProductosTab({ idNegocio }: { idNegocio: string }) {
+export function ProductosTab({ idNegocio, autoEditId }: { idNegocio: string; autoEditId?: string }) {
   const [items, setItems] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -40,6 +40,12 @@ export function ProductosTab({ idNegocio }: { idNegocio: string }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!autoEditId || items.length === 0) return;
+    const match = items.find((p) => p.id_producto === autoEditId);
+    if (match) setSelected(match);
+  }, [autoEditId, items]);
 
   const toggleActivo = async (p: Producto, value: boolean) => {
     setItems((prev) => prev.map((x) => x.id_producto === p.id_producto ? { ...x, activo: value } : x));
