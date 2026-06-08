@@ -86,6 +86,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   // Propina: 10% por defecto. Si el cliente escribe un monto fijo, se usa ese.
   const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
+  const [idBono, setIdBono] = useState<string | null>(null);
 
   // Reset al abrir
   useEffect(() => {
@@ -95,6 +96,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       setMetodo("EFECTIVO");
       setPropinaPct(0.1);
       setPropinaCustom(null);
+      setIdBono(null);
     }
   }, [open]);
 
@@ -104,11 +106,27 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     () => items.filter((i) => selected.has(i.id_item)).reduce((a, b) => a + b.subtotal, 0),
     [items, selected],
   );
+
+  // Preview del bono según items seleccionados
+  const previewFn = useServerFn(previsualizarBono);
+  const itemIdsArr = useMemo(() => Array.from(selected), [selected]);
+  const bonoPreviewQ = useQuery({
+    queryKey: ["bonoPreview", idBono, itemIdsArr],
+    queryFn: () =>
+      previewFn({
+        data: { idBono: idBono!, itemIds: itemIdsArr },
+      }),
+    enabled: !!idBono && itemIdsArr.length > 0,
+  });
+  const descuentoBono = bonoPreviewQ.data?.descuento ?? 0;
+  const bonoInfo = bonoPreviewQ.data ?? null;
+
+  const subtotalConDescuento = Math.max(0, totalSeleccionado - descuentoBono);
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(totalSeleccionado * (propinaPct ?? 0));
-  const totalConPropina = totalSeleccionado + propina;
+      : Math.round(subtotalConDescuento * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuento + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
