@@ -53,6 +53,7 @@ export function RangeSelector({
   onChange: (v: DateRangeValue) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const isMobile = useIsMobile();
   const [range, setRange] = React.useState<{ from?: Date; to?: Date }>({
     from: value.desde ? new Date(value.desde) : undefined,
     to: value.hasta ? new Date(value.hasta) : undefined,
