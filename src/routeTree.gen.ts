@@ -35,6 +35,7 @@ import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.catego
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
 import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
+import { Route as AppConfiguracionBonosDescuentosRouteImport } from './routes/_app.configuracion.bonos-descuentos'
 import { Route as AppConfiguracionAparienciaRouteImport } from './routes/_app.configuracion.apariencia'
 import { Route as AppCajaCierreRouteImport } from './routes/_app.caja.cierre'
 import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.bodega.proveedores-insumos'
@@ -178,6 +179,12 @@ const AppConfiguracionMesasRoute = AppConfiguracionMesasRouteImport.update({
   path: '/mesas',
   getParentRoute: () => AppConfiguracionRoute,
 } as any)
+const AppConfiguracionBonosDescuentosRoute =
+  AppConfiguracionBonosDescuentosRouteImport.update({
+    id: '/bonos-descuentos',
+    path: '/bonos-descuentos',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionAparienciaRoute =
   AppConfiguracionAparienciaRouteImport.update({
     id: '/apariencia',
@@ -256,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
+  '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
+  '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
@@ -327,6 +336,7 @@ export interface FileRoutesById {
   '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/_app/caja/cierre': typeof AppCajaCierreRoute
   '/_app/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
+  '/_app/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/bodega/proveedores-insumos'
     | '/caja/cierre'
     | '/configuracion/apariencia'
+    | '/configuracion/bonos-descuentos'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
     | '/configuracion/usuarios'
@@ -399,6 +410,7 @@ export interface FileRouteTypes {
     | '/bodega/proveedores-insumos'
     | '/caja/cierre'
     | '/configuracion/apariencia'
+    | '/configuracion/bonos-descuentos'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
     | '/configuracion/usuarios'
@@ -437,6 +449,7 @@ export interface FileRouteTypes {
     | '/_app/bodega/proveedores-insumos'
     | '/_app/caja/cierre'
     | '/_app/configuracion/apariencia'
+    | '/_app/configuracion/bonos-descuentos'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/metodos-pago'
     | '/_app/configuracion/usuarios'
@@ -649,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionMesasRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/bonos-descuentos': {
+      id: '/_app/configuracion/bonos-descuentos'
+      path: '/bonos-descuentos'
+      fullPath: '/configuracion/bonos-descuentos'
+      preLoaderRoute: typeof AppConfiguracionBonosDescuentosRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/configuracion/apariencia': {
       id: '/_app/configuracion/apariencia'
       path: '/apariencia'
@@ -777,6 +797,7 @@ const AppCajaRouteWithChildren =
 
 interface AppConfiguracionRouteChildren {
   AppConfiguracionAparienciaRoute: typeof AppConfiguracionAparienciaRoute
+  AppConfiguracionBonosDescuentosRoute: typeof AppConfiguracionBonosDescuentosRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
   AppConfiguracionUsuariosRoute: typeof AppConfiguracionUsuariosRoute
@@ -785,6 +806,7 @@ interface AppConfiguracionRouteChildren {
 
 const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionAparienciaRoute: AppConfiguracionAparienciaRoute,
+  AppConfiguracionBonosDescuentosRoute: AppConfiguracionBonosDescuentosRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
   AppConfiguracionUsuariosRoute: AppConfiguracionUsuariosRoute,
