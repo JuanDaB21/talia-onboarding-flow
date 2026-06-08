@@ -659,3 +659,66 @@ export const detenerAlertaLlamado = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// Listar meseros activos del negocio (para reasignación)
+export const listarMeserosNegocio = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("usuarios_staff")
+      .select("id_usuario, nombre, esta_en_turno")
+      .eq("rol", "MESERO")
+      .eq("estado", "ACTIVO")
+      .order("nombre");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((u) => ({
+      id_usuario: u.id_usuario,
+      nombre: u.nombre,
+      esta_en_turno: u.esta_en_turno ?? false,
+    }));
+  });
+
+// Reasignar mesero a una mesa (MESERO, ADMIN, SUPERADMIN, CAJERO)
+const reasignarSchema = z.object({
+  idMesa: z.string().uuid(),
+  idMesero: z.string().uuid(),
+});
+export const reasignarMeseroMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => reasignarSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: yo } = await supabase
+      .from("usuarios_staff")
+      .select("rol, id_negocio")
+      .eq("id_usuario", userId)
+      .maybeSingle();
+    if (!yo) throw new Error("No autorizado");
+    const permitido = ["MESERO", "ADMIN", "SUPERADMIN", "CAJERO"];
+    if (!permitido.includes(yo.rol)) {
+      throw new Error("No tienes permiso para reasignar mesas");
+    }
+
+    const { data: nuevo, error: nErr } = await supabase
+      .from("usuarios_staff")
+      .select("id_usuario, rol, estado, id_negocio")
+      .eq("id_usuario", data.idMesero)
+      .maybeSingle();
+    if (nErr) throw new Error(nErr.message);
+    if (!nuevo || nuevo.rol !== "MESERO" || nuevo.estado !== "ACTIVO") {
+      throw new Error("Mesero inválido");
+    }
+    if (nuevo.id_negocio !== yo.id_negocio) {
+      throw new Error("Mesero de otro negocio");
+    }
+
+    const { error } = await supabase
+      .from("mesas")
+      .update({ id_mesero_asignado: data.idMesero, asignada_at: new Date().toISOString() })
+      .eq("id_mesa", data.idMesa);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+

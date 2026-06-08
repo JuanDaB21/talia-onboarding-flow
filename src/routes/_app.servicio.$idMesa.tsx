@@ -33,6 +33,8 @@ import {
   iniciarNuevoPedido,
   marcarPedidoEntregado,
   marcarSeguimientoVisto,
+  listarMeserosNegocio,
+  reasignarMeseroMesa,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
@@ -44,6 +46,22 @@ import {
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
@@ -291,6 +309,11 @@ function MesaEnServicio() {
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [reasignarOpen, setReasignarOpen] = useState(false);
+
+  const { rol } = useMiStaff();
+  const puedeReasignar =
+    rol === "MESERO" || rol === "ADMIN" || rol === "SUPERADMIN" || rol === "CAJERO";
 
   if (mesaQ.isLoading) {
     return (
@@ -353,6 +376,7 @@ function MesaEnServicio() {
         pagando={false}
         onCerrar={() => setCerrarOpen(true)}
         estado={estadoQ.data ?? null}
+        onReasignar={puedeReasignar ? () => setReasignarOpen(true) : undefined}
       />
 
       {/* Pedidos confirmados */}
@@ -451,6 +475,13 @@ function MesaEnServicio() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReasignarMeseroDialog
+        open={reasignarOpen}
+        onOpenChange={setReasignarOpen}
+        idMesa={idMesa}
+        meseroActualId={mesa.id_mesero_asignado}
+      />
     </div>
   );
 }
@@ -461,12 +492,14 @@ function MesaHeader({
   pagando,
   onCerrar,
   estado,
+  onReasignar,
 }: {
   mesa: MesaSesion;
   onPagar: () => void;
   pagando: boolean;
   onCerrar: () => void;
   estado: import("@/lib/pagos.functions").EstadoCierreMesa | null;
+  onReasignar?: () => void;
 }) {
   const tiempo = mesa.asignada_at
     ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
@@ -489,11 +522,27 @@ function MesaHeader({
           value={`${tiempo} min`}
           icon={<Clock className="h-4 w-4" />}
         />
-        <Stat
-          label="Mesero"
-          value={mesa.mesero_nombre ?? "Sin asignar"}
-          icon={<UserCheck className="h-4 w-4" />}
-        />
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <UserCheck className="h-4 w-4" />
+            Mesero
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <p className="font-bold tabular-nums truncate text-lg">
+              {mesa.mesero_nombre ?? "Sin asignar"}
+            </p>
+            {onReasignar && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={onReasignar}
+              >
+                Cambiar
+              </Button>
+            )}
+          </div>
+        </div>
         <Stat
           label="Pedidos activos"
           value={String(mesa.pedidos.length)}
@@ -999,3 +1048,101 @@ function PillBtn({
     </button>
   );
 }
+
+function ReasignarMeseroDialog({
+  open,
+  onOpenChange,
+  idMesa,
+  meseroActualId,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  idMesa: string;
+  meseroActualId: string | null;
+}) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listarMeserosNegocio);
+  const reasFn = useServerFn(reasignarMeseroMesa);
+  const [sel, setSel] = useState<string>("");
+
+  const meserosQ = useQuery({
+    queryKey: ["meseros-negocio"],
+    queryFn: () => listFn(),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (open) setSel(meseroActualId ?? "");
+  }, [open, meseroActualId]);
+
+  const mut = useMutation({
+    mutationFn: (idMesero: string) => reasFn({ data: { idMesa, idMesero } }),
+    onSuccess: () => {
+      toast.success("Mesero reasignado");
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["mesasServicio"] });
+      onOpenChange(false);
+    },
+    onError: (e) =>
+      toast.error("No se pudo reasignar", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  const meseros = meserosQ.data ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reasignar mesero</DialogTitle>
+          <DialogDescription>
+            Selecciona el mesero que tomará esta mesa.
+          </DialogDescription>
+        </DialogHeader>
+        {meserosQ.isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : meseros.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">
+            No hay meseros activos disponibles.
+          </p>
+        ) : (
+          <Select value={sel} onValueChange={setSel}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un mesero" />
+            </SelectTrigger>
+            <SelectContent>
+              {meseros.map((m) => (
+                <SelectItem key={m.id_usuario} value={m.id_usuario}>
+                  {m.nombre}
+                  {m.esta_en_turno ? "" : " (fuera de turno)"}
+                  {m.id_usuario === meseroActualId ? " · actual" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={mut.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => sel && mut.mutate(sel)}
+            disabled={!sel || sel === meseroActualId || mut.isPending}
+          >
+            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Reasignar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
