@@ -77,6 +77,7 @@ export const getKpisHoy = createServerFn({ method: "GET" })
 
 export interface AlertaItem {
   id_item: string;
+  id_mesa: string | null;
   identificador_mesa: string;
   producto: string;
   destino: string | null;
@@ -126,6 +127,7 @@ export const getAlertasOperacion = createServerFn({ method: "GET" })
       if (trans > planeado * 1.2) {
         alertas.push({
           id_item: it.id_item,
+          id_mesa: (anyIt.pedidos?.id_mesa as string | undefined) ?? null,
           identificador_mesa: mesasMap.get(anyIt.pedidos?.id_mesa) ?? "—",
           producto: anyIt.productos?.nombre_producto ?? "—",
           destino: (it.destino as string | null) ?? null,
