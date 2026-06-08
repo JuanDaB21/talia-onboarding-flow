@@ -4,16 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AdminGate } from "@/components/admin/admin-gate";
+import { RoleGate } from "@/components/admin/role-gate";
 import { getCierre } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/caja/cierres/$id")({
   head: () => ({ meta: [{ title: "Reporte de cierre — Talia" }] }),
   component: () => (
-    <AdminGate>
+    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
       <ReportePage />
-    </AdminGate>
+    </RoleGate>
   ),
 });
 
