@@ -5,6 +5,7 @@ export type ComandaDestino = "COCINA" | "BARRA";
 export interface ComandaItemPrint {
   cantidad: number;
   nombre_producto: string;
+  nombre_subcategoria?: string | null;
   tiene_alergia?: boolean;
   nota?: string | null;
   extras?: { nombre: string; cantidad?: number }[];
