@@ -309,6 +309,11 @@ function MesaEnServicio() {
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [reasignarOpen, setReasignarOpen] = useState(false);
+
+  const { rol } = useMiStaff();
+  const puedeReasignar =
+    rol === "MESERO" || rol === "ADMIN" || rol === "SUPERADMIN" || rol === "CAJERO";
 
   if (mesaQ.isLoading) {
     return (
