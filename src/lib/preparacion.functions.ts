@@ -36,7 +36,12 @@ export interface ComandaEstacion {
   id_pedido: string;
   mesa_identificador: string;
   pedido_created_at: string;
+  mesero_nombre: string | null;
   items: ItemPreparacion[];
+}
+
+interface PedidoMeta {
+  id_mesero: string | null;
 }
 
 export const listarComandasEstacion = createServerFn({ method: "POST" })
