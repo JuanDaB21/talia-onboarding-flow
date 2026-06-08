@@ -12,6 +12,7 @@ const registrarPagoSchema = z.object({
   urlComprobante: z.string().max(500).optional().nullable(),
   itemIds: z.array(z.string().uuid()).min(1).max(200),
   propina: z.number().min(0).max(10_000_000).optional().default(0),
+  idBono: z.string().uuid().optional().nullable(),
 });
 
 const confirmarPagoSchema = z.object({
@@ -106,6 +107,7 @@ export const registrarPago = createServerFn({ method: "POST" })
       p_url_comprobante: data.urlComprobante ?? "",
       p_item_ids: data.itemIds,
       p_propina: data.propina ?? 0,
+      p_id_bono: data.idBono ?? null,
     });
     if (error) throw new Error(error.message);
     return { idPago: id as string };
