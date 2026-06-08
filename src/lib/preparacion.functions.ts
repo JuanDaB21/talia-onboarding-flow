@@ -40,9 +40,6 @@ export interface ComandaEstacion {
   items: ItemPreparacion[];
 }
 
-interface PedidoMeta {
-  id_mesero: string | null;
-}
 
 export const listarComandasEstacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
