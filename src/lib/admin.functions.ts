@@ -77,6 +77,7 @@ export const getKpisHoy = createServerFn({ method: "GET" })
 
 export interface AlertaItem {
   id_item: string;
+  id_mesa: string | null;
   identificador_mesa: string;
   producto: string;
   destino: string | null;
