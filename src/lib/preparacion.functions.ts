@@ -54,7 +54,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
          estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
          productos:id_producto(nombre_producto),
-         pedidos!inner(id_pedido, estado, created_at, id_mesa, mesas:id_mesa(identificador))`,
+         pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
       .eq("destino", data.destino)
       .neq("estado_preparacion", "ENTREGADO")
