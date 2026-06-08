@@ -390,6 +390,47 @@ export type Database = {
           },
         ]
       }
+      metodos_pago_qr: {
+        Row: {
+          created_at: string
+          etiqueta: string | null
+          id_negocio: string
+          id_qr: string
+          plataforma: string
+          titular: string | null
+          updated_at: string
+          url_qr: string
+        }
+        Insert: {
+          created_at?: string
+          etiqueta?: string | null
+          id_negocio: string
+          id_qr?: string
+          plataforma: string
+          titular?: string | null
+          updated_at?: string
+          url_qr: string
+        }
+        Update: {
+          created_at?: string
+          etiqueta?: string | null
+          id_negocio?: string
+          id_qr?: string
+          plataforma?: string
+          titular?: string | null
+          updated_at?: string
+          url_qr?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metodos_pago_qr_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       movimientos_inventario: {
         Row: {
           cantidad: number
