@@ -147,6 +147,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     urlComprobante: string | null;
     itemIds: string[];
     propina: number;
+    idBono: string | null;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => pagarFn({ data: input }),
@@ -162,6 +163,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
       qc.invalidateQueries({ queryKey: ["pagos"] });
       qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["bonos"] });
 
       itemsQ.refetch().then((r) => {
         const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
@@ -173,6 +175,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           setSelected(new Set());
           setPropinaPct(0.1);
           setPropinaCustom(null);
+          setIdBono(null);
         }
       });
     },
@@ -236,6 +239,10 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
             propina={propina}
             propinaProps={propinaProps}
+            idBono={idBono}
+            setIdBono={setIdBono}
+            descuentoBono={descuentoBono}
+            bonoInfo={bonoInfo}
             onContinue={() => setPaso("metodo")}
           />
         ) : (
@@ -246,6 +253,8 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             propina={propina}
             totalConPropina={totalConPropina}
             propinaProps={propinaProps}
+            descuentoBono={descuentoBono}
+            bonoInfo={bonoInfo}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -255,6 +264,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 urlComprobante: extras.urlComprobante ?? null,
                 itemIds: Array.from(selected),
                 propina,
+                idBono,
               })
             }
             isLoading={pagarMut.isPending}
