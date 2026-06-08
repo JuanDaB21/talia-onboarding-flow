@@ -52,11 +52,8 @@ const historialSchema = z.object({
 });
 
 async function esAdmin(
-  supabase: ReturnType<
-    typeof import("@/integrations/supabase/auth-middleware").requireSupabaseAuth
-  > extends never
-    ? never
-    : Awaited<ReturnType<typeof getSupabaseAuthContext>>["supabase"],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   userId: string,
 ): Promise<boolean> {
   const { data } = await supabase
@@ -66,12 +63,6 @@ async function esAdmin(
     .maybeSingle();
   return data?.rol === "ADMIN" || data?.rol === "SUPERADMIN";
 }
-
-// Helper type only — never invoked
-declare function getSupabaseAuthContext(): Promise<{
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any;
-}>;
 
 export const listarBonos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
