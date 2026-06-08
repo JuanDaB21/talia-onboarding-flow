@@ -142,6 +142,7 @@ export function ComandaSheet({
                     items: comanda.items.map((it) => ({
                       cantidad: it.cantidad,
                       nombre_producto: it.nombre_producto,
+                      nombre_subcategoria: it.nombre_subcategoria,
                       tiene_alergia: it.tiene_alergia,
                       nota: it.nota,
                       extras: it.extras,
