@@ -182,6 +182,18 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
       g.items.push(it);
     });
 
+    // Ordenar items por subcategoría y luego por nombre (alfabético, es)
+    const collator = new Intl.Collator("es", { sensitivity: "base" });
+    grupos.forEach((g) => {
+      g.items.sort((a, b) => {
+        const sa = a.nombre_subcategoria ?? "\uffff";
+        const sb = b.nombre_subcategoria ?? "\uffff";
+        const cmp = collator.compare(sa, sb);
+        if (cmp !== 0) return cmp;
+        return collator.compare(a.nombre_producto, b.nombre_producto);
+      });
+    });
+
     const comandas = Array.from(grupos.values()).sort(
       (a, b) =>
         new Date(a.pedido_created_at).getTime() - new Date(b.pedido_created_at).getTime(),
