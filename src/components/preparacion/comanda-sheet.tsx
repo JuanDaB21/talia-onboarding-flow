@@ -138,6 +138,7 @@ export function ComandaSheet({
                     mesa_identificador: comanda.mesa_identificador,
                     pedido_id: comanda.id_pedido,
                     pedido_created_at: comanda.pedido_created_at,
+                    mesero: comanda.mesero_nombre,
                     items: comanda.items.map((it) => ({
                       cantidad: it.cantidad,
                       nombre_producto: it.nombre_producto,

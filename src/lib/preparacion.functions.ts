@@ -36,8 +36,10 @@ export interface ComandaEstacion {
   id_pedido: string;
   mesa_identificador: string;
   pedido_created_at: string;
+  mesero_nombre: string | null;
   items: ItemPreparacion[];
 }
+
 
 export const listarComandasEstacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -52,7 +54,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
          estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
          productos:id_producto(nombre_producto),
-         pedidos!inner(id_pedido, estado, created_at, id_mesa, mesas:id_mesa(identificador))`,
+         pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
       .eq("destino", data.destino)
       .neq("estado_preparacion", "ENTREGADO")
@@ -69,7 +71,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         `id_item, id_pedido, id_producto, cantidad, tiene_alergia, nota, destino,
          estado_preparacion, tiempo_planeado_min, iniciado_at, listo_at, entregado_at,
          productos:id_producto(nombre_producto),
-         pedidos!inner(id_pedido, estado, created_at, id_mesa, mesas:id_mesa(identificador))`,
+         pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
       .eq("destino", data.destino)
       .eq("estado_preparacion", "ENTREGADO")
@@ -137,16 +139,39 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
       };
     };
 
+    // Recopilar id_mesero por pedido y resolver nombres
+    const meseroByPedido = new Map<string, string | null>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    todosItems.forEach((raw: any) => {
+      const pid = raw.id_pedido as string;
+      if (!meseroByPedido.has(pid)) {
+        meseroByPedido.set(pid, raw.pedidos?.id_mesero ?? null);
+      }
+    });
+    const meseroIds = Array.from(
+      new Set(Array.from(meseroByPedido.values()).filter((x): x is string => !!x)),
+    );
+    const nombresMesero = new Map<string, string>();
+    if (meseroIds.length) {
+      const { data: staff } = await supabase
+        .from("usuarios_staff")
+        .select("id_usuario, nombre")
+        .in("id_usuario", meseroIds);
+      (staff ?? []).forEach((s) => nombresMesero.set(s.id_usuario, s.nombre));
+    }
+
     // Agrupar por pedido
     const grupos = new Map<string, ComandaEstacion>();
     todosItems.forEach((raw) => {
       const it = mapItem(raw);
       let g = grupos.get(it.id_pedido);
       if (!g) {
+        const idMesero = meseroByPedido.get(it.id_pedido) ?? null;
         g = {
           id_pedido: it.id_pedido,
           mesa_identificador: it.mesa_identificador,
           pedido_created_at: it.pedido_created_at,
+          mesero_nombre: idMesero ? nombresMesero.get(idMesero) ?? null : null,
           items: [],
         };
         grupos.set(it.id_pedido, g);
