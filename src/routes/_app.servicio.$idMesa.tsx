@@ -33,6 +33,8 @@ import {
   iniciarNuevoPedido,
   marcarPedidoEntregado,
   marcarSeguimientoVisto,
+  listarMeserosNegocio,
+  reasignarMeseroMesa,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
@@ -44,6 +46,22 @@ import {
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
