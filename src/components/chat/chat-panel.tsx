@@ -99,7 +99,8 @@ function ChatInner({
   const transport = useRef(
     new DefaultChatTransport({
       api: "/api/chat",
-      headers: () => (token ? { Authorization: `Bearer ${token}` } : {}),
+      headers: (): Record<string, string> =>
+        token ? { Authorization: `Bearer ${token}` } : {},
     }),
   );
 
@@ -205,7 +206,13 @@ function ChatInner({
           ) : (
             messages.map((m) => (
               <Message key={m.id} from={m.role === "user" ? "user" : "assistant"}>
-                <MessageContent variant={m.role === "user" ? "contained" : "flat"}>
+                <MessageContent
+                  className={
+                    m.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-transparent p-0 text-foreground"
+                  }
+                >
                   {m.parts.map((part, i) => {
                     if (part.type === "text") {
                       return m.role === "assistant" ? (
@@ -216,11 +223,18 @@ function ChatInner({
                         </span>
                       );
                     }
-                    if (part.type?.startsWith("tool-") || part.type === "dynamic-tool") {
+                    if (
+                      typeof part.type === "string" &&
+                      (part.type.startsWith("tool-") || part.type === "dynamic-tool")
+                    ) {
                       const tp = part as unknown as ToolPart;
+                      const headerProps =
+                        tp.type === "dynamic-tool"
+                          ? { type: tp.type, state: tp.state, toolName: "tool" }
+                          : { type: tp.type, state: tp.state };
                       return (
                         <Tool key={i} defaultOpen={false}>
-                          <ToolHeader type={tp.type} state={tp.state} />
+                          <ToolHeader {...headerProps} />
                           <ToolContent>
                             <ToolInput input={tp.input} />
                             <ToolOutput
