@@ -13,13 +13,21 @@ export const Route = createFileRoute("/api/public/hooks/cerrar-turnos")({
         const { supabaseAdmin } = await import(
           "@/integrations/supabase/client.server"
         );
-        const { data, error } = await supabaseAdmin.rpc(
-          "cerrar_turnos_vencidos",
-        );
-        if (error) {
-          return Response.json({ ok: false, error: error.message }, { status: 500 });
+        const [cerrar, purga] = await Promise.all([
+          supabaseAdmin.rpc("cerrar_turnos_vencidos"),
+          supabaseAdmin.rpc("purgar_prepedido_inactivo"),
+        ]);
+        if (cerrar.error) {
+          return Response.json({ ok: false, error: cerrar.error.message }, { status: 500 });
         }
-        return Response.json({ ok: true, cerrados: data ?? 0 });
+        if (purga.error) {
+          return Response.json({ ok: false, error: purga.error.message }, { status: 500 });
+        }
+        return Response.json({
+          ok: true,
+          cerrados: cerrar.data ?? 0,
+          prepedidos_purgados: purga.data ?? 0,
+        });
       },
     },
   },
