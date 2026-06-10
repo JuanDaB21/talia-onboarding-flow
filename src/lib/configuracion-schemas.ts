@@ -18,6 +18,7 @@ export const usuarioCreateSchema = z.object({
   password: passwordRules,
   rol: rolStaffUiSchema,
   estado: z.boolean(),
+  recibe_propinas: z.boolean(),
 });
 export type UsuarioCreateInput = z.infer<typeof usuarioCreateSchema>;
 
@@ -25,6 +26,7 @@ export const usuarioUpdateSchema = z.object({
   nombre: z.string().trim().min(2, "Mínimo 2 caracteres").max(80),
   rol: rolStaffUiSchema,
   estado: z.boolean(),
+  recibe_propinas: z.boolean(),
   password: z
     .string()
     .optional()
