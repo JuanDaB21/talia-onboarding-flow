@@ -63,13 +63,14 @@ export function ChatPanel() {
     };
   }, []);
 
-  if (!ready || !userId) {
+  if (!ready || !userId || !token) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
         Cargando asistente…
       </div>
     );
   }
+
 
   return (
     <ChatInner
