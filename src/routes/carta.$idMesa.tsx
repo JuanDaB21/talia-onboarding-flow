@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Bell, CreditCard, Loader2, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import { ProductoCard } from "@/components/menu-publico/producto-card";
 import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
 import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
 import { useClienteMesa } from "@/hooks/use-cliente-mesa";
-import { supabase } from "@/integrations/supabase/client";
+
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
@@ -61,7 +61,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
 
 function CartaPage() {
   const { idMesa } = Route.useParams();
-  const qc = useQueryClient();
+  
   const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
   const [nombreInput, setNombreInput] = useState("");
@@ -108,11 +108,12 @@ function CartaPage() {
       }),
   });
 
-  // Pre-pedido en tiempo real
+  // Pre-pedido (polling cada 3s; lectura solo por server fn con supabaseAdmin)
   const prepedidoQ = useQuery({
     queryKey: ["prepedido", idMesa],
     queryFn: () => getPrep({ data: { idMesa } }),
     enabled: !!cliente?.idSesion,
+    refetchInterval: 3000,
   });
 
   // Heartbeat cada 60s
@@ -126,26 +127,7 @@ function CartaPage() {
     return () => clearInterval(id);
   }, [cliente, idMesa, unirseFn]);
 
-  // Realtime
-  useEffect(() => {
-    if (!cliente?.idSesion) return;
-    const ch = supabase
-      .channel(`prepedido-mesa-${idMesa}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
-        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
-        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [idMesa, cliente?.idSesion, qc]);
+
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
