@@ -352,17 +352,49 @@ function CartaPage() {
     );
   }
 
+  const totalItemsPrepedido =
+    prepedidoQ.data?.items.reduce((a, i) => a + i.cantidad, 0) ?? 0;
+
   return (
     <main
       style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
       className="min-h-screen pb-28"
     >
+      <button
+        type="button"
+        aria-label="Ver pedido de la mesa"
+        onClick={() => setPrepedidoOpen(true)}
+        className="fixed z-40 inline-flex items-center justify-center h-12 w-12 shadow-lg active:scale-95 transition-transform"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: 12,
+          background: "var(--menu-primary)",
+          color: "var(--menu-primary-foreground)",
+          borderRadius: "9999px",
+        }}
+      >
+        <ShoppingBag className="h-5 w-5" />
+        {totalItemsPrepedido > 0 && (
+          <span
+            className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 inline-flex items-center justify-center text-[11px] font-bold rounded-full"
+            style={{
+              background: "var(--menu-surface)",
+              color: "var(--menu-primary)",
+              borderColor: "var(--menu-primary)",
+              borderWidth: 1,
+            }}
+          >
+            {totalItemsPrepedido}
+          </span>
+        )}
+      </button>
       <ThemedHeader
         theme={theme}
         mesa={mesa.identificador}
         nombreNegocio={nombreNegocio}
         logoUrl={logoUrl}
       />
+
       {categorias.length > 0 && (
         <div
           className="sticky z-10 backdrop-blur"
@@ -424,24 +456,8 @@ function CartaPage() {
         }}
       >
         <div className="mx-auto max-w-2xl p-3 space-y-2">
-          {cliente?.idSesion && (prepedidoQ.data?.items.length ?? 0) > 0 && (
-            <Button
-              size="lg"
-              type="button"
-              onClick={() => setPrepedidoOpen(true)}
-              className="w-full h-12 text-sm font-semibold gap-2"
-              style={{
-                background: "var(--menu-surface)",
-                color: "var(--menu-foreground)",
-                borderColor: "var(--menu-primary)",
-                borderWidth: 1,
-                borderRadius: "var(--menu-radius)",
-              }}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Ver pedido de la mesa ({prepedidoQ.data!.items.reduce((a, i) => a + i.cantidad, 0)})
-            </Button>
-          )}
+
+
           {estadoQ.data?.tiene_pedido_activo ? (
             <div className="grid grid-cols-2 gap-2">
               <Button
