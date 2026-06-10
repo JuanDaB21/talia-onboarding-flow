@@ -61,19 +61,91 @@ const fmt = new Intl.NumberFormat("es-CO", {
 
 function CartaPage() {
   const { idMesa } = Route.useParams();
+  const qc = useQueryClient();
+  const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
+  const [nombreInput, setNombreInput] = useState("");
   const [catActiva, setCatActiva] = useState<string | null>(null);
+  const [prepedidoOpen, setPrepedidoOpen] = useState(false);
+  const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
   const getEstado = useServerFn(getEstadoMesaPublico);
   const solicitar = useServerFn(solicitarAccionCliente);
   const getCuenta = useServerFn(getCuentaPublica);
+  const unirseFn = useServerFn(unirseSesionPrepedido);
+  const getPrep = useServerFn(getPrepedidoPublico);
 
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
   const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
+
+  // Si ya hay cliente registrado, saltar el onboarding
+  useEffect(() => {
+    if (hydrated && cliente?.idSesion) {
+      setFase("menu");
+      setNombreInput(cliente.nombre);
+    } else if (hydrated && cliente) {
+      setNombreInput(cliente.nombre);
+    }
+  }, [hydrated, cliente]);
+
+  const unirseMut = useMutation({
+    mutationFn: async (nombre: string) => {
+      const c = registrar(nombre);
+      const res = await unirseFn({
+        data: { idMesa, idCliente: c.idCliente, nombre: c.nombre },
+      });
+      setSesion(res.id_sesion);
+      return res;
+    },
+    onSuccess: () => setFase("menu"),
+    onError: (e) =>
+      toast.error("No pudimos registrarte", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  // Pre-pedido en tiempo real
+  const prepedidoQ = useQuery({
+    queryKey: ["prepedido", idMesa],
+    queryFn: () => getPrep({ data: { idMesa } }),
+    enabled: !!cliente?.idSesion,
+  });
+
+  // Heartbeat cada 60s
+  useEffect(() => {
+    if (!cliente?.idSesion) return;
+    const id = setInterval(() => {
+      unirseFn({
+        data: { idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre },
+      }).catch(() => undefined);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [cliente, idMesa, unirseFn]);
+
+  // Realtime
+  useEffect(() => {
+    if (!cliente?.idSesion) return;
+    const ch = supabase
+      .channel(`prepedido-mesa-${idMesa}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [idMesa, cliente?.idSesion, qc]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
@@ -87,6 +159,7 @@ function CartaPage() {
     ...POLL.LIVE,
     retry: false,
   });
+
 
   const mut = useMutation({
     mutationFn: () => callMesero({ data: { idMesa } }),
