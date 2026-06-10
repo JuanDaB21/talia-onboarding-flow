@@ -98,6 +98,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
         nombre: z.string().trim().min(2).max(80),
         rol: rolEnum,
         estado: z.boolean(),
+        recibe_propinas: z.boolean(),
         password: z.string().optional(),
       })
       .parse(input),
@@ -112,6 +113,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
         nombre: data.nombre,
         rol: data.rol,
         estado: data.estado ? "ACTIVO" : "INACTIVO",
+        recibe_propinas: data.recibe_propinas,
       })
       .eq("id_usuario", data.id_usuario);
     if (updErr) throw new Error(updErr.message);
