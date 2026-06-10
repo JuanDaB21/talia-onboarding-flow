@@ -960,6 +960,108 @@ export type Database = {
           },
         ]
       }
+      prepedido_items: {
+        Row: {
+          cantidad: number
+          created_at: string
+          exclusiones: Json
+          extras: Json
+          id_mesa: string
+          id_prepedido_item: string
+          id_producto: string
+          id_sesion: string
+          nota: string | null
+          precio_unitario: number
+          tiene_alergia: boolean
+          updated_at: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          exclusiones?: Json
+          extras?: Json
+          id_mesa: string
+          id_prepedido_item?: string
+          id_producto: string
+          id_sesion: string
+          nota?: string | null
+          precio_unitario: number
+          tiene_alergia?: boolean
+          updated_at?: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          exclusiones?: Json
+          extras?: Json
+          id_mesa?: string
+          id_prepedido_item?: string
+          id_producto?: string
+          id_sesion?: string
+          nota?: string | null
+          precio_unitario?: number
+          tiene_alergia?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prepedido_items_id_mesa_fkey"
+            columns: ["id_mesa"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id_mesa"]
+          },
+          {
+            foreignKeyName: "prepedido_items_id_producto_fkey"
+            columns: ["id_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
+          },
+          {
+            foreignKeyName: "prepedido_items_id_sesion_fkey"
+            columns: ["id_sesion"]
+            isOneToOne: false
+            referencedRelation: "prepedido_sesiones"
+            referencedColumns: ["id_sesion"]
+          },
+        ]
+      }
+      prepedido_sesiones: {
+        Row: {
+          created_at: string
+          id_cliente: string
+          id_mesa: string
+          id_sesion: string
+          last_seen_at: string
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          id_cliente: string
+          id_mesa: string
+          id_sesion?: string
+          last_seen_at?: string
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          id_cliente?: string
+          id_mesa?: string
+          id_sesion?: string
+          last_seen_at?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prepedido_sesiones_id_mesa_fkey"
+            columns: ["id_mesa"]
+            isOneToOne: false
+            referencedRelation: "mesas"
+            referencedColumns: ["id_mesa"]
+          },
+        ]
+      }
       productos: {
         Row: {
           activo: boolean
@@ -1282,6 +1384,7 @@ export type Database = {
     }
     Functions: {
       abrir_caja: { Args: { p_base: number }; Returns: string }
+      aceptar_prepedido_mesa: { Args: { p_id_mesa: string }; Returns: number }
       actualizar_receta:
         | {
             Args: {

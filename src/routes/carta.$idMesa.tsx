@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, CreditCard, Loader2, Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, CreditCard, Loader2, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -22,14 +23,23 @@ import {
   type CartaProducto,
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
+import {
+  unirseSesionPrepedido,
+  getPrepedidoPublico,
+} from "@/lib/prepedido.functions";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 import { POLL } from "@/lib/query-config";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
+import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
+import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
+import { useClienteMesa } from "@/hooks/use-cliente-mesa";
+import { supabase } from "@/integrations/supabase/client";
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
   () => import("@/components/menu-publico/producto-detalle-dialog"),
 );
+
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
@@ -51,19 +61,91 @@ const fmt = new Intl.NumberFormat("es-CO", {
 
 function CartaPage() {
   const { idMesa } = Route.useParams();
+  const qc = useQueryClient();
+  const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
+  const [nombreInput, setNombreInput] = useState("");
   const [catActiva, setCatActiva] = useState<string | null>(null);
+  const [prepedidoOpen, setPrepedidoOpen] = useState(false);
+  const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
   const getEstado = useServerFn(getEstadoMesaPublico);
   const solicitar = useServerFn(solicitarAccionCliente);
   const getCuenta = useServerFn(getCuentaPublica);
+  const unirseFn = useServerFn(unirseSesionPrepedido);
+  const getPrep = useServerFn(getPrepedidoPublico);
 
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
   const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
+
+  // Si ya hay cliente registrado, saltar el onboarding
+  useEffect(() => {
+    if (hydrated && cliente?.idSesion) {
+      setFase("menu");
+      setNombreInput(cliente.nombre);
+    } else if (hydrated && cliente) {
+      setNombreInput(cliente.nombre);
+    }
+  }, [hydrated, cliente]);
+
+  const unirseMut = useMutation({
+    mutationFn: async (nombre: string) => {
+      const c = registrar(nombre);
+      const res = await unirseFn({
+        data: { idMesa, idCliente: c.idCliente, nombre: c.nombre },
+      });
+      setSesion(res.id_sesion);
+      return res;
+    },
+    onSuccess: () => setFase("menu"),
+    onError: (e) =>
+      toast.error("No pudimos registrarte", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  // Pre-pedido en tiempo real
+  const prepedidoQ = useQuery({
+    queryKey: ["prepedido", idMesa],
+    queryFn: () => getPrep({ data: { idMesa } }),
+    enabled: !!cliente?.idSesion,
+  });
+
+  // Heartbeat cada 60s
+  useEffect(() => {
+    if (!cliente?.idSesion) return;
+    const id = setInterval(() => {
+      unirseFn({
+        data: { idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre },
+      }).catch(() => undefined);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [cliente, idMesa, unirseFn]);
+
+  // Realtime
+  useEffect(() => {
+    if (!cliente?.idSesion) return;
+    const ch = supabase
+      .channel(`prepedido-mesa-${idMesa}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [idMesa, cliente?.idSesion, qc]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
@@ -77,6 +159,7 @@ function CartaPage() {
     ...POLL.LIVE,
     retry: false,
   });
+
 
   const mut = useMutation({
     mutationFn: () => callMesero({ data: { idMesa } }),
@@ -220,20 +303,50 @@ function CartaPage() {
             ¡Bienvenido{nombreNegocio ? ` a ${nombreNegocio}` : ""}!
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--menu-muted)" }}>
-            Revisa nuestro menú y cuando tengas claro qué vas a pedir llama a tu
-            mesero, te atenderemos con gusto.
+            Dinos cómo te llamas para personalizar tu experiencia y armar tu pedido junto a tus acompañantes.
           </p>
-          <Button
-            className="w-full h-12 text-base"
-            style={{
-              background: "var(--menu-primary)",
-              color: "var(--menu-primary-foreground)",
-              borderRadius: "var(--menu-radius)",
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = nombreInput.trim();
+              if (n.length < 1) return;
+              unirseMut.mutate(n);
             }}
-            onClick={() => setFase("menu")}
+            className="space-y-3"
           >
-            Continuar
-          </Button>
+            <Input
+              value={nombreInput}
+              onChange={(e) => setNombreInput(e.target.value.slice(0, 40))}
+              placeholder="Tu nombre"
+              autoFocus
+              maxLength={40}
+              className="h-12 text-base text-center"
+              style={{
+                background: "var(--menu-bg)",
+                borderColor: "var(--menu-border)",
+                color: "var(--menu-foreground)",
+                borderRadius: "var(--menu-radius)",
+              }}
+              required
+            />
+            <Button
+              type="submit"
+              disabled={unirseMut.isPending || nombreInput.trim().length === 0}
+              className="w-full h-12 text-base"
+              style={{
+                background: "var(--menu-primary)",
+                color: "var(--menu-primary-foreground)",
+                borderRadius: "var(--menu-radius)",
+              }}
+            >
+              {unirseMut.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Entrar al menú"
+              )}
+            </Button>
+          </form>
+
         </div>
       </main>
     );
@@ -310,7 +423,25 @@ function CartaPage() {
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        <div className="mx-auto max-w-2xl p-3">
+        <div className="mx-auto max-w-2xl p-3 space-y-2">
+          {cliente?.idSesion && (prepedidoQ.data?.items.length ?? 0) > 0 && (
+            <Button
+              size="lg"
+              type="button"
+              onClick={() => setPrepedidoOpen(true)}
+              className="w-full h-12 text-sm font-semibold gap-2"
+              style={{
+                background: "var(--menu-surface)",
+                color: "var(--menu-foreground)",
+                borderColor: "var(--menu-primary)",
+                borderWidth: 1,
+                borderRadius: "var(--menu-radius)",
+              }}
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Ver pedido de la mesa ({prepedidoQ.data!.items.reduce((a, i) => a + i.cantidad, 0)})
+            </Button>
+          )}
           {estadoQ.data?.tiene_pedido_activo ? (
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -378,13 +509,45 @@ function CartaPage() {
         logoUrl={logoUrl}
       />
 
+      {cliente?.idSesion && (
+        <PrepedidoSheet
+          open={prepedidoOpen}
+          onOpenChange={setPrepedidoOpen}
+          idMesa={idMesa}
+          idCliente={cliente.idCliente}
+          idSesion={cliente.idSesion}
+          data={prepedidoQ.data ?? null}
+          loading={prepedidoQ.isLoading}
+          themeStyle={themeStyle}
+          theme={theme}
+        />
+      )}
+
+      {cliente?.idSesion && (
+        <PrepedidoItemEditor
+          open={!!agregarProducto}
+          onOpenChange={(o) => !o && setAgregarProducto(null)}
+          idMesa={idMesa}
+          idCliente={cliente.idCliente}
+          idSesion={cliente.idSesion}
+          producto={agregarProducto}
+          themeStyle={themeStyle}
+          theme={theme}
+        />
+      )}
+
       <Suspense fallback={null}>
         <LazyProductoDetalleDialog
           producto={productoSel}
           theme={theme}
           themeStyle={themeStyle}
           onClose={() => setProductoSel(null)}
+          onAgregar={(p) => {
+            setProductoSel(null);
+            setAgregarProducto(p);
+          }}
         />
+
       </Suspense>
     </main>
   );
