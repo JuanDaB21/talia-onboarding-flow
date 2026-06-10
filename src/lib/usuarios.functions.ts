@@ -78,6 +78,7 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
         correo: data.correo,
         rol: data.rol,
         estado: data.estado ? "ACTIVO" : "INACTIVO",
+        recibe_propinas: data.recibe_propinas,
       });
 
     if (insErr) {
