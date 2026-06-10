@@ -96,13 +96,19 @@ function ChatInner({
   save: (m: UIMessage[]) => void;
   clear: () => void;
 }) {
+  const tokenRef = useRef<string | null>(token);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
   const transport = useRef(
     new DefaultChatTransport({
       api: "/api/chat",
       headers: (): Record<string, string> =>
-        token ? { Authorization: `Bearer ${token}` } : {},
+        tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
     }),
   );
+
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
     id: userId,
