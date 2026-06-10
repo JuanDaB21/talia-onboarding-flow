@@ -29,7 +29,7 @@ async function getAuthedStaff(request: Request) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: staff } = await supabaseAdmin
     .from("usuarios_staff")
-    .select("id_usuario, id_negocio, rol, nombre_completo, correo")
+    .select("id_usuario, id_negocio, rol, nombre, correo")
     .eq("id_usuario", userData.user.id)
     .maybeSingle();
   if (!staff?.id_negocio) return null;
@@ -186,16 +186,16 @@ function buildTools(idNegocio: string) {
         const sb = await adminPromise;
         const { data } = await sb
           .from("turnos_staff")
-          .select("inicio_at, usuarios_staff:id_usuario(nombre_completo, rol)")
+          .select("iniciado_at, usuarios_staff:id_usuario(nombre, rol)")
           .eq("id_negocio", idNegocio)
-          .is("fin_at", null);
+          .is("finalizado_at", null);
         return {
           en_turno: (data ?? []).map((t) => ({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            nombre: ((t as any).usuarios_staff?.nombre_completo as string) ?? "—",
+            nombre: ((t as any).usuarios_staff?.nombre as string) ?? "—",
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             rol: ((t as any).usuarios_staff?.rol as string) ?? "—",
-            desde: t.inicio_at,
+            desde: t.iniciado_at,
           })),
         };
       },
@@ -252,7 +252,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const negocioNombre = authed.negocio?.nombre_comercial ?? "el restaurante";
         const rol = authed.staff.rol;
-        const nombre = authed.staff.nombre_completo ?? "usuario";
+        const nombre = authed.staff.nombre ?? "usuario";
         const ahora = new Date().toISOString();
 
         const system = `Eres Talia, asistente IA del restaurante "${negocioNombre}". Hablas con ${nombre} (rol: ${rol}). Fecha y hora actual: ${ahora}.
@@ -268,7 +268,7 @@ Reglas:
         const result = streamText({
           model,
           system,
-          messages: convertToModelMessages(messages as UIMessage[]),
+          messages: await convertToModelMessages(messages as UIMessage[]),
           tools: buildTools(authed.staff.id_negocio),
           stopWhen: stepCountIs(50),
         });
