@@ -61,7 +61,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
 
 function CartaPage() {
   const { idMesa } = Route.useParams();
-  const qc = useQueryClient();
+  
   const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
   const [nombreInput, setNombreInput] = useState("");
