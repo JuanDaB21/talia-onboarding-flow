@@ -1,4 +1,4 @@
-import { ImageIcon, X } from "lucide-react";
+import { ImageIcon, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ interface ProductoDetalleDialogProps {
   theme: MenuTheme;
   themeStyle: React.CSSProperties;
   onClose: () => void;
+  onAgregar?: (p: CartaProducto) => void;
 }
 
 export default function ProductoDetalleDialog({
@@ -24,6 +25,7 @@ export default function ProductoDetalleDialog({
   theme,
   themeStyle,
   onClose,
+  onAgregar,
 }: ProductoDetalleDialogProps) {
   const open = producto !== null;
   return (
@@ -95,18 +97,33 @@ export default function ProductoDetalleDialog({
               <PriceTag theme={theme} precio={producto.precio_venta} />
             </div>
 
-            <DialogFooter className="px-6 pb-6 pt-0">
+            <DialogFooter className="px-6 pb-6 pt-0 flex-col sm:flex-col gap-2">
+              {onAgregar && (
+                <Button
+                  type="button"
+                  onClick={() => onAgregar(producto)}
+                  className="w-full h-12 text-base font-semibold gap-2"
+                  style={{
+                    background: "var(--menu-primary)",
+                    color: "var(--menu-primary-foreground)",
+                    borderRadius: "var(--menu-radius)",
+                  }}
+                >
+                  <Plus className="h-5 w-5" />
+                  Agregar a mi pedido
+                </Button>
+              )}
               <Button
                 type="button"
+                variant="ghost"
                 onClick={onClose}
-                className="w-full h-12 text-base font-semibold"
+                className="w-full h-10 text-sm"
                 style={{
-                  background: "var(--menu-primary)",
-                  color: "var(--menu-primary-foreground)",
+                  color: "var(--menu-muted)",
                   borderRadius: "var(--menu-radius)",
                 }}
               >
-                Cerrar
+                Seguir viendo el menú
               </Button>
             </DialogFooter>
           </>
