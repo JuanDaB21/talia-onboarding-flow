@@ -45,6 +45,7 @@ interface ExistingUsuario {
   correo: string;
   rol: RolStaffUi;
   estado: boolean;
+  recibe_propinas: boolean;
 }
 
 interface Props {
@@ -75,6 +76,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
           nombre: usuario!.nombre,
           rol: usuario!.rol,
           estado: usuario!.estado,
+          recibe_propinas: usuario!.recibe_propinas,
           password: "",
         }
       : {
@@ -83,11 +85,13 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
           password: "",
           rol: "MESERO",
           estado: true,
+          recibe_propinas: false,
         },
   });
 
   const estado = watch("estado");
   const rol = watch("rol");
+  const recibePropinas = watch("recibe_propinas");
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -99,6 +103,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
             nombre: v.nombre,
             rol: v.rol,
             estado: v.estado,
+            recibe_propinas: v.recibe_propinas,
             password: v.password || undefined,
           },
         });
@@ -193,6 +198,22 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
           id="estado"
           checked={estado}
           onCheckedChange={(v) => setValue("estado", v, { shouldDirty: true })}
+        />
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <Label htmlFor="recibe_propinas">Recibe propinas</Label>
+          <p className="text-xs text-muted-foreground">
+            Entra al reparto equitativo por día de turno.
+          </p>
+        </div>
+        <Switch
+          id="recibe_propinas"
+          checked={recibePropinas}
+          onCheckedChange={(v) =>
+            setValue("recibe_propinas", v, { shouldDirty: true })
+          }
         />
       </div>
 
