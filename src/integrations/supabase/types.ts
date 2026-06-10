@@ -618,6 +618,7 @@ export type Database = {
           razon_social: string
           telefono_contacto: string
           tema_menu: string
+          timezone: string
           url_logo: string | null
         }
         Insert: {
@@ -630,6 +631,7 @@ export type Database = {
           razon_social: string
           telefono_contacto: string
           tema_menu?: string
+          timezone?: string
           url_logo?: string | null
         }
         Update: {
@@ -642,6 +644,7 @@ export type Database = {
           razon_social?: string
           telefono_contacto?: string
           tema_menu?: string
+          timezone?: string
           url_logo?: string | null
         }
         Relationships: []
@@ -1188,6 +1191,44 @@ export type Database = {
           },
         ]
       }
+      turnos_staff: {
+        Row: {
+          cerrado_por: string | null
+          created_at: string
+          finalizado_at: string | null
+          id_negocio: string
+          id_turno: string
+          id_usuario: string
+          iniciado_at: string
+        }
+        Insert: {
+          cerrado_por?: string | null
+          created_at?: string
+          finalizado_at?: string | null
+          id_negocio: string
+          id_turno?: string
+          id_usuario: string
+          iniciado_at?: string
+        }
+        Update: {
+          cerrado_por?: string | null
+          created_at?: string
+          finalizado_at?: string | null
+          id_negocio?: string
+          id_turno?: string
+          id_usuario?: string
+          iniciado_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turnos_staff_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       usuarios_staff: {
         Row: {
           correo: string
@@ -1197,6 +1238,7 @@ export type Database = {
           id_negocio: string
           id_usuario: string
           nombre: string
+          recibe_propinas: boolean
           rol: Database["public"]["Enums"]["rol_staff"]
           turno_iniciado_at: string | null
         }
@@ -1208,6 +1250,7 @@ export type Database = {
           id_negocio: string
           id_usuario: string
           nombre: string
+          recibe_propinas?: boolean
           rol: Database["public"]["Enums"]["rol_staff"]
           turno_iniciado_at?: string | null
         }
@@ -1219,6 +1262,7 @@ export type Database = {
           id_negocio?: string
           id_usuario?: string
           nombre?: string
+          recibe_propinas?: boolean
           rol?: Database["public"]["Enums"]["rol_staff"]
           turno_iniciado_at?: string | null
         }
@@ -1288,6 +1332,16 @@ export type Database = {
         Returns: string
       }
       calcular_costo_items: { Args: { p_item_ids: string[] }; Returns: Json }
+      calcular_propinas_por_usuario: {
+        Args: { _desde: string; _hasta: string }
+        Returns: {
+          dias_activos: number
+          id_usuario: string
+          nombre: string
+          rol: Database["public"]["Enums"]["rol_staff"]
+          total_propinas: number
+        }[]
+      }
       cerrar_caja: {
         Args: {
           p_datafono_fisico: number
@@ -1298,6 +1352,7 @@ export type Database = {
       }
       cerrar_cuenta_mesa: { Args: { p_id_mesa: string }; Returns: number }
       cerrar_mesa: { Args: { p_id_mesa: string }; Returns: undefined }
+      cerrar_turnos_vencidos: { Args: never; Returns: number }
       confirmar_pago_transferencia: {
         Args: { p_aprobar: boolean; p_id_pago: string }
         Returns: undefined

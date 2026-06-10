@@ -23,6 +23,7 @@ interface Usuario {
   correo: string;
   rol: "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA" | "SUPERADMIN";
   estado: "ACTIVO" | "INACTIVO" | "SUSPENDIDO";
+  recibe_propinas: boolean;
 }
 
 export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
@@ -36,7 +37,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
     setLoading(true);
     const { data } = await supabase
       .from("usuarios_staff")
-      .select("id_usuario, nombre, correo, rol, estado")
+      .select("id_usuario, nombre, correo, rol, estado, recibe_propinas")
       .neq("rol", "SUPERADMIN")
       .order("created_at", { ascending: false });
     setItems((data as Usuario[]) ?? []);
@@ -82,18 +83,19 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
               <TableHead className="hidden sm:table-cell">Correo</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="hidden sm:table-cell">Propinas</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                   Aún no hay usuarios. Crea el primero.
                 </TableCell>
               </TableRow>
@@ -112,6 +114,11 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
                   <TableCell>
                     <Badge variant={u.estado === "ACTIVO" ? "default" : "secondary"}>
                       {u.estado === "ACTIVO" ? "Activo" : "Inactivo"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge variant={u.recibe_propinas ? "default" : "outline"}>
+                      {u.recibe_propinas ? "Sí" : "No"}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -141,6 +148,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
                   correo: selected.correo,
                   rol: selected.rol === "SUPERADMIN" ? "ADMIN" : selected.rol,
                   estado: selected.estado === "ACTIVO",
+                  recibe_propinas: selected.recibe_propinas,
                 }
               : null
           }

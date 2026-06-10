@@ -43,6 +43,7 @@ import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.in
 import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
 import { Route as AppMenuRecetasIndexRouteImport } from './routes/_app.menu.recetas.index'
 import { Route as AppBodegaInventarioIndexRouteImport } from './routes/_app.bodega.inventario.index'
+import { Route as ApiPublicHooksCerrarTurnosRouteImport } from './routes/api/public/hooks/cerrar-turnos'
 import { Route as AppMenuRecetasNuevaRouteImport } from './routes/_app.menu.recetas.nueva'
 import { Route as AppMenuRecetasIdRouteImport } from './routes/_app.menu.recetas.$id'
 import { Route as AppCajaCierresIdRouteImport } from './routes/_app.caja.cierres.$id'
@@ -223,6 +224,12 @@ const AppBodegaInventarioIndexRoute =
     path: '/',
     getParentRoute: () => AppBodegaInventarioRoute,
   } as any)
+const ApiPublicHooksCerrarTurnosRoute =
+  ApiPublicHooksCerrarTurnosRouteImport.update({
+    id: '/api/public/hooks/cerrar-turnos',
+    path: '/api/public/hooks/cerrar-turnos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppMenuRecetasNuevaRoute = AppMenuRecetasNuevaRouteImport.update({
   id: '/nueva',
   path: '/nueva',
@@ -280,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/caja/cierres/$id': typeof AppCajaCierresIdRoute
   '/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
+  '/api/public/hooks/cerrar-turnos': typeof ApiPublicHooksCerrarTurnosRoute
   '/bodega/inventario/': typeof AppBodegaInventarioIndexRoute
   '/menu/recetas/': typeof AppMenuRecetasIndexRoute
 }
@@ -312,6 +320,7 @@ export interface FileRoutesByTo {
   '/caja/cierres/$id': typeof AppCajaCierresIdRoute
   '/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
+  '/api/public/hooks/cerrar-turnos': typeof ApiPublicHooksCerrarTurnosRoute
   '/bodega/inventario': typeof AppBodegaInventarioIndexRoute
   '/menu/recetas': typeof AppMenuRecetasIndexRoute
 }
@@ -353,6 +362,7 @@ export interface FileRoutesById {
   '/_app/caja/cierres/$id': typeof AppCajaCierresIdRoute
   '/_app/menu/recetas/$id': typeof AppMenuRecetasIdRoute
   '/_app/menu/recetas/nueva': typeof AppMenuRecetasNuevaRoute
+  '/api/public/hooks/cerrar-turnos': typeof ApiPublicHooksCerrarTurnosRoute
   '/_app/bodega/inventario/': typeof AppBodegaInventarioIndexRoute
   '/_app/menu/recetas/': typeof AppMenuRecetasIndexRoute
 }
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/caja/cierres/$id'
     | '/menu/recetas/$id'
     | '/menu/recetas/nueva'
+    | '/api/public/hooks/cerrar-turnos'
     | '/bodega/inventario/'
     | '/menu/recetas/'
   fileRoutesByTo: FileRoutesByTo
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/caja/cierres/$id'
     | '/menu/recetas/$id'
     | '/menu/recetas/nueva'
+    | '/api/public/hooks/cerrar-turnos'
     | '/bodega/inventario'
     | '/menu/recetas'
   id:
@@ -466,6 +478,7 @@ export interface FileRouteTypes {
     | '/_app/caja/cierres/$id'
     | '/_app/menu/recetas/$id'
     | '/_app/menu/recetas/nueva'
+    | '/api/public/hooks/cerrar-turnos'
     | '/_app/bodega/inventario/'
     | '/_app/menu/recetas/'
   fileRoutesById: FileRoutesById
@@ -476,6 +489,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   CartaIdMesaRoute: typeof CartaIdMesaRoute
+  ApiPublicHooksCerrarTurnosRoute: typeof ApiPublicHooksCerrarTurnosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -718,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBodegaInventarioIndexRouteImport
       parentRoute: typeof AppBodegaInventarioRoute
     }
+    '/api/public/hooks/cerrar-turnos': {
+      id: '/api/public/hooks/cerrar-turnos'
+      path: '/api/public/hooks/cerrar-turnos'
+      fullPath: '/api/public/hooks/cerrar-turnos'
+      preLoaderRoute: typeof ApiPublicHooksCerrarTurnosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/menu/recetas/nueva': {
       id: '/_app/menu/recetas/nueva'
       path: '/nueva'
@@ -895,17 +916,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   CartaIdMesaRoute: CartaIdMesaRoute,
+  ApiPublicHooksCerrarTurnosRoute: ApiPublicHooksCerrarTurnosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
