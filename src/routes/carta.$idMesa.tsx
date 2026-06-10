@@ -108,11 +108,12 @@ function CartaPage() {
       }),
   });
 
-  // Pre-pedido en tiempo real
+  // Pre-pedido (polling cada 3s; lectura solo por server fn con supabaseAdmin)
   const prepedidoQ = useQuery({
     queryKey: ["prepedido", idMesa],
     queryFn: () => getPrep({ data: { idMesa } }),
     enabled: !!cliente?.idSesion,
+    refetchInterval: 3000,
   });
 
   // Heartbeat cada 60s
@@ -126,26 +127,7 @@ function CartaPage() {
     return () => clearInterval(id);
   }, [cliente, idMesa, unirseFn]);
 
-  // Realtime
-  useEffect(() => {
-    if (!cliente?.idSesion) return;
-    const ch = supabase
-      .channel(`prepedido-mesa-${idMesa}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
-        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
-        () => qc.invalidateQueries({ queryKey: ["prepedido", idMesa] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [idMesa, cliente?.idSesion, qc]);
+
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
