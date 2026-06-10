@@ -33,7 +33,7 @@ import { ProductoCard } from "@/components/menu-publico/producto-card";
 import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
 import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
 import { useClienteMesa } from "@/hooks/use-cliente-mesa";
-import { supabase } from "@/integrations/supabase/client";
+
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
