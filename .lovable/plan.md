@@ -1,29 +1,35 @@
-## Problema
+## Diagnóstico
 
-Hoy el botón "Ver pedido de la mesa" sólo aparece cuando el pre-pedido tiene items. Si el cliente aún no ha agregado nada, o si quiere ver lo que están sumando sus acompañantes en tiempo real, no tiene acceso al carrito. Tampoco hay un icono persistente que comunique "aquí está tu pedido".
+Verifiqué el código actual:
 
-## Cambios (sólo UI en `src/routes/carta.$idMesa.tsx`)
+- **La regla SÍ se mantiene**: la mesa solo pasa a `OCUPADA` cuando el cliente toca "Llamar mesero" (`llamarMesero` en `menu-publico.functions.ts`). Ni `unirseSesionPrepedido` (registrar nombre) ni `agregarItemPrepedido` (carrito) cambian el estado de la mesa.
+- **Pero hay una fuga**: las filas en `prepedido_sesiones` y `prepedido_items` quedan huérfanas para siempre si el cliente arma el carrito y nunca llama al mesero (cierra la pestaña, se va, etc.). Hoy nadie las borra:
+  - `cerrar_mesa` y `cerrar_cuenta_mesa` no limpian el pre-pedido.
+  - `aceptar_prepedido_mesa` borra `prepedido_items` pero deja vivas las `prepedido_sesiones`.
+  - No hay job de expiración por inactividad.
 
-1. **Icono de carrito flotante siempre visible** en la cabecera del menú (esquina superior derecha, dentro de `ThemedHeader` o como FAB fijo arriba):
-   - Icono `ShoppingBag` con badge numérico que muestra la cantidad total de items del pre-pedido (suma de `cantidad`).
-   - Si no hay items: badge oculto, pero el botón sigue clickeable y abre el `PrepedidoSheet` (que ya maneja el estado vacío).
-   - Usa tokens `--menu-primary` / `--menu-surface` para mantener el theme.
-   - Posición: fija, `top: env(safe-area-inset-top)+8px`, `right: 12px`, `z-40`, para que no se tape con el sticky de categorías.
+Esto no abre la mesa para siempre (la mesa nunca se ocupó), pero sí ensucia la DB y, peor, cuando llegan nuevos clientes a esa misma mesa ven el carrito viejo de otra gente en tiempo real.
 
-2. **Eliminar / reemplazar el botón ancho "Ver pedido de la mesa"** del bottom bar.
-   - Razón: ya tenemos el icono persistente arriba y el bottom bar queda saturado con 3 botones.
-   - El bottom bar mantiene "Pedir más" + "Pedir la cuenta" cuando hay pedido activo, o "Llamar mesero" cuando no.
+## Cambios
 
-3. **Flujo de "pedir más"**: verificar que al tocar "Pedir más" (mesa con pedido activo) el cliente también pueda seguir agregando productos al pre-pedido desde el catálogo y verlos en el carrito. Hoy ya funciona porque el pre-pedido es independiente del pedido confirmado; sólo confirmamos que el icono de carrito siga visible en ese estado (lo estará, vive en el header).
+### 1) Migración SQL
 
-4. **Realtime ya está conectado** (`prepedidoQ` se invalida por cambios en `prepedido_items`), así que el badge se actualiza solo cuando otros comensales agregan/quitan.
+1. **`cerrar_mesa(p_id_mesa)`**: al final, `DELETE FROM prepedido_sesiones WHERE id_mesa = p_id_mesa` (los items caen por `ON DELETE CASCADE`).
+2. **`cerrar_cuenta_mesa(p_id_mesa)`**: misma limpieza.
+3. **`aceptar_prepedido_mesa(p_id_mesa)`**: además de `DELETE FROM prepedido_items`, borrar las `prepedido_sesiones` de esa mesa para que el siguiente grupo arranque limpio.
+4. **Nueva función `purgar_prepedido_inactivo()`** (SECURITY DEFINER): borra `prepedido_sesiones` con `last_seen_at < now() - interval '4 hours'`. Devuelve el conteo. `GRANT EXECUTE ... TO anon, authenticated, service_role`.
+
+### 2) Cron
+
+Reutilizar el endpoint `/api/public/hooks/cerrar-turnos` para llamar también a `purgar_prepedido_inactivo()` en el mismo POST (devuelve `{ ok, cerrados, prepedidos_purgados }`). Mantiene la misma frecuencia (15 min) ya configurada en pg_cron.
 
 ## Fuera de alcance
 
-- No se cambia el `PrepedidoSheet` ni el editor de items.
-- No se toca lógica del mesero ni server functions.
-- No se cambia el flujo de confirmación del pre-pedido.
+- No se cambia la UI del cliente ni del mesero.
+- No se modifica el flujo de "Llamar mesero" ni la ocupación de mesa.
+- No se agregan nuevos endpoints públicos.
 
-## Archivos a editar
+## Archivos
 
-- `src/routes/carta.$idMesa.tsx` (único).
+- Nueva migración SQL (modifica 3 funciones existentes + crea 1 nueva).
+- `src/routes/api/public/hooks/cerrar-turnos.ts` (añadir segunda llamada RPC).
