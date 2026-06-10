@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useMiStaff } from "@/hooks/use-mi-staff";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { FloatingChatButton } from "@/components/chat/floating-chat-button";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -45,6 +46,7 @@ function AppLayout() {
             <Outlet />
           </main>
         </div>
+        <FloatingChatButton />
       </div>
     </SidebarProvider>
   );

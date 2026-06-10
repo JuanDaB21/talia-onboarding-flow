@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CartaIdMesaRouteImport } from './routes/carta.$idMesa'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AppServicioRouteImport } from './routes/_app.servicio'
 import { Route as AppOperacionRouteImport } from './routes/_app.operacion'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
@@ -71,6 +72,11 @@ const IndexRoute = IndexRouteImport.update({
 const CartaIdMesaRoute = CartaIdMesaRouteImport.update({
   id: '/carta/$idMesa',
   path: '/carta/$idMesa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppServicioRoute = AppServicioRouteImport.update({
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/menu': typeof AppMenuRouteWithChildren
   '/operacion': typeof AppOperacionRoute
   '/servicio': typeof AppServicioRouteWithChildren
+  '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/operacion': typeof AppOperacionRoute
+  '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -339,6 +347,7 @@ export interface FileRoutesById {
   '/_app/menu': typeof AppMenuRouteWithChildren
   '/_app/operacion': typeof AppOperacionRoute
   '/_app/servicio': typeof AppServicioRouteWithChildren
+  '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/operacion'
     | '/servicio'
+    | '/api/chat'
     | '/carta/$idMesa'
     | '/bodega/compras'
     | '/bodega/inventario'
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/cocina'
     | '/dashboard'
     | '/operacion'
+    | '/api/chat'
     | '/carta/$idMesa'
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | '/_app/menu'
     | '/_app/operacion'
     | '/_app/servicio'
+    | '/api/chat'
     | '/carta/$idMesa'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
@@ -488,6 +500,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  ApiChatRoute: typeof ApiChatRoute
   CartaIdMesaRoute: typeof CartaIdMesaRoute
   ApiPublicHooksCerrarTurnosRoute: typeof ApiPublicHooksCerrarTurnosRoute
 }
@@ -527,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: '/carta/$idMesa'
       fullPath: '/carta/$idMesa'
       preLoaderRoute: typeof CartaIdMesaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/servicio': {
@@ -915,19 +935,10 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  ApiChatRoute: ApiChatRoute,
   CartaIdMesaRoute: CartaIdMesaRoute,
   ApiPublicHooksCerrarTurnosRoute: ApiPublicHooksCerrarTurnosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
