@@ -63,13 +63,14 @@ export function ChatPanel() {
     };
   }, []);
 
-  if (!ready || !userId) {
+  if (!ready || !userId || !token) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
         Cargando asistente…
       </div>
     );
   }
+
 
   return (
     <ChatInner
@@ -96,13 +97,19 @@ function ChatInner({
   save: (m: UIMessage[]) => void;
   clear: () => void;
 }) {
+  const tokenRef = useRef<string | null>(token);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
   const transport = useRef(
     new DefaultChatTransport({
       api: "/api/chat",
       headers: (): Record<string, string> =>
-        token ? { Authorization: `Bearer ${token}` } : {},
+        tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
     }),
   );
+
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
     id: userId,
