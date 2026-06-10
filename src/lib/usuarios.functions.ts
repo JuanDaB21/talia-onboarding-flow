@@ -51,6 +51,7 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
         password: passwordRules,
         rol: rolEnum,
         estado: z.boolean(),
+        recibe_propinas: z.boolean(),
       })
       .parse(input),
   )
