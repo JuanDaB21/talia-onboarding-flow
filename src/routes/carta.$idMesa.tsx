@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, CreditCard, Loader2, Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, CreditCard, Loader2, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -22,14 +23,23 @@ import {
   type CartaProducto,
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
+import {
+  unirseSesionPrepedido,
+  getPrepedidoPublico,
+} from "@/lib/prepedido.functions";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 import { POLL } from "@/lib/query-config";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
+import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
+import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
+import { useClienteMesa } from "@/hooks/use-cliente-mesa";
+import { supabase } from "@/integrations/supabase/client";
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
   () => import("@/components/menu-publico/producto-detalle-dialog"),
 );
+
 
 
 export const Route = createFileRoute("/carta/$idMesa")({
