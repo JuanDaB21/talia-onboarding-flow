@@ -1,35 +1,76 @@
-## Diagnóstico
+## Asistente IA para staff (solo lectura)
 
-Verifiqué el código actual:
+Chatbot flotante accesible desde cualquier página del panel. Solo para usuarios staff autenticados. Responde preguntas sobre el restaurante consultando la base de datos vía herramientas con permisos limitados a su `id_negocio`.
 
-- **La regla SÍ se mantiene**: la mesa solo pasa a `OCUPADA` cuando el cliente toca "Llamar mesero" (`llamarMesero` en `menu-publico.functions.ts`). Ni `unirseSesionPrepedido` (registrar nombre) ni `agregarItemPrepedido` (carrito) cambian el estado de la mesa.
-- **Pero hay una fuga**: las filas en `prepedido_sesiones` y `prepedido_items` quedan huérfanas para siempre si el cliente arma el carrito y nunca llama al mesero (cierra la pestaña, se va, etc.). Hoy nadie las borra:
-  - `cerrar_mesa` y `cerrar_cuenta_mesa` no limpian el pre-pedido.
-  - `aceptar_prepedido_mesa` borra `prepedido_items` pero deja vivas las `prepedido_sesiones`.
-  - No hay job de expiración por inactividad.
+### Alcance
 
-Esto no abre la mesa para siempre (la mesa nunca se ocupó), pero sí ensucia la DB y, peor, cuando llegan nuevos clientes a esa misma mesa ven el carrito viejo de otra gente en tiempo real.
+- **Audiencia**: staff autenticado (admin/dueño/mesero/cocina según rol).
+- **Acceso**: botón flotante (FAB) en esquina inferior derecha, visible en todo el layout `_app/*`. Oculto en rutas públicas (`/carta/:idMesa`, `/login`, `/register`).
+- **Conversación**: una sola conversación por usuario, persistida en `localStorage` por simplicidad (clave `talia-chat-{userId}`). Botón "Nueva conversación" la limpia.
+- **Capacidades**: solo lectura. El bot puede consultar pero no modificar datos.
 
-## Cambios
+### Qué puede responder
 
-### 1) Migración SQL
+El bot tendrá un set de herramientas (tools del AI SDK) que el modelo invoca según la pregunta, todas con `id_negocio` derivado del staff autenticado:
 
-1. **`cerrar_mesa(p_id_mesa)`**: al final, `DELETE FROM prepedido_sesiones WHERE id_mesa = p_id_mesa` (los items caen por `ON DELETE CASCADE`).
-2. **`cerrar_cuenta_mesa(p_id_mesa)`**: misma limpieza.
-3. **`aceptar_prepedido_mesa(p_id_mesa)`**: además de `DELETE FROM prepedido_items`, borrar las `prepedido_sesiones` de esa mesa para que el siguiente grupo arranque limpio.
-4. **Nueva función `purgar_prepedido_inactivo()`** (SECURITY DEFINER): borra `prepedido_sesiones` con `last_seen_at < now() - interval '4 hours'`. Devuelve el conteo. `GRANT EXECUTE ... TO anon, authenticated, service_role`.
+1. `get_ventas_resumen({ desde, hasta })` — ventas, ticket promedio, transacciones.
+2. `get_productos_top({ desde, hasta, limit })` — productos más vendidos.
+3. `get_stock_bajo()` — insumos bajo el mínimo.
+4. `get_mesas_estado()` — mesas ocupadas, libres, con llamado.
+5. `get_pedidos_activos()` — pedidos en curso por estado.
+6. `get_turnos_activos()` — staff en turno ahora.
+7. `get_caja_dia()` — caja actual abierta (ingresos, egresos, propinas).
+8. `buscar_producto({ query })` — busca en el menú por nombre.
 
-### 2) Cron
+Cada tool es un `createServerFn` con `requireSupabaseAuth` que valida el `id_negocio` del usuario antes de leer. Reutiliza patrones existentes (similar a `analytics.functions.ts`).
 
-Reutilizar el endpoint `/api/public/hooks/cerrar-turnos` para llamar también a `purgar_prepedido_inactivo()` en el mismo POST (devuelve `{ ok, cerrados, prepedidos_purgados }`). Mantiene la misma frecuencia (15 min) ya configurada en pg_cron.
+### UI
 
-## Fuera de alcance
+- **Componente `FloatingChatButton`**: FAB con ícono de chat en `_app.tsx`, abre un `Sheet` lateral derecho (o dialog en móvil).
+- **Componente `ChatPanel`** dentro del Sheet: usa AI Elements (`Conversation`, `Message`, `MessageResponse`, `PromptInput`, `Tool`, `Shimmer`).
+- Mensajes del asistente sin fondo; mensajes del usuario con `bg-primary text-primary-foreground`.
+- Render de `message.parts` (texto + tool calls colapsadas).
+- Logo: pequeño avatar generado (no `Sparkles`). Se puede usar el logo del negocio si existe.
+- Empty state con sugerencias rápidas: "¿Cuáles son mis productos más vendidos esta semana?", "¿Qué insumos están bajos?", "¿Cómo van las ventas hoy?".
 
-- No se cambia la UI del cliente ni del mesero.
-- No se modifica el flujo de "Llamar mesero" ni la ocupación de mesa.
-- No se agregan nuevos endpoints públicos.
+### Backend
 
-## Archivos
+- **Server route streaming**: `src/routes/api/chat.ts` con `POST` handler. Verifica auth leyendo bearer del header (vía `attachSupabaseAuth` ya configurado), obtiene `id_negocio` del staff, llama a `streamText` del AI SDK con tools registradas.
+- **Modelo**: `google/gemini-3-flash-preview` vía Lovable AI Gateway (sin API key del usuario).
+- **Provider helper**: nuevo `src/lib/ai-gateway.server.ts` con `createLovableAiGatewayProvider` (patrón canónico).
+- **System prompt**: contexto sobre el negocio (nombre, rol del usuario, fecha actual), instrucciones para usar tools antes de responder, responder en español, ser conciso.
+- **stopWhen**: `stepCountIs(50)` para permitir múltiples tool calls.
 
-- Nueva migración SQL (modifica 3 funciones existentes + crea 1 nueva).
-- `src/routes/api/public/hooks/cerrar-turnos.ts` (añadir segunda llamada RPC).
+### Persistencia
+
+- `localStorage` clave `talia-chat-{userId}` con `UIMessage[]`.
+- Bootstrap idempotente con guard `typeof window !== "undefined"`.
+- No se guarda en BD (decisión del usuario).
+
+### Archivos a crear
+
+- `src/lib/ai-gateway.server.ts` — helper del provider.
+- `src/lib/chat-tools.server.ts` — definiciones de tools (server-only).
+- `src/routes/api/chat.ts` — endpoint streaming.
+- `src/components/chat/floating-chat-button.tsx` — FAB.
+- `src/components/chat/chat-panel.tsx` — UI del chat con AI Elements.
+- `src/hooks/use-chat-storage.ts` — hook de persistencia localStorage.
+
+### Archivos a editar
+
+- `src/routes/_app.tsx` — montar `<FloatingChatButton />`.
+- `package.json` — agregar `ai`, `@ai-sdk/react`, `@ai-sdk/openai-compatible`, `zod` (si falta).
+
+### Detalles técnicos
+
+- **Seguridad**: cada tool re-valida que el `id_negocio` solicitado coincida con el del staff autenticado (defensa en profundidad además de RLS).
+- **Errores**: 429 → toast "Demasiadas solicitudes, intenta en un momento"; 402 → toast "Créditos de IA agotados, contacta al admin".
+- **AI Elements**: instalar con `bunx ai-elements@latest add conversation message prompt-input shimmer tool`.
+- **LOVABLE_API_KEY**: verificar que existe; si no, crearlo con la tool correspondiente al implementar.
+
+### Fuera de alcance
+
+- Sin acciones de escritura (no crea pedidos, no cierra mesas).
+- Sin hilos múltiples ni sidebar de conversaciones.
+- Sin chatbot para clientes en `/carta/:idMesa` (queda para una segunda fase si lo piden).
+- Sin voz, sin adjuntos, sin generación de imágenes.
