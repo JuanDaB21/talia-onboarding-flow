@@ -456,24 +456,8 @@ function CartaPage() {
         }}
       >
         <div className="mx-auto max-w-2xl p-3 space-y-2">
-          {cliente?.idSesion && (prepedidoQ.data?.items.length ?? 0) > 0 && (
-            <Button
-              size="lg"
-              type="button"
-              onClick={() => setPrepedidoOpen(true)}
-              className="w-full h-12 text-sm font-semibold gap-2"
-              style={{
-                background: "var(--menu-surface)",
-                color: "var(--menu-foreground)",
-                borderColor: "var(--menu-primary)",
-                borderWidth: 1,
-                borderRadius: "var(--menu-radius)",
-              }}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              Ver pedido de la mesa ({prepedidoQ.data!.items.reduce((a, i) => a + i.cantidad, 0)})
-            </Button>
-          )}
+
+
           {estadoQ.data?.tiene_pedido_activo ? (
             <div className="grid grid-cols-2 gap-2">
               <Button
