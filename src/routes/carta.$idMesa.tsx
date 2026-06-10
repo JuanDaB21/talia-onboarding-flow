@@ -303,20 +303,50 @@ function CartaPage() {
             ¡Bienvenido{nombreNegocio ? ` a ${nombreNegocio}` : ""}!
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--menu-muted)" }}>
-            Revisa nuestro menú y cuando tengas claro qué vas a pedir llama a tu
-            mesero, te atenderemos con gusto.
+            Dinos cómo te llamas para personalizar tu experiencia y armar tu pedido junto a tus acompañantes.
           </p>
-          <Button
-            className="w-full h-12 text-base"
-            style={{
-              background: "var(--menu-primary)",
-              color: "var(--menu-primary-foreground)",
-              borderRadius: "var(--menu-radius)",
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = nombreInput.trim();
+              if (n.length < 1) return;
+              unirseMut.mutate(n);
             }}
-            onClick={() => setFase("menu")}
+            className="space-y-3"
           >
-            Continuar
-          </Button>
+            <Input
+              value={nombreInput}
+              onChange={(e) => setNombreInput(e.target.value.slice(0, 40))}
+              placeholder="Tu nombre"
+              autoFocus
+              maxLength={40}
+              className="h-12 text-base text-center"
+              style={{
+                background: "var(--menu-bg)",
+                borderColor: "var(--menu-border)",
+                color: "var(--menu-foreground)",
+                borderRadius: "var(--menu-radius)",
+              }}
+              required
+            />
+            <Button
+              type="submit"
+              disabled={unirseMut.isPending || nombreInput.trim().length === 0}
+              className="w-full h-12 text-base"
+              style={{
+                background: "var(--menu-primary)",
+                color: "var(--menu-primary-foreground)",
+                borderRadius: "var(--menu-radius)",
+              }}
+            >
+              {unirseMut.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Entrar al menú"
+              )}
+            </Button>
+          </form>
+
         </div>
       </main>
     );
