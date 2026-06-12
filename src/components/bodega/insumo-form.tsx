@@ -189,6 +189,9 @@ export function InsumoForm({
     if (factorAuto != null && unidadCompra && unidadReceta) {
       return `Calculado automáticamente: 1 ${labelDe(unidadCompra)} = ${factorAuto.toLocaleString()} ${labelDe(unidadReceta)}`;
     }
+    if (crossFamilyAUnidad) {
+      return `¿Cuántas unidades en promedio salen de 1 ${labelDe(unidadCompra)}? Puede ser aproximado (ej. 1 libra ≈ 1.3 porciones de 350 g).`;
+    }
     if (manual) {
       return `¿Cuántas unidades trae 1 ${labelDe(unidadCompra)}? (depende del proveedor)`;
     }
