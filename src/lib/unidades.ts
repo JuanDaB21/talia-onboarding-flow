@@ -57,39 +57,31 @@ export function unidadBaseDeFamilia(familia: Familia): Unidad {
 
 /**
  * Unidades válidas para receta dada una unidad de compra.
- * - Misma familia siempre.
- * - Para cualquier compra ⇒ también permite todas las unidades de la familia UNIDAD
- *   (Unidad, Caja, Paquete, Bandeja, Docena) con factor manual aproximado.
+ * Se permite cualquier unidad: misma familia (conversión automática) o
+ * cualquier otra (factor manual aproximado, ej. 1 caja ≈ 500 g, 1 lb ≈ 2 unidades).
  */
 export function unidadesPermitidasParaReceta(unidadCompra?: string | null): Unidad[] {
   const uc = getUnidad(unidadCompra);
   if (!uc) return [];
-  const base = unidadesDeFamilia(uc.familia);
-  if (uc.familia !== "UNIDAD") {
-    return [...base, ...unidadesDeFamilia("UNIDAD")];
-  }
-  return base;
+  const misma = unidadesDeFamilia(uc.familia);
+  const otras = UNIDADES.filter((u) => u.familia !== uc.familia);
+  return [...misma, ...otras];
 }
 
 /**
- * ¿La combinación compra/receta es válida?
+ * ¿La combinación compra/receta es válida? Cualquier combinación lo es.
  */
 export function combinacionPermitida(
   unidadCompra?: string | null,
   unidadReceta?: string | null,
 ): boolean {
-  const uc = getUnidad(unidadCompra);
-  const ur = getUnidad(unidadReceta);
-  if (!uc || !ur) return false;
-  if (uc.familia === ur.familia) return true;
-  if (ur.familia === "UNIDAD") return true;
-  return false;
+  return !!getUnidad(unidadCompra) && !!getUnidad(unidadReceta);
 }
 
 /**
  * ¿El usuario debe ingresar el factor manualmente?
- * - Unidad de compra UNIDAD con manualFactor (Caja, Paquete, Bandeja, Docena).
- * - Compra de otra familia con receta de la familia UNIDAD (porcionado aproximado).
+ * - Unidad de compra con manualFactor (Caja, Paquete, Bandeja, Docena).
+ * - Compra y receta de distinta familia (cualquier cruce aproximado).
  */
 export function requiereFactorManual(
   unidadCompra?: string | null,
@@ -99,7 +91,7 @@ export function requiereFactorManual(
   if (!uc) return false;
   if (uc.manualFactor) return true;
   const ur = getUnidad(unidadReceta);
-  if (ur && uc.familia !== ur.familia && ur.familia === "UNIDAD") return true;
+  if (ur && uc.familia !== ur.familia) return true;
   return false;
 }
 
