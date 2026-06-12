@@ -1,0 +1,1 @@
+COMMENT ON COLUMN public.insumos.stock_minimo IS 'Stock mínimo expresado en unidad de compra (unidad_compra). La alarma se dispara cuando inventario_actual.cantidad_actual (en unidad_receta) <= stock_minimo * factor_conversion.';
