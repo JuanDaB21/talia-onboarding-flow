@@ -114,7 +114,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
                     {Number(i.costo_promedio).toLocaleString()}
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-right">
-                    {Number(i.stock_minimo).toLocaleString()}
+                    {Number(i.stock_minimo).toLocaleString()} {labelDe(i.unidad_compra)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     {labelDe(i.unidad_compra)} → {labelDe(i.unidad_receta)}
