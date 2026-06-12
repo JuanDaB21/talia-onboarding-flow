@@ -89,6 +89,61 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const subsOf = selected ? subs.filter((s) => s.id_categoria === selected) : [];
   const selectedCat = cats.find((c) => c.id_categoria === selected);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const persistOrden = async (
+    table: "categorias" | "subcategorias",
+    idField: "id_categoria" | "id_subcategoria",
+    items: Array<{ id: string; orden: number }>,
+  ) => {
+    const results = await Promise.all(
+      items.map((it) =>
+        supabase.from(table).update({ orden: it.orden }).eq(idField, it.id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("No se pudo guardar el orden", { description: err.message });
+      load();
+    }
+  };
+
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = cats.findIndex((c) => c.id_categoria === active.id);
+    const newIdx = cats.findIndex((c) => c.id_categoria === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const next = arrayMove(cats, oldIdx, newIdx).map((c, i) => ({ ...c, orden: i }));
+    setCats(next);
+    persistOrden(
+      "categorias",
+      "id_categoria",
+      next.map((c) => ({ id: c.id_categoria, orden: c.orden })),
+    );
+  };
+
+  const handleSubDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id || !selected) return;
+    const oldIdx = subsOf.findIndex((s) => s.id_subcategoria === active.id);
+    const newIdx = subsOf.findIndex((s) => s.id_subcategoria === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const nextSubsOf = arrayMove(subsOf, oldIdx, newIdx).map((s, i) => ({ ...s, orden: i }));
+    setSubs((prev) => [
+      ...prev.filter((s) => s.id_categoria !== selected),
+      ...nextSubsOf,
+    ]);
+    persistOrden(
+      "subcategorias",
+      "id_subcategoria",
+      nextSubsOf.map((s) => ({ id: s.id_subcategoria, orden: s.orden })),
+    );
+  };
+
   return (
     <div className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
       {/* Lista categorías */}
@@ -105,19 +160,18 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           ) : cats.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">Aún no hay categorías.</p>
           ) : (
-            cats.map((c) => (
-              <button
-                key={c.id_categoria}
-                onClick={() => setSelected(c.id_categoria)}
-                className={cn(
-                  "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors",
-                  selected === c.id_categoria && "bg-muted font-medium"
-                )}
-              >
-                <span className="truncate">{c.nombre}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
+              <SortableContext items={cats.map((c) => c.id_categoria)} strategy={verticalListSortingStrategy}>
+                {cats.map((c) => (
+                  <SortableCategoria
+                    key={c.id_categoria}
+                    cat={c}
+                    selected={selected === c.id_categoria}
+                    onSelect={() => setSelected(c.id_categoria)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
@@ -158,22 +212,22 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           ) : subsOf.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground text-center">Esta categoría aún no tiene subcategorías.</p>
           ) : (
-            subsOf.map((s) => (
-              <div key={s.id_subcategoria} className="flex items-center justify-between px-3 py-2.5">
-                <span className="text-sm truncate">{s.nombre}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSubSheet({ open: true, editing: s })}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDelSub(s)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubDragEnd}>
+              <SortableContext items={subsOf.map((s) => s.id_subcategoria)} strategy={verticalListSortingStrategy}>
+                {subsOf.map((s) => (
+                  <SortableSubcategoria
+                    key={s.id_subcategoria}
+                    sub={s}
+                    onEdit={() => setSubSheet({ open: true, editing: s })}
+                    onDelete={() => setDelSub(s)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
+
 
       <ResponsiveSheet
         open={catSheet.open}
