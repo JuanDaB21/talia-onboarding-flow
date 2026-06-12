@@ -146,7 +146,8 @@ function InventarioDetailPage() {
     );
   }
 
-  const low = cantidad <= Number(insumo.stock_minimo);
+  const minRecetaUnits = Number(insumo.stock_minimo) * Number(insumo.factor_conversion || 1);
+  const low = cantidad <= minRecetaUnits;
 
   return (
     <div className="space-y-6">
@@ -165,13 +166,7 @@ function InventarioDetailPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">{insumo.nombre_insumo}</h1>
         <p className="text-sm text-muted-foreground">
-          Stock mínimo:{" "}
-          {formatStockInteligente(
-            Number(insumo.stock_minimo),
-            insumo.unidad_receta,
-            insumo.unidad_compra,
-            Number(insumo.factor_conversion),
-          )}
+          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()} {labelDe(insumo.unidad_compra)}
         </p>
       </header>
 

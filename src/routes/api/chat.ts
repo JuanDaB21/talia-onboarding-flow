@@ -119,7 +119,7 @@ function buildTools(idNegocio: string) {
         const sb = await adminPromise;
         const { data: insumos } = await sb
           .from("insumos")
-          .select("id_insumo, nombre_insumo, stock_minimo, unidad_compra")
+          .select("id_insumo, nombre_insumo, stock_minimo, unidad_compra, factor_conversion")
           .eq("id_negocio", idNegocio);
         const { data: inv } = await sb
           .from("inventario_actual")
@@ -127,12 +127,17 @@ function buildTools(idNegocio: string) {
           .eq("id_negocio", idNegocio);
         const invMap = new Map((inv ?? []).map((i) => [i.id_insumo, Number(i.cantidad_actual)]));
         const bajos = (insumos ?? [])
-          .map((i) => ({
-            nombre: i.nombre_insumo,
-            actual: invMap.get(i.id_insumo) ?? 0,
-            minimo: Number(i.stock_minimo ?? 0),
-            unidad: i.unidad_compra,
-          }))
+          .map((i) => {
+            const factor = Number(i.factor_conversion ?? 1) || 1;
+            const cantidadReceta = invMap.get(i.id_insumo) ?? 0;
+            const actualCompra = cantidadReceta / factor;
+            return {
+              nombre: i.nombre_insumo,
+              actual: actualCompra,
+              minimo: Number(i.stock_minimo ?? 0),
+              unidad: i.unidad_compra,
+            };
+          })
           .filter((x) => x.minimo > 0 && x.actual < x.minimo)
           .sort((a, b) => a.actual / Math.max(1, a.minimo) - b.actual / Math.max(1, b.minimo));
         return { insumos_bajo_minimo: bajos };

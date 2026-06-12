@@ -94,7 +94,9 @@ export function InventarioTab() {
       if (!r.insumos) return false;
       if (term && !r.insumos.nombre_insumo.toLowerCase().includes(term)) return false;
       if (unidad !== "all" && r.insumos.unidad_receta !== unidad) return false;
-      const low = Number(r.cantidad_actual) <= Number(r.insumos.stock_minimo);
+      const minRecetaUnits =
+        Number(r.insumos.stock_minimo) * Number(r.insumos.factor_conversion || 1);
+      const low = Number(r.cantidad_actual) <= minRecetaUnits;
       if (stockFilter === "low" && !low) return false;
       if (stockFilter === "ok" && low) return false;
       return true;
@@ -164,7 +166,9 @@ export function InventarioTab() {
               </TableRow>
             ) : (
               filtered.map((r) => {
-                const low = Number(r.cantidad_actual) <= Number(r.insumos.stock_minimo);
+                const minRecetaUnits =
+                  Number(r.insumos.stock_minimo) * Number(r.insumos.factor_conversion || 1);
+                const low = Number(r.cantidad_actual) <= minRecetaUnits;
                 return (
                   <TableRow
                     key={r.insumos.id_insumo}
@@ -189,12 +193,7 @@ export function InventarioTab() {
                       {labelDe(r.insumos.unidad_receta)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-right tabular-nums">
-                      {formatStockInteligente(
-                        Number(r.insumos.stock_minimo),
-                        r.insumos.unidad_receta,
-                        r.insumos.unidad_compra,
-                        Number(r.insumos.factor_conversion),
-                      )}
+                      {Number(r.insumos.stock_minimo).toLocaleString()} {labelDe(r.insumos.unidad_compra)}
                     </TableCell>
                     <TableCell className="text-right">
                       {low ? (

@@ -225,13 +225,19 @@ export function InsumoForm({
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="stock_minimo">Stock mínimo</Label>
+          <Label htmlFor="stock_minimo">
+            Stock mínimo{unidadCompra ? ` (en ${labelDe(unidadCompra)})` : ""}
+          </Label>
           <Input
             id="stock_minimo"
             type="number"
             step="0.0001"
             {...register("stock_minimo")}
           />
+          <p className="text-xs text-muted-foreground">
+            Se generará alerta cuando el inventario disponible sea ≤ este valor
+            {unidadCompra ? ` (en ${labelDe(unidadCompra)})` : ""}.
+          </p>
           {errors.stock_minimo && (
             <p className="text-xs text-destructive">{errors.stock_minimo.message}</p>
           )}
