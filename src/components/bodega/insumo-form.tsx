@@ -105,10 +105,9 @@ export function InsumoForm({
 
   const manual = requiereFactorManual(unidadCompra, unidadReceta);
   const factorAuto = !manual ? calcularFactor(unidadCompra, unidadReceta) : null;
+  const familiaReceta = getFamilia(unidadReceta);
   const crossFamilyAUnidad =
-    !!familiaCompra &&
-    (familiaCompra === "PESO" || familiaCompra === "VOLUMEN") &&
-    unidadReceta === "Unidad";
+    !!familiaCompra && familiaCompra !== "UNIDAD" && familiaReceta === "UNIDAD";
 
   // Si la combinación deja de ser válida, autosetear receta a la base de la familia de compra.
   useEffect(() => {
