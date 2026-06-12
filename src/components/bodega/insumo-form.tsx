@@ -99,24 +99,27 @@ export function InsumoForm({
   const familiaCompra = getFamilia(unidadCompra);
 
   const recetaOptions = useMemo(
-    () => (familiaCompra ? unidadesDeFamilia(familiaCompra) : []),
-    [familiaCompra]
+    () => unidadesPermitidasParaReceta(unidadCompra),
+    [unidadCompra]
   );
 
-  const manual = requiereFactorManual(unidadCompra);
+  const manual = requiereFactorManual(unidadCompra, unidadReceta);
   const factorAuto = !manual ? calcularFactor(unidadCompra, unidadReceta) : null;
+  const crossFamilyAUnidad =
+    !!familiaCompra &&
+    (familiaCompra === "PESO" || familiaCompra === "VOLUMEN") &&
+    unidadReceta === "Unidad";
 
-  // Si cambia la unidad de compra y la unidad de receta queda fuera de la familia, autosetear.
+  // Si la combinación deja de ser válida, autosetear receta a la base de la familia de compra.
   useEffect(() => {
     if (!familiaCompra) return;
-    const recetaFam = getFamilia(unidadReceta);
-    if (recetaFam !== familiaCompra) {
+    if (!combinacionPermitida(unidadCompra, unidadReceta)) {
       setValue("unidad_receta", unidadBaseDeFamilia(familiaCompra).code, {
         shouldDirty: true,
         shouldValidate: true,
       });
     }
-  }, [familiaCompra, unidadReceta, setValue]);
+  }, [familiaCompra, unidadCompra, unidadReceta, setValue]);
 
   // Sincronizar factor automático cuando aplica.
   useEffect(() => {
