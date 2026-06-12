@@ -1,8 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +43,8 @@ import {
   type SubcategoriaInput,
 } from "@/lib/menu-schemas";
 
-interface Categoria { id_categoria: string; nombre: string; destino: string }
-interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string }
+interface Categoria { id_categoria: string; nombre: string; destino: string; orden: number }
+interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string; orden: number }
 
 export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const [cats, setCats] = useState<Categoria[]>([]);
@@ -43,13 +60,14 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: cData }, { data: sData }] = await Promise.all([
-      supabase.from("categorias").select("id_categoria, nombre, destino").order("nombre"),
-      supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria").order("nombre"),
+      supabase.from("categorias").select("id_categoria, nombre, destino, orden").order("orden").order("nombre"),
+      supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria, orden").order("orden").order("nombre"),
     ]);
     setCats((cData as Categoria[]) ?? []);
     setSubs((sData as Subcategoria[]) ?? []);
     setLoading(false);
   }, []);
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -71,6 +89,63 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const subsOf = selected ? subs.filter((s) => s.id_categoria === selected) : [];
   const selectedCat = cats.find((c) => c.id_categoria === selected);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const persistOrden = async (
+    kind: "categorias" | "subcategorias",
+    items: Array<{ id: string; orden: number }>,
+  ) => {
+    const results = await Promise.all(
+      items.map((it) =>
+        kind === "categorias"
+          ? supabase.from("categorias").update({ orden: it.orden }).eq("id_categoria", it.id)
+          : supabase.from("subcategorias").update({ orden: it.orden }).eq("id_subcategoria", it.id),
+      ),
+    );
+    const err = results.find((r) => r.error)?.error;
+    if (err) {
+      toast.error("No se pudo guardar el orden", { description: err.message });
+      load();
+    }
+  };
+
+
+  const handleCatDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = cats.findIndex((c) => c.id_categoria === active.id);
+    const newIdx = cats.findIndex((c) => c.id_categoria === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const next = arrayMove(cats, oldIdx, newIdx).map((c, i) => ({ ...c, orden: i }));
+    setCats(next);
+    persistOrden(
+      "categorias",
+      next.map((c) => ({ id: c.id_categoria, orden: c.orden })),
+    );
+
+  };
+
+  const handleSubDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id || !selected) return;
+    const oldIdx = subsOf.findIndex((s) => s.id_subcategoria === active.id);
+    const newIdx = subsOf.findIndex((s) => s.id_subcategoria === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const nextSubsOf = arrayMove(subsOf, oldIdx, newIdx).map((s, i) => ({ ...s, orden: i }));
+    setSubs((prev) => [
+      ...prev.filter((s) => s.id_categoria !== selected),
+      ...nextSubsOf,
+    ]);
+    persistOrden(
+      "subcategorias",
+      nextSubsOf.map((s) => ({ id: s.id_subcategoria, orden: s.orden })),
+    );
+
+  };
+
   return (
     <div className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
       {/* Lista categorías */}
@@ -87,19 +162,18 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           ) : cats.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">Aún no hay categorías.</p>
           ) : (
-            cats.map((c) => (
-              <button
-                key={c.id_categoria}
-                onClick={() => setSelected(c.id_categoria)}
-                className={cn(
-                  "flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors",
-                  selected === c.id_categoria && "bg-muted font-medium"
-                )}
-              >
-                <span className="truncate">{c.nombre}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
+              <SortableContext items={cats.map((c) => c.id_categoria)} strategy={verticalListSortingStrategy}>
+                {cats.map((c) => (
+                  <SortableCategoria
+                    key={c.id_categoria}
+                    cat={c}
+                    selected={selected === c.id_categoria}
+                    onSelect={() => setSelected(c.id_categoria)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
@@ -140,22 +214,22 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           ) : subsOf.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground text-center">Esta categoría aún no tiene subcategorías.</p>
           ) : (
-            subsOf.map((s) => (
-              <div key={s.id_subcategoria} className="flex items-center justify-between px-3 py-2.5">
-                <span className="text-sm truncate">{s.nombre}</span>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSubSheet({ open: true, editing: s })}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDelSub(s)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubDragEnd}>
+              <SortableContext items={subsOf.map((s) => s.id_subcategoria)} strategy={verticalListSortingStrategy}>
+                {subsOf.map((s) => (
+                  <SortableSubcategoria
+                    key={s.id_subcategoria}
+                    sub={s}
+                    onEdit={() => setSubSheet({ open: true, editing: s })}
+                    onDelete={() => setDelSub(s)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
+
 
       <ResponsiveSheet
         open={catSheet.open}
@@ -252,7 +326,10 @@ function CategoriaFormInline({
         if (error) return toast.error("No se pudo actualizar", { description: error.message });
         toast.success("Categoría actualizada");
       } else {
-        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino });
+        const { data: maxRow } = await supabase.from("categorias").select("orden").eq("id_negocio", idNegocio).order("orden", { ascending: false }).limit(1).maybeSingle();
+        const nextOrden = (maxRow?.orden ?? -1) + 1;
+        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino, orden: nextOrden });
+
         if (error) return toast.error("No se pudo crear", { description: error.message });
         toast.success("Categoría creada");
       }
@@ -306,9 +383,12 @@ function SubcategoriaFormInline({
         if (error) return toast.error("No se pudo actualizar", { description: error.message });
         toast.success("Subcategoría actualizada");
       } else {
+        const { data: maxRow } = await supabase.from("subcategorias").select("orden").eq("id_categoria", idCategoria).order("orden", { ascending: false }).limit(1).maybeSingle();
+        const nextOrden = (maxRow?.orden ?? -1) + 1;
         const { error } = await supabase.from("subcategorias").insert({
-          id_negocio: idNegocio, id_categoria: idCategoria, nombre: v.nombre,
+          id_negocio: idNegocio, id_categoria: idCategoria, nombre: v.nombre, orden: nextOrden,
         });
+
         if (error) return toast.error("No se pudo crear", { description: error.message });
         toast.success("Subcategoría creada");
       }
@@ -324,5 +404,77 @@ function SubcategoriaFormInline({
         <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
       </div>
     </form>
+  );
+}
+
+function SortableCategoria({
+  cat, selected, onSelect,
+}: { cat: Categoria; selected: boolean; onSelect: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id_categoria });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex w-full items-center gap-1 pl-1 pr-3 py-2.5 text-left text-sm hover:bg-muted transition-colors",
+        selected && "bg-muted font-medium",
+      )}
+    >
+      <button
+        type="button"
+        className="touch-none cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
+        aria-label="Arrastrar para reordenar"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-center justify-between text-left"
+      >
+        <span className="truncate">{cat.nombre}</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </button>
+    </div>
+  );
+}
+
+function SortableSubcategoria({
+  sub, onEdit, onDelete,
+}: { sub: Subcategoria; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id_subcategoria });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1 pl-1 pr-3 py-2.5">
+      <button
+        type="button"
+        className="touch-none cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
+        aria-label="Arrastrar para reordenar"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="flex-1 text-sm truncate">{sub.nombre}</span>
+      <div className="flex items-center gap-1">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={onDelete}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
   );
 }

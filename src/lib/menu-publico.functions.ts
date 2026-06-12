@@ -49,6 +49,17 @@ export const getMenuPublico = createServerFn({ method: "GET" })
       .maybeSingle();
     if (negErr) throw new Error(negErr.message);
 
+    const { data: catsAll, error: catsErr } = await supabaseAdmin
+      .from("categorias")
+      .select("id_categoria, nombre, orden")
+      .eq("id_negocio", mesa.id_negocio)
+      .order("orden", { ascending: true })
+      .order("nombre", { ascending: true });
+    if (catsErr) throw new Error(catsErr.message);
+
+    const ordenCat = new Map<string, number>();
+    (catsAll ?? []).forEach((c, i) => ordenCat.set(c.id_categoria, i));
+
     const { data: productos, error: prodErr } = await supabaseAdmin
       .from("productos")
       .select(
@@ -81,7 +92,8 @@ export const getMenuPublico = createServerFn({ method: "GET" })
 
     const categorias: CartaCategoria[] = Array.from(catsMap.entries())
       .map(([id_categoria, nombre]) => ({ id_categoria, nombre }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      .sort((a, b) => (ordenCat.get(a.id_categoria) ?? 9999) - (ordenCat.get(b.id_categoria) ?? 9999));
+
 
     const mesaOut: CartaMesa = {
       id_mesa: mesa.id_mesa,
