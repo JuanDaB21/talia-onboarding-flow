@@ -196,6 +196,7 @@ export type Database = {
           id_categoria: string
           id_negocio: string
           nombre: string
+          orden: number
         }
         Insert: {
           created_at?: string
@@ -203,6 +204,7 @@ export type Database = {
           id_categoria?: string
           id_negocio: string
           nombre: string
+          orden?: number
         }
         Update: {
           created_at?: string
@@ -210,6 +212,7 @@ export type Database = {
           id_categoria?: string
           id_negocio?: string
           nombre?: string
+          orden?: number
         }
         Relationships: [
           {
@@ -1261,6 +1264,7 @@ export type Database = {
           id_negocio: string
           id_subcategoria: string
           nombre: string
+          orden: number
         }
         Insert: {
           created_at?: string
@@ -1268,6 +1272,7 @@ export type Database = {
           id_negocio: string
           id_subcategoria?: string
           nombre: string
+          orden?: number
         }
         Update: {
           created_at?: string
@@ -1275,6 +1280,7 @@ export type Database = {
           id_negocio?: string
           id_subcategoria?: string
           nombre?: string
+          orden?: number
         }
         Relationships: [
           {
