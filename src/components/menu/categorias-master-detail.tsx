@@ -400,3 +400,75 @@ function SubcategoriaFormInline({
     </form>
   );
 }
+
+function SortableCategoria({
+  cat, selected, onSelect,
+}: { cat: Categoria; selected: boolean; onSelect: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id_categoria });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex w-full items-center gap-1 pl-1 pr-3 py-2.5 text-left text-sm hover:bg-muted transition-colors",
+        selected && "bg-muted font-medium",
+      )}
+    >
+      <button
+        type="button"
+        className="touch-none cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
+        aria-label="Arrastrar para reordenar"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-center justify-between text-left"
+      >
+        <span className="truncate">{cat.nombre}</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </button>
+    </div>
+  );
+}
+
+function SortableSubcategoria({
+  sub, onEdit, onDelete,
+}: { sub: Subcategoria; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id_subcategoria });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1 pl-1 pr-3 py-2.5">
+      <button
+        type="button"
+        className="touch-none cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
+        aria-label="Arrastrar para reordenar"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="flex-1 text-sm truncate">{sub.nombre}</span>
+      <div className="flex items-center gap-1">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={onDelete}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
