@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UNIDAD_CODES, getFamilia, requiereFactorManual } from "./unidades";
+import { UNIDAD_CODES, combinacionPermitida, requiereFactorManual } from "./unidades";
 
 export const proveedorSchema = z.object({
   razon_social: z.string().trim().min(1, "Requerido").max(255),
