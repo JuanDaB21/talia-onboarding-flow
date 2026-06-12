@@ -1,8 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +43,8 @@ import {
   type SubcategoriaInput,
 } from "@/lib/menu-schemas";
 
-interface Categoria { id_categoria: string; nombre: string; destino: string }
-interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string }
+interface Categoria { id_categoria: string; nombre: string; destino: string; orden: number }
+interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string; orden: number }
 
 export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const [cats, setCats] = useState<Categoria[]>([]);
@@ -43,13 +60,14 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: cData }, { data: sData }] = await Promise.all([
-      supabase.from("categorias").select("id_categoria, nombre, destino").order("nombre"),
-      supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria").order("nombre"),
+      supabase.from("categorias").select("id_categoria, nombre, destino, orden").order("orden").order("nombre"),
+      supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria, orden").order("orden").order("nombre"),
     ]);
     setCats((cData as Categoria[]) ?? []);
     setSubs((sData as Subcategoria[]) ?? []);
     setLoading(false);
   }, []);
+
 
   useEffect(() => { load(); }, [load]);
 
