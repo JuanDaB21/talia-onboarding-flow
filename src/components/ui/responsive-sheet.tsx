@@ -41,7 +41,7 @@ export function ResponsiveSheet({
         className={
           isMobile
             ? "max-h-[90vh] overflow-y-auto rounded-t-2xl"
-            : `w-full ${desktopWidthClass} overflow-y-auto`
+            : `w-full ${desktopWidthClass} overflow-y-auto overflow-x-hidden`
         }
       >
         <SheetHeader className="text-left">
