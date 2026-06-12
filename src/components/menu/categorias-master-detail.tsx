@@ -141,9 +141,9 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
     ]);
     persistOrden(
       "subcategorias",
-      "id_subcategoria",
       nextSubsOf.map((s) => ({ id: s.id_subcategoria, orden: s.orden })),
     );
+
   };
 
   return (
