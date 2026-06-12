@@ -56,12 +56,50 @@ export function unidadBaseDeFamilia(familia: Familia): Unidad {
 }
 
 /**
- * ¿El usuario debe ingresar el factor manualmente?
- * Solo cuando la unidad de compra es UNIDAD y no es "Unidad" (ej. Caja, Paquete, Bandeja, Docena).
+ * Unidades válidas para receta dada una unidad de compra.
+ * - Misma familia siempre.
+ * - Compra PESO o VOLUMEN ⇒ también permite `Unidad` (porcionado aproximado).
  */
-export function requiereFactorManual(unidadCompra?: string | null): boolean {
-  const u = getUnidad(unidadCompra);
-  return Boolean(u?.manualFactor);
+export function unidadesPermitidasParaReceta(unidadCompra?: string | null): Unidad[] {
+  const uc = getUnidad(unidadCompra);
+  if (!uc) return [];
+  const base = unidadesDeFamilia(uc.familia);
+  if (uc.familia === "PESO" || uc.familia === "VOLUMEN") {
+    return [...base, getUnidad("Unidad")!];
+  }
+  return base;
+}
+
+/**
+ * ¿La combinación compra/receta es válida?
+ */
+export function combinacionPermitida(
+  unidadCompra?: string | null,
+  unidadReceta?: string | null,
+): boolean {
+  const uc = getUnidad(unidadCompra);
+  const ur = getUnidad(unidadReceta);
+  if (!uc || !ur) return false;
+  if (uc.familia === ur.familia) return true;
+  if ((uc.familia === "PESO" || uc.familia === "VOLUMEN") && ur.code === "Unidad") return true;
+  return false;
+}
+
+/**
+ * ¿El usuario debe ingresar el factor manualmente?
+ * - Unidad de compra UNIDAD con manualFactor (Caja, Paquete, Bandeja, Docena).
+ * - Compra PESO/VOLUMEN con receta `Unidad` (porcionado aproximado).
+ */
+export function requiereFactorManual(
+  unidadCompra?: string | null,
+  unidadReceta?: string | null,
+): boolean {
+  const uc = getUnidad(unidadCompra);
+  if (!uc) return false;
+  if (uc.manualFactor) return true;
+  const ur = getUnidad(unidadReceta);
+  if (ur && uc.familia !== ur.familia && ur.code === "Unidad") return true;
+  return false;
 }
 
 /**

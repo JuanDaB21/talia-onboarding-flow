@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UNIDAD_CODES, getFamilia, requiereFactorManual } from "./unidades";
+import { UNIDAD_CODES, combinacionPermitida, requiereFactorManual } from "./unidades";
 
 export const proveedorSchema = z.object({
   razon_social: z.string().trim().min(1, "Requerido").max(255),
@@ -21,16 +21,14 @@ export const insumoSchema = z
     factor_conversion: z.coerce.number().gt(0, "Debe ser > 0"),
   })
   .superRefine((val, ctx) => {
-    const fc = getFamilia(val.unidad_compra);
-    const fr = getFamilia(val.unidad_receta);
-    if (fc && fr && fc !== fr) {
+    if (!combinacionPermitida(val.unidad_compra, val.unidad_receta)) {
       ctx.addIssue({
         code: "custom",
         path: ["unidad_receta"],
-        message: "Debe pertenecer a la misma familia que la unidad de compra",
+        message: "Combinación no permitida con la unidad de compra",
       });
     }
-    if (!requiereFactorManual(val.unidad_compra) && val.unidad_compra === val.unidad_receta) {
+    if (!requiereFactorManual(val.unidad_compra, val.unidad_receta) && val.unidad_compra === val.unidad_receta) {
       if (val.factor_conversion !== 1) {
         // No-op: este caso se fuerza desde la UI; aquí solo informativo.
       }

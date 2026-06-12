@@ -9,7 +9,8 @@ import { insumoSchema, type InsumoInput } from "@/lib/bodega-schemas";
 import {
   UNIDADES,
   getFamilia,
-  unidadesDeFamilia,
+  unidadesPermitidasParaReceta,
+  combinacionPermitida,
   unidadBaseDeFamilia,
   calcularFactor,
   requiereFactorManual,
@@ -98,24 +99,27 @@ export function InsumoForm({
   const familiaCompra = getFamilia(unidadCompra);
 
   const recetaOptions = useMemo(
-    () => (familiaCompra ? unidadesDeFamilia(familiaCompra) : []),
-    [familiaCompra]
+    () => unidadesPermitidasParaReceta(unidadCompra),
+    [unidadCompra]
   );
 
-  const manual = requiereFactorManual(unidadCompra);
+  const manual = requiereFactorManual(unidadCompra, unidadReceta);
   const factorAuto = !manual ? calcularFactor(unidadCompra, unidadReceta) : null;
+  const crossFamilyAUnidad =
+    !!familiaCompra &&
+    (familiaCompra === "PESO" || familiaCompra === "VOLUMEN") &&
+    unidadReceta === "Unidad";
 
-  // Si cambia la unidad de compra y la unidad de receta queda fuera de la familia, autosetear.
+  // Si la combinación deja de ser válida, autosetear receta a la base de la familia de compra.
   useEffect(() => {
     if (!familiaCompra) return;
-    const recetaFam = getFamilia(unidadReceta);
-    if (recetaFam !== familiaCompra) {
+    if (!combinacionPermitida(unidadCompra, unidadReceta)) {
       setValue("unidad_receta", unidadBaseDeFamilia(familiaCompra).code, {
         shouldDirty: true,
         shouldValidate: true,
       });
     }
-  }, [familiaCompra, unidadReceta, setValue]);
+  }, [familiaCompra, unidadCompra, unidadReceta, setValue]);
 
   // Sincronizar factor automático cuando aplica.
   useEffect(() => {
@@ -184,6 +188,9 @@ export function InsumoForm({
   const factorHelp = (() => {
     if (factorAuto != null && unidadCompra && unidadReceta) {
       return `Calculado automáticamente: 1 ${labelDe(unidadCompra)} = ${factorAuto.toLocaleString()} ${labelDe(unidadReceta)}`;
+    }
+    if (crossFamilyAUnidad) {
+      return `¿Cuántas unidades en promedio salen de 1 ${labelDe(unidadCompra)}? Puede ser aproximado (ej. 1 libra ≈ 1.3 porciones de 350 g).`;
     }
     if (manual) {
       return `¿Cuántas unidades trae 1 ${labelDe(unidadCompra)}? (depende del proveedor)`;

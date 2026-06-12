@@ -1,76 +1,67 @@
-## Asistente IA para staff (solo lectura)
+## Problema
 
-Chatbot flotante accesible desde cualquier página del panel. Solo para usuarios staff autenticados. Responde preguntas sobre el restaurante consultando la base de datos vía herramientas con permisos limitados a su `id_negocio`.
+El catálogo de unidades fuerza que `unidad_compra` y `unidad_receta` pertenezcan a la misma familia (PESO/VOLUMEN/UNIDAD). Esto rompe casos reales como:
 
-### Alcance
+- **Carne porcionada**: se compra por **Libra** (PESO) pero se vende/descuenta por **Unidad** porcionada (~350 g aprox, no exacto).
+- Otros casos análogos: pollo entero comprado por kg y servido por presa, queso comprado por kg y servido en porciones, etc.
 
-- **Audiencia**: staff autenticado (admin/dueño/mesero/cocina según rol).
-- **Acceso**: botón flotante (FAB) en esquina inferior derecha, visible en todo el layout `_app/*`. Oculto en rutas públicas (`/carta/:idMesa`, `/login`, `/register`).
-- **Conversación**: una sola conversación por usuario, persistida en `localStorage` por simplicidad (clave `talia-chat-{userId}`). Botón "Nueva conversación" la limpia.
-- **Capacidades**: solo lectura. El bot puede consultar pero no modificar datos.
+Hoy `insumoSchema.superRefine` rechaza la combinación y la UI auto-resetea `unidad_receta` al cambiar la familia de compra.
 
-### Qué puede responder
+## Solución propuesta
 
-El bot tendrá un set de herramientas (tools del AI SDK) que el modelo invoca según la pregunta, todas con `id_negocio` derivado del staff autenticado:
+Permitir **cross-family** cuando la `unidad_receta` es **Unidad** (la única que tiene sentido para porciones discretas), tratándolo como **factor manual** que el usuario ingresa: "¿Cuántas unidades porcionadas obtienes en promedio de 1 Libra/Kg/Litro?".
 
-1. `get_ventas_resumen({ desde, hasta })` — ventas, ticket promedio, transacciones.
-2. `get_productos_top({ desde, hasta, limit })` — productos más vendidos.
-3. `get_stock_bajo()` — insumos bajo el mínimo.
-4. `get_mesas_estado()` — mesas ocupadas, libres, con llamado.
-5. `get_pedidos_activos()` — pedidos en curso por estado.
-6. `get_turnos_activos()` — staff en turno ahora.
-7. `get_caja_dia()` — caja actual abierta (ingresos, egresos, propinas).
-8. `buscar_producto({ query })` — busca en el menú por nombre.
+Para el caso del usuario:
+- `unidad_compra = Libra`, `unidad_receta = Unidad`, `factor = 1.3` (≈ 1 lb / 350 g)
+- Compra 10 lb → inventario sube 13 unidades porcionadas
+- Cada item del menú descuenta 1 unidad del inventario
 
-Cada tool es un `createServerFn` con `requireSupabaseAuth` que valida el `id_negocio` del usuario antes de leer. Reutiliza patrones existentes (similar a `analytics.functions.ts`).
+El cobro al cliente sigue siendo independiente (precio de venta del producto), así que no se ve afectado.
 
-### UI
+### Reglas
 
-- **Componente `FloatingChatButton`**: FAB con ícono de chat en `_app.tsx`, abre un `Sheet` lateral derecho (o dialog en móvil).
-- **Componente `ChatPanel`** dentro del Sheet: usa AI Elements (`Conversation`, `Message`, `MessageResponse`, `PromptInput`, `Tool`, `Shimmer`).
-- Mensajes del asistente sin fondo; mensajes del usuario con `bg-primary text-primary-foreground`.
-- Render de `message.parts` (texto + tool calls colapsadas).
-- Logo: pequeño avatar generado (no `Sparkles`). Se puede usar el logo del negocio si existe.
-- Empty state con sugerencias rápidas: "¿Cuáles son mis productos más vendidos esta semana?", "¿Qué insumos están bajos?", "¿Cómo van las ventas hoy?".
+1. **Combinaciones permitidas**
+   - Misma familia (comportamiento actual, factor auto/manual según hoy).
+   - **Compra PESO/VOLUMEN/UNIDAD-manual → Receta `Unidad`** ⇒ factor manual con etiqueta "porciones por unidad de compra".
+   - Sigue prohibido: PESO ↔ VOLUMEN, o Receta no-Unidad de distinta familia que compra.
 
-### Backend
+2. **Factor** se almacena igual (`factor_conversion`, ya numérico) — solo cambia su interpretación cuando es cross-family-a-Unidad: "cuántas porciones promedio salen de 1 unidad de compra".
 
-- **Server route streaming**: `src/routes/api/chat.ts` con `POST` handler. Verifica auth leyendo bearer del header (vía `attachSupabaseAuth` ya configurado), obtiene `id_negocio` del staff, llama a `streamText` del AI SDK con tools registradas.
-- **Modelo**: `google/gemini-3-flash-preview` vía Lovable AI Gateway (sin API key del usuario).
-- **Provider helper**: nuevo `src/lib/ai-gateway.server.ts` con `createLovableAiGatewayProvider` (patrón canónico).
-- **System prompt**: contexto sobre el negocio (nombre, rol del usuario, fecha actual), instrucciones para usar tools antes de responder, responder en español, ser conciso.
-- **stopWhen**: `stepCountIs(50)` para permitir múltiples tool calls.
+3. **Inventario, compras y consumo** ya operan multiplicando por `factor_conversion`; no necesitan cambios. La función `registrar_compra` ya hace `cantidad * factor` y guarda en unidades de receta. `descontar_inventario_item` consume en unidades de receta. Todo sigue funcionando.
 
-### Persistencia
+4. **Visualización (`formatStockInteligente`)**: cuando receta = Unidad y compra es PESO/VOLUMEN, mostrar simplemente "N unidades" (no intentar combinar "2 libras y 3 unidades", porque la equivalencia es aproximada y confundiría). La unidad de compra se sigue mostrando en historial de compras como hoy.
 
-- `localStorage` clave `talia-chat-{userId}` con `UIMessage[]`.
-- Bootstrap idempotente con guard `typeof window !== "undefined"`.
-- No se guarda en BD (decisión del usuario).
+## Cambios técnicos
 
-### Archivos a crear
+### 1. `src/lib/unidades.ts`
+- Nueva helper `combinacionPermitida(unidadCompra, unidadReceta): boolean` que codifica las reglas.
+- `requiereFactorManual` ahora también devuelve `true` cuando es cross-family-a-Unidad.
+- `calcularFactor` devuelve `null` (manual) para cross-family-a-Unidad.
+- `unidadesDeFamilia` se complementa con un helper `unidadesPermitidasParaReceta(unidadCompra)` que incluye todas las de su familia **+ `Unidad`** si la compra no es ya UNIDAD-Unidad.
 
-- `src/lib/ai-gateway.server.ts` — helper del provider.
-- `src/lib/chat-tools.server.ts` — definiciones de tools (server-only).
-- `src/routes/api/chat.ts` — endpoint streaming.
-- `src/components/chat/floating-chat-button.tsx` — FAB.
-- `src/components/chat/chat-panel.tsx` — UI del chat con AI Elements.
-- `src/hooks/use-chat-storage.ts` — hook de persistencia localStorage.
+### 2. `src/lib/bodega-schemas.ts`
+- Reemplazar el chequeo "misma familia" por `combinacionPermitida(...)`.
 
-### Archivos a editar
+### 3. `src/components/bodega/insumo-form.tsx`
+- Usar `unidadesPermitidasParaReceta(unidadCompra)` en el `Select` de unidad de receta (sin agrupar por familia cuando se mezclan; mostrar las de la familia y luego una sección "Otras → Unidad").
+- Quitar el `useEffect` que fuerza el reset cuando cambia la familia; reemplazarlo por: si la combinación actual deja de ser permitida, setear a la unidad base de la familia de compra.
+- Ajustar `factorHelp` para el caso cross-family-a-Unidad: "¿Cuántas unidades en promedio salen de 1 {labelCompra}? (puede ser aproximado)".
+- Permitir editar el factor (input no deshabilitado) en este caso.
 
-- `src/routes/_app.tsx` — montar `<FloatingChatButton />`.
-- `package.json` — agregar `ai`, `@ai-sdk/react`, `@ai-sdk/openai-compatible`, `zod` (si falta).
+### 4. `src/lib/unidades.ts → formatStockInteligente`
+- Branch adicional: si `unidad_receta = Unidad` y `unidad_compra` no es UNIDAD, formatear solo como "N unidades" (sin intentar reconstruir libras/kg desde el factor aproximado).
 
-### Detalles técnicos
+### 5. DB
+- **Sin migración**. El esquema actual ya guarda `unidad_compra`, `unidad_receta` y `factor_conversion` como texto/numérico libre. Ninguna RPC valida familias; solo usan el factor.
 
-- **Seguridad**: cada tool re-valida que el `id_negocio` solicitado coincida con el del staff autenticado (defensa en profundidad además de RLS).
-- **Errores**: 429 → toast "Demasiadas solicitudes, intenta en un momento"; 402 → toast "Créditos de IA agotados, contacta al admin".
-- **AI Elements**: instalar con `bunx ai-elements@latest add conversation message prompt-input shimmer tool`.
-- **LOVABLE_API_KEY**: verificar que existe; si no, crearlo con la tool correspondiente al implementar.
+## Casos de prueba mentales
 
-### Fuera de alcance
+1. Carne: compra Libra, receta Unidad, factor 1.3. Compra 10 lb → inventario = 13 u. Receta de "Bistec" usa 1 u → cobra precio_venta del producto. ✅
+2. Tomate (sin cambios): compra Kilogramo, receta Gramo, factor 1000 auto. ✅
+3. Caja de cervezas (sin cambios): compra Caja, receta Unidad, factor 24 manual. ✅
+4. Inválido bloqueado: compra Litro, receta Gramo → schema rechaza. ✅
 
-- Sin acciones de escritura (no crea pedidos, no cierra mesas).
-- Sin hilos múltiples ni sidebar de conversaciones.
-- Sin chatbot para clientes en `/carta/:idMesa` (queda para una segunda fase si lo piden).
-- Sin voz, sin adjuntos, sin generación de imágenes.
+## Fuera de alcance
+
+- Reportería de "merma" cuando la porción real difiere del promedio (futuro: ajuste manual de stock ya cubre el caso).
+- Cambiar la forma de cobrar al cliente (sigue siendo `precio_venta` por producto).
