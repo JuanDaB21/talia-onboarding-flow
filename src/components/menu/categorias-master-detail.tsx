@@ -95,13 +95,14 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   );
 
   const persistOrden = async (
-    table: "categorias" | "subcategorias",
-    idField: "id_categoria" | "id_subcategoria",
+    kind: "categorias" | "subcategorias",
     items: Array<{ id: string; orden: number }>,
   ) => {
     const results = await Promise.all(
       items.map((it) =>
-        supabase.from(table).update({ orden: it.orden }).eq(idField, it.id),
+        kind === "categorias"
+          ? supabase.from("categorias").update({ orden: it.orden }).eq("id_categoria", it.id)
+          : supabase.from("subcategorias").update({ orden: it.orden }).eq("id_subcategoria", it.id),
       ),
     );
     const err = results.find((r) => r.error)?.error;
@@ -110,6 +111,7 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
       load();
     }
   };
+
 
   const handleCatDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
