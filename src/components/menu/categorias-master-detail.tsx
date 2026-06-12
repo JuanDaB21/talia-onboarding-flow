@@ -326,7 +326,10 @@ function CategoriaFormInline({
         if (error) return toast.error("No se pudo actualizar", { description: error.message });
         toast.success("Categoría actualizada");
       } else {
-        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino });
+        const { data: maxRow } = await supabase.from("categorias").select("orden").eq("id_negocio", idNegocio).order("orden", { ascending: false }).limit(1).maybeSingle();
+        const nextOrden = (maxRow?.orden ?? -1) + 1;
+        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino, orden: nextOrden });
+
         if (error) return toast.error("No se pudo crear", { description: error.message });
         toast.success("Categoría creada");
       }
