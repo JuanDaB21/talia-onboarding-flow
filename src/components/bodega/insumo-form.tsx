@@ -308,21 +308,28 @@ export function InsumoForm({
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-        <Button type="button" variant="outline" className="w-full sm:flex-1" onClick={onCancel}>
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <Button type="button" variant="outline" className="w-full" onClick={onCancel}>
           Cancelar
+        </Button>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isSubmitting || (isEdit && !isDirty)}
+        >
+          {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
         {isEdit && idInsumo && (
           <Button
             type="button"
             variant="secondary"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={() => {
               onCancel();
               navigate({ to: "/bodega/inventario/$id", params: { id: idInsumo } });
             }}
           >
-            <Warehouse className="h-4 w-4 mr-1" /> Ver en Inventario
+            <Warehouse className="h-4 w-4 mr-1" /> Inventario
           </Button>
         )}
         {isEdit && onDelete && (
@@ -331,7 +338,7 @@ export function InsumoForm({
               <Button
                 type="button"
                 variant="destructive"
-                className="w-full sm:w-auto"
+                className="w-full"
                 disabled={deleting}
               >
                 <Trash2 className="h-4 w-4 mr-1" /> Eliminar
@@ -353,13 +360,6 @@ export function InsumoForm({
             </AlertDialogContent>
           </AlertDialog>
         )}
-        <Button
-          type="submit"
-          className="w-full sm:flex-1"
-          disabled={isSubmitting || (isEdit && !isDirty)}
-        >
-          {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
-        </Button>
       </div>
     </form>
   );
