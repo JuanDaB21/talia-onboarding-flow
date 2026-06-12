@@ -9,7 +9,8 @@ import { insumoSchema, type InsumoInput } from "@/lib/bodega-schemas";
 import {
   UNIDADES,
   getFamilia,
-  unidadesDeFamilia,
+  unidadesPermitidasParaReceta,
+  combinacionPermitida,
   unidadBaseDeFamilia,
   calcularFactor,
   requiereFactorManual,
