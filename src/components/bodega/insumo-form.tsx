@@ -121,7 +121,7 @@ export function InsumoForm({
     }
   }, [familiaCompra, unidadCompra, unidadReceta, setValue]);
 
-  // Sincronizar factor automático cuando aplica.
+  // Sugerir factor cuando cambian las unidades; el usuario puede editarlo después.
   useEffect(() => {
     if (factorAuto != null) {
       setValue("factor_conversion", factorAuto, {
@@ -130,12 +130,12 @@ export function InsumoForm({
       });
       return;
     }
-    // Caso manual: si compra = "Unidad" (no manualFactor) y receta = "Unidad" => 1
     const uc = getUnidad(unidadCompra);
     if (uc && !uc.manualFactor && uc.familia === "UNIDAD") {
       setValue("factor_conversion", 1, { shouldDirty: true, shouldValidate: true });
     }
-  }, [factorAuto, unidadCompra, setValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadCompra, unidadReceta]);
 
   // Prellenar defaultFactor al elegir una unidad manual con sugerencia (ej. Docena = 12)
   useEffect(() => {
@@ -187,7 +187,7 @@ export function InsumoForm({
 
   const factorHelp = (() => {
     if (factorAuto != null && unidadCompra && unidadReceta) {
-      return `Calculado automáticamente: 1 ${labelDe(unidadCompra)} = ${factorAuto.toLocaleString()} ${labelDe(unidadReceta)}`;
+      return `Sugerencia: 1 ${labelDe(unidadCompra)} ≈ ${factorAuto.toLocaleString()} ${labelDe(unidadReceta)}. Puedes ajustarlo (ej. redondear 1 lb a 500 g).`;
     }
     if (crossFamilyAUnidad) {
       return `¿Cuántas unidades en promedio salen de 1 ${labelDe(unidadCompra)}? Puede ser aproximado (ej. 1 libra ≈ 1.3 porciones de 350 g).`;
@@ -300,7 +300,7 @@ export function InsumoForm({
           id="factor_conversion"
           type="number"
           step="0.0001"
-          disabled={factorAuto != null}
+          
           {...register("factor_conversion")}
         />
         <p className="text-xs text-muted-foreground">{factorHelp}</p>
