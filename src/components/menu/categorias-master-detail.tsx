@@ -123,9 +123,9 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
     setCats(next);
     persistOrden(
       "categorias",
-      "id_categoria",
       next.map((c) => ({ id: c.id_categoria, orden: c.orden })),
     );
+
   };
 
   const handleSubDragEnd = (e: DragEndEvent) => {
