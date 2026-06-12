@@ -192,8 +192,11 @@ export function InsumoForm({
     if (crossFamilyAUnidad) {
       return `¿Cuántas unidades en promedio salen de 1 ${labelDe(unidadCompra)}? Puede ser aproximado (ej. 1 libra ≈ 1.3 porciones de 350 g).`;
     }
+    if (crossFamily) {
+      return `¿Cuánto equivale 1 ${labelDe(unidadCompra)} en ${labelDe(unidadReceta)}? Aproximación según tu negocio (ej. 1 caja ≈ 500 g).`;
+    }
     if (manual) {
-      return `¿Cuántas unidades trae 1 ${labelDe(unidadCompra)}? (depende del proveedor)`;
+      return `¿Cuántas ${labelDe(unidadReceta)} trae 1 ${labelDe(unidadCompra)}? (depende del proveedor)`;
     }
     return "1 unidad de compra equivale a 1 unidad de receta.";
   })();
