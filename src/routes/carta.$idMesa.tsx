@@ -519,6 +519,10 @@ function CartaPage() {
           loading={prepedidoQ.isLoading}
           themeStyle={themeStyle}
           theme={theme}
+          onEdit={(item) => {
+            setPrepedidoOpen(false);
+            setEditingItem(item);
+          }}
         />
       )}
 
@@ -530,6 +534,20 @@ function CartaPage() {
           idCliente={cliente.idCliente}
           idSesion={cliente.idSesion}
           producto={agregarProducto}
+          themeStyle={themeStyle}
+          theme={theme}
+        />
+      )}
+
+      {cliente?.idSesion && (
+        <PrepedidoItemEditor
+          open={!!editingItem}
+          onOpenChange={(o) => !o && setEditingItem(null)}
+          idMesa={idMesa}
+          idCliente={cliente.idCliente}
+          idSesion={cliente.idSesion}
+          producto={null}
+          editing={editingItem}
           themeStyle={themeStyle}
           theme={theme}
         />
