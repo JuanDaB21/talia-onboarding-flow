@@ -723,8 +723,8 @@ function ThemedHeader({
           Mesa {mesa}
         </p>
         <h1
-          className="text-lg font-bold leading-tight truncate"
-          style={{ fontFamily: "var(--menu-heading-font)" }}
+          className="font-bold leading-tight line-clamp-2 break-words"
+          style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1rem, 4.5vw, 1.25rem)" }}
         >
           {nombreNegocio || "Nuestra carta"}
         </h1>
