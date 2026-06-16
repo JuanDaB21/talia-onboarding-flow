@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,7 +16,6 @@ import {
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
-import { PrepedidoItemEditor } from "./prepedido-item-editor";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
