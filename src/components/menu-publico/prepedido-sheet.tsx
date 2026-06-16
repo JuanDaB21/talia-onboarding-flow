@@ -33,6 +33,7 @@ interface Props {
   loading: boolean;
   themeStyle: React.CSSProperties;
   theme: MenuTheme;
+  onEdit?: (item: PrepedidoItem) => void;
 }
 
 export function PrepedidoSheet({
@@ -45,7 +46,10 @@ export function PrepedidoSheet({
   loading,
   themeStyle,
   theme,
+  onEdit,
 }: Props) {
+  void theme;
+  void idSesion;
   const qc = useQueryClient();
   const delFn = useServerFn(eliminarItemPrepedido);
   const [editing, setEditing] = useState<PrepedidoItem | null>(null);
