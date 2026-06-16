@@ -257,18 +257,6 @@ export function PrepedidoSheet({
           )}
         </SheetContent>
       </Sheet>
-
-      <PrepedidoItemEditor
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-        idMesa={idMesa}
-        idSesion={idSesion}
-        idCliente={idCliente}
-        producto={null}
-        editing={editing}
-        themeStyle={themeStyle}
-        theme={theme}
-      />
     </>
   );
 }
