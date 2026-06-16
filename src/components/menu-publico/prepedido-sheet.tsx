@@ -198,7 +198,7 @@ export function PrepedidoSheet({
                             <div className="flex gap-2 pt-1">
                               <button
                                 type="button"
-                                onClick={() => setEditing(it)}
+                                onClick={() => onEdit?.(it)}
                                 className="flex-1 h-9 text-xs font-semibold flex items-center justify-center gap-1.5"
                                 style={{
                                   background: "var(--menu-surface-2)",
