@@ -68,6 +68,7 @@ function CartaPage() {
   const [catActiva, setCatActiva] = useState<string | null>(null);
   const [prepedidoOpen, setPrepedidoOpen] = useState(false);
   const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
+  const [editingItem, setEditingItem] = useState<import("@/lib/prepedido.functions").PrepedidoItem | null>(null);
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
