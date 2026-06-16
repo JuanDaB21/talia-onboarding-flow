@@ -52,7 +52,7 @@ export function PrepedidoSheet({
   void idSesion;
   const qc = useQueryClient();
   const delFn = useServerFn(eliminarItemPrepedido);
-  const [editing, setEditing] = useState<PrepedidoItem | null>(null);
+  
 
   const delMut = useMutation({
     mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
