@@ -68,6 +68,7 @@ function CartaPage() {
   const [catActiva, setCatActiva] = useState<string | null>(null);
   const [prepedidoOpen, setPrepedidoOpen] = useState(false);
   const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
+  const [editingItem, setEditingItem] = useState<import("@/lib/prepedido.functions").PrepedidoItem | null>(null);
 
   const getMenu = useServerFn(getMenuPublico);
   const callMesero = useServerFn(llamarMesero);
@@ -518,6 +519,10 @@ function CartaPage() {
           loading={prepedidoQ.isLoading}
           themeStyle={themeStyle}
           theme={theme}
+          onEdit={(item) => {
+            setPrepedidoOpen(false);
+            setEditingItem(item);
+          }}
         />
       )}
 
@@ -529,6 +534,20 @@ function CartaPage() {
           idCliente={cliente.idCliente}
           idSesion={cliente.idSesion}
           producto={agregarProducto}
+          themeStyle={themeStyle}
+          theme={theme}
+        />
+      )}
+
+      {cliente?.idSesion && (
+        <PrepedidoItemEditor
+          open={!!editingItem}
+          onOpenChange={(o) => !o && setEditingItem(null)}
+          idMesa={idMesa}
+          idCliente={cliente.idCliente}
+          idSesion={cliente.idSesion}
+          producto={null}
+          editing={editingItem}
           themeStyle={themeStyle}
           theme={theme}
         />
@@ -593,8 +612,8 @@ function ThemedHeader({
           Mesa {mesa}
         </p>
         <h1
-          className="mt-1 text-3xl font-bold leading-tight"
-          style={{ fontFamily: "var(--menu-heading-font)" }}
+          className="mt-1 font-bold leading-tight line-clamp-2 break-words"
+          style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.25rem, 6vw, 1.875rem)" }}
         >
           {nombreNegocio || "Nuestra carta"}
         </h1>
@@ -627,8 +646,8 @@ function ThemedHeader({
             Mesa {mesa}
           </p>
           <h1
-            className="text-2xl font-bold leading-tight truncate"
-            style={{ fontFamily: "var(--menu-heading-font)" }}
+            className="font-bold leading-tight line-clamp-2 break-words"
+            style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.125rem, 5.5vw, 1.5rem)" }}
           >
             {nombreNegocio || "Nuestra carta"}
           </h1>
@@ -655,8 +674,8 @@ function ThemedHeader({
               · Mesa {mesa} ·
             </p>
             <h1
-              className="mt-1 text-3xl font-bold leading-[1.05] italic"
-              style={{ fontFamily: "var(--menu-heading-font)" }}
+              className="mt-1 font-bold leading-[1.05] italic line-clamp-2 break-words"
+              style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.5rem, 7vw, 1.875rem)" }}
             >
               {nombreNegocio || "Nuestra carta"}
             </h1>
@@ -704,8 +723,8 @@ function ThemedHeader({
           Mesa {mesa}
         </p>
         <h1
-          className="text-lg font-bold leading-tight truncate"
-          style={{ fontFamily: "var(--menu-heading-font)" }}
+          className="font-bold leading-tight line-clamp-2 break-words"
+          style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1rem, 4.5vw, 1.25rem)" }}
         >
           {nombreNegocio || "Nuestra carta"}
         </h1>

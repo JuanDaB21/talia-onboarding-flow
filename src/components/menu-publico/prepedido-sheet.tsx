@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,7 +16,6 @@ import {
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
-import { PrepedidoItemEditor } from "./prepedido-item-editor";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -34,6 +33,7 @@ interface Props {
   loading: boolean;
   themeStyle: React.CSSProperties;
   theme: MenuTheme;
+  onEdit?: (item: PrepedidoItem) => void;
 }
 
 export function PrepedidoSheet({
@@ -46,10 +46,13 @@ export function PrepedidoSheet({
   loading,
   themeStyle,
   theme,
+  onEdit,
 }: Props) {
+  void theme;
+  void idSesion;
   const qc = useQueryClient();
   const delFn = useServerFn(eliminarItemPrepedido);
-  const [editing, setEditing] = useState<PrepedidoItem | null>(null);
+  
 
   const delMut = useMutation({
     mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
@@ -195,7 +198,7 @@ export function PrepedidoSheet({
                             <div className="flex gap-2 pt-1">
                               <button
                                 type="button"
-                                onClick={() => setEditing(it)}
+                                onClick={() => onEdit?.(it)}
                                 className="flex-1 h-9 text-xs font-semibold flex items-center justify-center gap-1.5"
                                 style={{
                                   background: "var(--menu-surface-2)",
@@ -254,18 +257,6 @@ export function PrepedidoSheet({
           )}
         </SheetContent>
       </Sheet>
-
-      <PrepedidoItemEditor
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-        idMesa={idMesa}
-        idSesion={idSesion}
-        idCliente={idCliente}
-        producto={null}
-        editing={editing}
-        themeStyle={themeStyle}
-        theme={theme}
-      />
     </>
   );
 }

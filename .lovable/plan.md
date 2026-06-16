@@ -1,58 +1,57 @@
-## Problema
-El campo `stock_minimo` se interpreta hoy en **unidades de receta** (ej. gramos, ml). El usuario lo capturó con la intención de **unidades de compra** (kg, lb, caja, etc.), que es la misma unidad de inventario y de las compras al proveedor.
-
 ## Objetivo
-Tratar `stock_minimo` como un valor en **unidad de compra**, manteniendo los datos ya capturados pero re-interpretándolos correctamente. Las alarmas de stock bajo deben dispararse cuando el inventario disponible (convertido a unidad de compra) sea ≤ `stock_minimo`.
 
-## Cambios
+Arreglar dos problemas en el menú público (`/carta/:idMesa`):
 
-### 1. Migración de datos (sin perder valores)
-Los valores actuales fueron digitados como números "razonables" en unidad de compra (ej. "5" pensando 5 kg), pero la app los guardó como si fueran 5 gramos. La columna sigue siendo `decimal(14,4)`, solo cambia el **significado**. Por lo tanto:
+1. El título del restaurante se desborda en el header cuando el nombre es largo.
+2. El sheet del carrito (icono de bolsa arriba a la derecha) no abre al pulsarlo.
 
-- **No se modifican los valores existentes** en `insumos.stock_minimo` — el número que el usuario escribió queda igual y ahora se interpreta como unidad de compra. Esto preserva exactamente lo que el usuario digitó.
-- Se agrega un comentario a la columna documentando el cambio de unidad.
+---
 
-(Si en algún caso aislado el usuario hubiera escrito el valor en gramos a propósito, podrá editarlo manualmente; la app ahora muestra claramente la unidad en el formulario y en la vista de inventario.)
+## 1. Ajuste automático del título en el header
 
-### 2. Formulario `InsumoForm`
-- Etiqueta del campo: **"Stock mínimo (en {unidad_compra})"**, actualizada dinámicamente cuando cambia la unidad de compra (ej. "Stock mínimo (en Kilogramo)", "Stock mínimo (en Caja)").
-- Texto de ayuda: "Se generará alerta cuando el inventario disponible sea menor o igual a este valor, expresado en {unidad de compra}."
-- Sin cambios en el schema ni en cómo se guarda el número.
+**Archivo:** `src/routes/carta.$idMesa.tsx` — componente `ThemedHeader` (4 variantes: `hero-centrado`, `banner-gradiente`, `editorial`, `minimal`).
 
-### 3. Lógica de alarmas (comparación)
-Cambiar la comparación en todos los puntos donde se evalúa stock bajo. Hoy es:
-```ts
-cantidad_actual <= stock_minimo   // ambos asumidos en receta
-```
-Pasa a ser:
-```ts
-cantidad_actual <= stock_minimo * factor_conversion
-```
-porque `cantidad_actual` se mantiene en unidad de receta (no se toca el inventario) y `stock_minimo` ahora está en unidad de compra.
+Hoy cada variante usa un tamaño fijo (`text-3xl` / `text-2xl` / `text-lg`) con `truncate`, así que un nombre como "Restaurante Las Delicias de la Abuela" se corta o se sale del logo.
 
-Archivos afectados:
-- `src/components/bodega/inventario-tab.tsx` (filtro `low` y badge en tabla)
-- `src/routes/_app.bodega.inventario.$id.tsx` (badge "Stock bajo" en detalle)
-- `src/routes/api/chat.ts` (contexto que Talia usa para alertas: comparar con `stock_minimo * factor_conversion`, y reportar el mínimo en unidad de compra)
+Cambios:
 
-### 4. Presentación del "Stock mínimo"
-Donde se muestra el stock mínimo, dejar de usar `formatStockInteligente` (que asume receta) y mostrarlo simple: `{stock_minimo} {labelDe(unidad_compra)}`. Aplica en:
-- Tabla de inventario (columna "Stock mínimo")
-- Cabecera del detalle de inventario ("Stock mínimo: …")
-- Cualquier referencia en `insumos-tab.tsx` (texto de stock mínimo en la lista)
+- Quitar `truncate` del `<h1>` del nombre y permitir wrap en máximo 2 líneas con `line-clamp-2` + `break-words`.
+- Reemplazar el tamaño fijo por una escala fluida con `clamp()` para que se reduzca automáticamente según el ancho disponible:
+  - Hero centrado: `clamp(1.25rem, 6vw, 1.875rem)`
+  - Banner gradiente: `clamp(1.125rem, 5.5vw, 1.5rem)`
+  - Editorial: `clamp(1.5rem, 7vw, 1.875rem)`
+  - Minimal: `clamp(1rem, 4.5vw, 1.25rem)`
+- Asegurar `min-w-0` en el contenedor flex padre para que el flex item pueda encogerse.
+- Mantener `leading-tight` y `font-bold`.
 
-La "Cantidad disponible" sigue mostrándose con `formatStockInteligente` (en unidades de receta y compra combinadas, como ya funciona).
+No cambia layout, colores ni tipografía del tema.
 
-## Archivos a tocar
-- Migración SQL: COMMENT ON COLUMN `public.insumos.stock_minimo`.
-- `src/components/bodega/insumo-form.tsx` (label y helper text dinámicos).
-- `src/components/bodega/inventario-tab.tsx` (comparación + presentación).
-- `src/components/bodega/insumos-tab.tsx` (presentación de stock mínimo).
-- `src/routes/_app.bodega.inventario.$id.tsx` (comparación + presentación).
-- `src/routes/api/chat.ts` (comparación y unidad reportada en el contexto a Talia).
+## 2. El sheet del carrito no abre
+
+**Síntoma:** al tocar el botón flotante (bolsa) arriba a la derecha no aparece nada.
+
+**Investigación en build mode:**
+
+1. Reproducir con Playwright contra `localhost:8080/carta/<idMesa>` haciendo onboarding y luego click en el botón de la bolsa; capturar consola y screenshots.
+2. Confirmar la causa entre las dos hipótesis más probables:
+   - **(a)** `cliente?.idSesion` aún no está cuando se monta el botón, así que `<PrepedidoSheet>` no se renderiza en el DOM y `setPrepedidoOpen(true)` no hace nada visible. (La condición está en `carta.$idMesa.tsx` líneas 510–522.)
+   - **(b)** El error de React #419 visto en runtime crashea el árbol al abrir el Sheet por el `PrepedidoItemEditor` interno (`prepedido-sheet.tsx` líneas 258–268) que se monta como sibling del SheetContent y a la vez también se monta en la ruta padre (línea 524 de `carta.$idMesa.tsx`) — dos editores con el mismo `producto={null}` viviendo a la vez.
+
+**Plan de corrección probable:**
+
+- **Caso (a):** mover el `<PrepedidoSheet>` fuera del bloque condicional `cliente?.idSesion` (renderizarlo siempre, con `data` opcional) y deshabilitar el botón hasta tener sesión, o usar `<button disabled>` con estilo atenuado.
+- **Caso (b):** eliminar el `<PrepedidoItemEditor>` duplicado dentro de `prepedido-sheet.tsx` (líneas 258–268) y manejar la edición vía un callback `onEdit(item)` que el padre (`carta.$idMesa.tsx`) recibe y abre con el editor único ya existente en líneas 524–535. Esto deja un solo editor montado en el árbol y elimina el conflicto de Sheets anidados/duplicados que provoca el error de hidratación/cliente.
+
+La fix concreta se decide tras la reproducción, pero la dirección es: **un único editor montado en la ruta padre, sheet del carrito siempre montado pero con CTA deshabilitado si no hay sesión.**
+
+## Archivos afectados
+
+- `src/routes/carta.$idMesa.tsx` (header + montaje del sheet)
+- `src/components/menu-publico/prepedido-sheet.tsx` (quitar editor interno, exponer `onEdit`)
 
 ## Lo que NO se toca
-- Datos de `insumos.stock_minimo` (se preservan tal cual).
-- `inventario_actual.cantidad_actual` ni `factor_conversion`.
-- Schemas Zod ni columna en BD (mismo tipo y default).
-- Recetas, compras, movimientos.
+
+- Server functions de prepedido (`src/lib/prepedido.functions.ts`).
+- Esquema de base de datos.
+- Temas, colores ni tipografías.
+- Lógica de pedido / cuenta / llamar mesero.
