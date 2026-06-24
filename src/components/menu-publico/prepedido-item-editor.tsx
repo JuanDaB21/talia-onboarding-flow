@@ -68,6 +68,8 @@ export function PrepedidoItemEditor({
   const [nota, setNota] = useState("");
   const [extras, setExtras] = useState<Set<string>>(new Set());
   const [exclus, setExclus] = useState<Set<string>>(new Set());
+  // Map: id_grupo -> Set de id_opcion seleccionados
+  const [variantes, setVariantes] = useState<Map<string, Set<string>>>(new Map());
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesPublico", idMesa, idProducto],
@@ -85,21 +87,45 @@ export function PrepedidoItemEditor({
       setNota(editing.nota ?? "");
       setExtras(new Set(editing.extras.map((e) => e.id_insumo_extra)));
       setExclus(new Set(editing.exclusiones.map((e) => e.id_insumo)));
+      const vm = new Map<string, Set<string>>();
+      for (const v of editing.variantes) {
+        const s = vm.get(v.id_grupo) ?? new Set<string>();
+        s.add(v.id_opcion);
+        vm.set(v.id_grupo, s);
+      }
+      setVariantes(vm);
     } else {
       setCantidad(1);
       setAlergia(false);
       setNota("");
       setExtras(new Set());
       setExclus(new Set());
+      setVariantes(new Map());
     }
   }, [open, editing]);
+
+  const variantesArr = useMemo(() => {
+    const out: { id_opcion: string }[] = [];
+    variantes.forEach((set) => set.forEach((id) => out.push({ id_opcion: id })));
+    return out;
+  }, [variantes]);
 
   const total = useMemo(() => {
     const extrasSum = (ops?.extras ?? [])
       .filter((e) => extras.has(e.id_insumo_extra as string))
       .reduce((a, e) => a + Number(e.precio_extra), 0);
-    return cantidad * (precioBase + extrasSum);
-  }, [ops, extras, cantidad, precioBase]);
+    const variantesSum = (ops?.variantes ?? []).reduce((acc, g) => {
+      const sel = variantes.get(g.id_grupo);
+      if (!sel) return acc;
+      return (
+        acc +
+        g.opciones
+          .filter((o) => sel.has(o.id_opcion))
+          .reduce((a, o) => a + o.precio_delta, 0)
+      );
+    }, 0);
+    return cantidad * (precioBase + extrasSum + variantesSum);
+  }, [ops, extras, variantes, cantidad, precioBase]);
 
   const mut = useMutation({
     mutationFn: () => {
