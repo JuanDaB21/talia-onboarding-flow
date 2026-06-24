@@ -179,7 +179,9 @@ export function ReservaCard({ reserva, onEdit }: Props) {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         loading={cancelarMut.isPending}
-        onConfirm={(devolver) => cancelarMut.mutateAsync(devolver)}
+        onConfirm={async (devolver) => {
+          await cancelarMut.mutateAsync(devolver);
+        }}
       />
     </>
   );
