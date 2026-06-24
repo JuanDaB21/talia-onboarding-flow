@@ -278,7 +278,7 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
       .single();
     if (!prod) throw new Error("Producto no encontrado");
 
-    const [{ data: extras }, { data: receta }] = await Promise.all([
+    const [{ data: extras }, { data: receta }, { data: grupos }] = await Promise.all([
       supabase
         .from("extras_permitidos")
         .select("id_insumo_extra, cantidad_porcion, precio_extra, insumos:id_insumo_extra(nombre_insumo, unidad_receta)")
@@ -287,9 +287,32 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
         .from("receta_detalle")
         .select("id_insumo, cantidad, insumos:id_insumo(nombre_insumo, unidad_receta)")
         .eq("id_receta", prod.id_receta),
+      supabase
+        .from("producto_variante_grupos")
+        .select(
+          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_producto_opcion, precio_delta, orden, productos:id_producto_opcion(nombre_producto))",
+        )
+        .eq("id_producto", data.idProducto)
+        .order("orden", { ascending: true }),
     ]);
 
-    return { extras: extras ?? [], ingredientes: receta ?? [] };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variantes = ((grupos ?? []) as any[]).map((g) => ({
+      id_grupo: g.id_grupo as string,
+      nombre: g.nombre as string,
+      seleccion: g.seleccion as "UNICA" | "MULTIPLE",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      opciones: ((g.producto_variante_opciones ?? []) as any[])
+        .sort((a, b) => Number(a.orden ?? 0) - Number(b.orden ?? 0))
+        .map((o) => ({
+          id_opcion: o.id_opcion as string,
+          id_producto_opcion: o.id_producto_opcion as string,
+          nombre_producto_opcion: (o.productos?.nombre_producto as string) ?? "—",
+          precio_delta: Number(o.precio_delta ?? 0),
+        })),
+    }));
+
+    return { extras: extras ?? [], ingredientes: receta ?? [], variantes };
   });
 
 export const agregarItem = createServerFn({ method: "POST" })
@@ -305,6 +328,7 @@ export const agregarItem = createServerFn({ method: "POST" })
       p_nota: data.nota ?? "",
       p_extras: data.extras,
       p_exclusiones: data.exclusiones,
+      p_variantes: data.variantes,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
