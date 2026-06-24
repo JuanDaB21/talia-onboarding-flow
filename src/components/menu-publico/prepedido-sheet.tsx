@@ -111,7 +111,7 @@ export function PrepedidoSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-5 py-4 space-y-5">
+          <div className="px-5 py-4 pb-40 space-y-5">
             {loading && !data ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin"
