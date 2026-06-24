@@ -153,6 +153,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         mesa_identificador: p?.mesas?.identificador ?? "—",
         extras: extrasByItem.get(i.id_item) ?? [],
         exclusiones: exclByItem.get(i.id_item) ?? [],
+        variantes: varByItem.get(i.id_item) ?? [],
       };
     };
 
