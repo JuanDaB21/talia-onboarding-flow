@@ -709,12 +709,12 @@ function PedidoConfirmadoCard({
       )}
     >
       <header
-        className="flex items-center gap-3 p-4 cursor-pointer"
+        className="flex items-center gap-3 p-4 cursor-pointer min-w-0"
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold">Pedido #{numero}</h3>
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h3 className="font-bold truncate">Pedido #{numero}</h3>
             <Badge className={cn("font-medium", estado.cls)} variant="secondary">
               {estado.label}
             </Badge>
@@ -724,15 +724,15 @@ function PedidoConfirmadoCard({
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5 break-words">
             {formatHora(pedido.confirmado_at ?? pedido.created_at)} · {total} items ·{" "}
             <span className="font-semibold">{fmt.format(pedido.total)}</span>
           </p>
         </div>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         )}
       </header>
 
