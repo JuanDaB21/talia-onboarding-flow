@@ -75,6 +75,7 @@ const MENU_NAV = [
 const SERVICIO_NAV = [
   { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
+  { to: "/reservas", label: "Reservas", icon: CalendarDays },
   { to: "/cocina", label: "Cocina", icon: Flame },
   { to: "/barra", label: "Barra", icon: Wine },
 ] as const;

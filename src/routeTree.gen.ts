@@ -26,6 +26,7 @@ import { Route as AppCajaRouteImport } from './routes/_app.caja'
 import { Route as AppBodegaRouteImport } from './routes/_app.bodega'
 import { Route as AppBarraRouteImport } from './routes/_app.barra'
 import { Route as AppServicioIndexRouteImport } from './routes/_app.servicio.index'
+import { Route as AppReservasIndexRouteImport } from './routes/_app.reservas.index'
 import { Route as AppMenuIndexRouteImport } from './routes/_app.menu.index'
 import { Route as AppConfiguracionIndexRouteImport } from './routes/_app.configuracion.index'
 import { Route as AppCajaIndexRouteImport } from './routes/_app.caja.index'
@@ -135,6 +136,11 @@ const AppServicioIndexRoute = AppServicioIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppServicioRoute,
+} as any)
+const AppReservasIndexRoute = AppReservasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppReservasRoute,
 } as any)
 const AppMenuIndexRoute = AppMenuIndexRouteImport.update({
   id: '/',
@@ -282,7 +288,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/menu': typeof AppMenuRouteWithChildren
   '/operacion': typeof AppOperacionRoute
-  '/reservas': typeof AppReservasRoute
+  '/reservas': typeof AppReservasRouteWithChildren
   '/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/caja/': typeof AppCajaIndexRoute
   '/configuracion/': typeof AppConfiguracionIndexRoute
   '/menu/': typeof AppMenuIndexRoute
+  '/reservas/': typeof AppReservasIndexRoute
   '/servicio/': typeof AppServicioIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/caja/cierres/$id': typeof AppCajaCierresIdRoute
@@ -321,7 +328,6 @@ export interface FileRoutesByTo {
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/operacion': typeof AppOperacionRoute
-  '/reservas': typeof AppReservasRoute
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
@@ -340,6 +346,7 @@ export interface FileRoutesByTo {
   '/caja': typeof AppCajaIndexRoute
   '/configuracion': typeof AppConfiguracionIndexRoute
   '/menu': typeof AppMenuIndexRoute
+  '/reservas': typeof AppReservasIndexRoute
   '/servicio': typeof AppServicioIndexRoute
   '/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/caja/cierres/$id': typeof AppCajaCierresIdRoute
@@ -363,7 +370,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
   '/_app/operacion': typeof AppOperacionRoute
-  '/_app/reservas': typeof AppReservasRoute
+  '/_app/reservas': typeof AppReservasRouteWithChildren
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
@@ -385,6 +392,7 @@ export interface FileRoutesById {
   '/_app/caja/': typeof AppCajaIndexRoute
   '/_app/configuracion/': typeof AppConfiguracionIndexRoute
   '/_app/menu/': typeof AppMenuIndexRoute
+  '/_app/reservas/': typeof AppReservasIndexRoute
   '/_app/servicio/': typeof AppServicioIndexRoute
   '/_app/bodega/inventario/$id': typeof AppBodegaInventarioIdRoute
   '/_app/caja/cierres/$id': typeof AppCajaCierresIdRoute
@@ -430,6 +438,7 @@ export interface FileRouteTypes {
     | '/caja/'
     | '/configuracion/'
     | '/menu/'
+    | '/reservas/'
     | '/servicio/'
     | '/bodega/inventario/$id'
     | '/caja/cierres/$id'
@@ -447,7 +456,6 @@ export interface FileRouteTypes {
     | '/cocina'
     | '/dashboard'
     | '/operacion'
-    | '/reservas'
     | '/api/chat'
     | '/carta/$idMesa'
     | '/bodega/compras'
@@ -466,6 +474,7 @@ export interface FileRouteTypes {
     | '/caja'
     | '/configuracion'
     | '/menu'
+    | '/reservas'
     | '/servicio'
     | '/bodega/inventario/$id'
     | '/caja/cierres/$id'
@@ -510,6 +519,7 @@ export interface FileRouteTypes {
     | '/_app/caja/'
     | '/_app/configuracion/'
     | '/_app/menu/'
+    | '/_app/reservas/'
     | '/_app/servicio/'
     | '/_app/bodega/inventario/$id'
     | '/_app/caja/cierres/$id'
@@ -650,6 +660,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/servicio/'
       preLoaderRoute: typeof AppServicioIndexRouteImport
       parentRoute: typeof AppServicioRoute
+    }
+    '/_app/reservas/': {
+      id: '/_app/reservas/'
+      path: '/'
+      fullPath: '/reservas/'
+      preLoaderRoute: typeof AppReservasIndexRouteImport
+      parentRoute: typeof AppReservasRoute
     }
     '/_app/menu/': {
       id: '/_app/menu/'
@@ -931,6 +948,18 @@ const AppMenuRouteChildren: AppMenuRouteChildren = {
 const AppMenuRouteWithChildren =
   AppMenuRoute._addFileChildren(AppMenuRouteChildren)
 
+interface AppReservasRouteChildren {
+  AppReservasIndexRoute: typeof AppReservasIndexRoute
+}
+
+const AppReservasRouteChildren: AppReservasRouteChildren = {
+  AppReservasIndexRoute: AppReservasIndexRoute,
+}
+
+const AppReservasRouteWithChildren = AppReservasRoute._addFileChildren(
+  AppReservasRouteChildren,
+)
+
 interface AppServicioRouteChildren {
   AppServicioIdMesaRoute: typeof AppServicioIdMesaRoute
   AppServicioIndexRoute: typeof AppServicioIndexRoute
@@ -954,7 +983,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppMenuRoute: typeof AppMenuRouteWithChildren
   AppOperacionRoute: typeof AppOperacionRoute
-  AppReservasRoute: typeof AppReservasRoute
+  AppReservasRoute: typeof AppReservasRouteWithChildren
   AppServicioRoute: typeof AppServicioRouteWithChildren
 }
 
@@ -967,7 +996,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppMenuRoute: AppMenuRouteWithChildren,
   AppOperacionRoute: AppOperacionRoute,
-  AppReservasRoute: AppReservasRoute,
+  AppReservasRoute: AppReservasRouteWithChildren,
   AppServicioRoute: AppServicioRouteWithChildren,
 }
 
