@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getPropinasPorUsuario } from "@/lib/propinas.functions";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
