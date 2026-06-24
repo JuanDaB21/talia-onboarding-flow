@@ -145,6 +145,7 @@ function imprimirComandasDePedido(
           nota: it.nota,
           extras: it.extras.map((e) => ({ nombre: e.nombre })),
           exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+          variantes: it.variantes.map((v) => ({ nombre_grupo: v.nombre_grupo, nombre_opcion: v.nombre_opcion })),
         }));
       return {
         destino,
