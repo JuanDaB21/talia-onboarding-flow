@@ -468,6 +468,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
     let itemsRaw: Array<Record<string, unknown>> = [];
     let extrasRaw: Array<Record<string, unknown>> = [];
     let exclRaw: Array<Record<string, unknown>> = [];
+    let varRaw: Array<Record<string, unknown>> = [];
 
     if (pedidoIds.length > 0) {
       const { data: it, error: iErr } = await supabase
@@ -484,7 +485,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
 
       const itemIds = itemsRaw.map((i) => i.id_item as string);
       if (itemIds.length > 0) {
-        const [{ data: ex }, { data: xc }] = await Promise.all([
+        const [{ data: ex }, { data: xc }, { data: vv }] = await Promise.all([
           supabase
             .from("pedido_item_extras")
             .select(
@@ -495,16 +496,20 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
             .from("pedido_item_exclusiones")
             .select("id_item, id_insumo, insumos:id_insumo(nombre_insumo)")
             .in("id_item", itemIds),
+          supabase
+            .from("pedido_item_variantes")
+            .select("id_item, id_opcion, nombre_grupo, nombre_opcion, precio_delta")
+            .in("id_item", itemIds),
         ]);
         extrasRaw = (ex ?? []) as Array<Record<string, unknown>>;
         exclRaw = (xc ?? []) as Array<Record<string, unknown>>;
+        varRaw = (vv ?? []) as Array<Record<string, unknown>>;
       }
     }
 
     const extrasByItem = new Map<string, ItemPedidoSesion["extras"]>();
     for (const e of extrasRaw) {
       const arr = extrasByItem.get(e.id_item as string) ?? [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       arr.push({
         id_insumo_extra: e.id_insumo_extra as string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -522,6 +527,17 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
         nombre: ((x as any).insumos?.nombre_insumo as string) ?? "—",
       });
       exclByItem.set(x.id_item as string, arr);
+    }
+    const varByItem = new Map<string, ItemPedidoSesion["variantes"]>();
+    for (const v of varRaw) {
+      const arr = varByItem.get(v.id_item as string) ?? [];
+      arr.push({
+        id_opcion: (v.id_opcion as string) ?? "",
+        nombre_grupo: (v.nombre_grupo as string) ?? "",
+        nombre_opcion: (v.nombre_opcion as string) ?? "",
+        precio_delta: Number(v.precio_delta ?? 0),
+      });
+      varByItem.set(v.id_item as string, arr);
     }
 
     const itemsByPedido = new Map<string, ItemPedidoSesion[]>();
@@ -543,6 +559,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
         entregado_at: (i.entregado_at as string | null) ?? null,
         extras: extrasByItem.get(i.id_item as string) ?? [],
         exclusiones: exclByItem.get(i.id_item as string) ?? [],
+        variantes: varByItem.get(i.id_item as string) ?? [],
       });
       itemsByPedido.set(i.id_pedido as string, arr);
     }
