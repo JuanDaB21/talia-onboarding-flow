@@ -813,17 +813,17 @@ function ItemRow({
   const estado = ESTADO_LABEL[item.estado_preparacion] ?? ESTADO_LABEL.EN_COLA;
   return (
     <li className="pt-2 first:pt-0">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-start gap-1.5 flex-wrap min-w-0">
             {item.tiene_alergia && (
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
             )}
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium break-words min-w-0">
               {item.cantidad > 1 ? `${item.cantidad}× ` : ""}{item.nombre_producto}
             </span>
 
-            <Badge variant="outline" className={cn("text-[10px] h-4 px-1", estado.cls)}>
+            <Badge variant="outline" className={cn("text-[10px] h-4 px-1 shrink-0", estado.cls)}>
               {estado.label}
             </Badge>
           </div>
