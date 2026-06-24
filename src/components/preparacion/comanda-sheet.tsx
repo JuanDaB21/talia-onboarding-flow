@@ -268,6 +268,19 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
             </div>
           )}
 
+          {item.variantes.length > 0 && (
+            <div className="space-y-0.5">
+              {item.variantes.map((v, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400"
+                >
+                  <span>▸ {v.nombre_grupo}: <strong>{v.nombre_opcion}</strong></span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {item.extras.length > 0 && (
             <div className="space-y-0.5">
               {item.extras.map((e, idx) => (
