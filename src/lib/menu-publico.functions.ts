@@ -140,8 +140,9 @@ export const llamarMesero = createServerFn({ method: "POST" })
 
 const solicitudSchema = z.object({
   idMesa: z.string().uuid(),
-  tipo: z.enum(["PEDIR_MAS", "CUENTA"]),
+  tipo: z.enum(["PEDIR_MAS", "CUENTA", "TOMAR_PEDIDO"]),
 });
+
 
 export interface EstadoMesaPublico {
   id_mesa: string;

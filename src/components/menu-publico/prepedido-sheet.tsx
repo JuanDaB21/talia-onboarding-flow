@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +15,9 @@ import {
   type PrepedidoData,
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
+import { solicitarAccionCliente } from "@/lib/menu-publico.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
+
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -52,7 +54,7 @@ export function PrepedidoSheet({
   void idSesion;
   const qc = useQueryClient();
   const delFn = useServerFn(eliminarItemPrepedido);
-  
+  const solicitarFn = useServerFn(solicitarAccionCliente);
 
   const delMut = useMutation({
     mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
@@ -65,6 +67,22 @@ export function PrepedidoSheet({
         description: e instanceof Error ? e.message : undefined,
       }),
   });
+
+  const completarMut = useMutation({
+    mutationFn: () =>
+      solicitarFn({ data: { idMesa, tipo: "TOMAR_PEDIDO" as const } }),
+    onSuccess: () => {
+      toast.success("¡Listo! Le avisamos a tu mesero 🛎️", {
+        description: "Va en camino para tomar tu pedido.",
+      });
+      onOpenChange(false);
+    },
+    onError: (e) =>
+      toast.error("No se pudo avisar al mesero", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
 
   const grupos = useMemo(() => {
     if (!data) return [];
@@ -256,12 +274,31 @@ export function PrepedidoSheet({
                   {fmt.format(data.total)}
                 </span>
               </div>
-              <p className="text-xs mt-2"
+              <button
+                type="button"
+                disabled={completarMut.isPending}
+                onClick={() => completarMut.mutate()}
+                className="mt-3 w-full h-12 font-semibold flex items-center justify-center gap-2 text-base disabled:opacity-60"
+                style={{
+                  background: "var(--menu-primary)",
+                  color: "var(--menu-primary-foreground)",
+                  borderRadius: "var(--menu-radius)",
+                }}
+              >
+                {completarMut.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5" />
+                )}
+                Pedido completado
+              </button>
+              <p className="text-xs mt-2 text-center"
                 style={{ color: "var(--menu-muted)" }}>
-                Tu mesero confirmará el pedido antes de enviarlo a cocina.
+                Avisaremos al mesero para que venga a tomar tu pedido.
               </p>
             </div>
           )}
+
         </SheetContent>
       </Sheet>
     </>

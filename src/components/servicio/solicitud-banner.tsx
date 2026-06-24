@@ -1,13 +1,13 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, CreditCard, Loader2, Plus } from "lucide-react";
+import { Check, ClipboardCheck, CreditCard, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { limpiarSolicitudCliente } from "@/lib/servicio.functions";
 
 interface Props {
   idMesa: string;
-  tipo: "CUENTA" | "PEDIR_MAS";
+  tipo: "CUENTA" | "PEDIR_MAS" | "TOMAR_PEDIDO";
   solicitudAt: string | null;
 }
 
@@ -31,14 +31,19 @@ export function SolicitudBanner({ idMesa, tipo, solicitudAt }: Props) {
     ? Math.max(0, Math.floor((Date.now() - new Date(solicitudAt).getTime()) / 60000))
     : 0;
 
-  const isCuenta = tipo === "CUENTA";
-  const styles = isCuenta
-    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : "border-primary bg-primary/10 text-primary";
-  const titulo = isCuenta
-    ? "El cliente pide la cuenta"
-    : "El cliente quiere pedir más";
-  const Icon = isCuenta ? CreditCard : Plus;
+  let styles = "border-primary bg-primary/10 text-primary";
+  let titulo = "El cliente quiere pedir más";
+  let Icon = Plus;
+  if (tipo === "CUENTA") {
+    styles = "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    titulo = "El cliente pide la cuenta";
+    Icon = CreditCard;
+  } else if (tipo === "TOMAR_PEDIDO") {
+    styles = "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    titulo = "El cliente terminó su pedido — ve a tomarlo";
+    Icon = ClipboardCheck;
+  }
+
 
   return (
     <div className={`rounded-xl border-2 p-4 shadow-sm ${styles}`}>

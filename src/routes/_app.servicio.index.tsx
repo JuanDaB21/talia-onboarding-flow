@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, CreditCard, Plus, Radio, UserCheck, Wallet } from "lucide-react";
+import { Bell, ChefHat, ClipboardCheck, Clock, CreditCard, Plus, Radio, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -234,6 +234,12 @@ function MesaCard({ m }: { m: MesaServicio }) {
             <Plus className="h-3 w-3" /> Pide más
           </Badge>
         )}
+        {m.solicitud_cliente === "TOMAR_PEDIDO" && (
+          <Badge className="bg-amber-500 text-white animate-pulse gap-1">
+            <ClipboardCheck className="h-3 w-3" /> Tomar pedido
+          </Badge>
+        )}
+
         {m.alerta_seguimiento && (
           <Badge variant="secondary" className="gap-1">
             <Clock className="h-3 w-3" /> Seguimiento
