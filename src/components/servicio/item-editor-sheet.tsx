@@ -43,12 +43,19 @@ export function ItemEditorSheet({
   const [nota, setNota] = useState("");
   const [extras, setExtras] = useState<Set<string>>(new Set());
   const [exclus, setExclus] = useState<Set<string>>(new Set());
+  const [variantes, setVariantes] = useState<Map<string, Set<string>>>(new Map());
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesProducto", producto?.id_producto],
     queryFn: () => getOps({ data: { idProducto: producto!.id_producto } }),
     enabled: !!producto && open,
   });
+
+  const variantesArr = useMemo(() => {
+    const out: { id_opcion: string }[] = [];
+    variantes.forEach((s) => s.forEach((id) => out.push({ id_opcion: id })));
+    return out;
+  }, [variantes]);
 
   const mut = useMutation({
     mutationFn: () =>
@@ -61,6 +68,7 @@ export function ItemEditorSheet({
           nota,
           extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
           exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+          variantes: variantesArr,
         },
       }),
     onSuccess: () => {
@@ -83,6 +91,26 @@ export function ItemEditorSheet({
     setNota("");
     setExtras(new Set());
     setExclus(new Set());
+    setVariantes(new Map());
+  }
+
+  function toggleVariante(idGrupo: string, idOpcion: string, seleccion: "UNICA" | "MULTIPLE") {
+    setVariantes((m) => {
+      const n = new Map(m);
+      const next = new Set(n.get(idGrupo) ?? []);
+      if (seleccion === "UNICA") {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else {
+          next.clear();
+          next.add(idOpcion);
+        }
+      } else {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else next.add(idOpcion);
+      }
+      n.set(idGrupo, next);
+      return n;
+    });
   }
 
   const total = useMemo(() => {
@@ -90,8 +118,13 @@ export function ItemEditorSheet({
     const extraSum = (ops?.extras ?? [])
       .filter((e) => extras.has(e.id_insumo_extra))
       .reduce((a, e) => a + Number(e.precio_extra), 0);
-    return cantidad * (producto.precio_venta + extraSum);
-  }, [producto, cantidad, extras, ops]);
+    const varSum = (ops?.variantes ?? []).reduce((acc, g) => {
+      const sel = variantes.get(g.id_grupo);
+      if (!sel) return acc;
+      return acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0);
+    }, 0);
+    return cantidad * (producto.precio_venta + extraSum + varSum);
+  }, [producto, cantidad, extras, variantes, ops]);
 
   return (
     <Sheet
