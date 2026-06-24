@@ -42,6 +42,7 @@ export interface MesaServicio {
   solicitud_at: string | null;
   alerta_listo: boolean;
   alerta_seguimiento: boolean;
+  tiene_prepedido: boolean;
 }
 
 export const listarMesasServicio = createServerFn({ method: "GET" })
