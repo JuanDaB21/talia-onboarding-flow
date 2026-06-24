@@ -78,10 +78,18 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const navigate = useNavigate();
   const getItems = useServerFn(listarItemsCobrables);
   const pagarFn = useServerFn(registrarPago);
+  const reservasFn = useServerFn(listarReservasAplicablesHoy);
+  const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
 
   const itemsQ = useQuery({
     queryKey: ["pagos", "items", idMesa],
     queryFn: () => getItems({ data: { idMesa } }),
+    enabled: open,
+  });
+
+  const reservasAplicablesQ = useQuery({
+    queryKey: ["reservas", "aplicables-hoy"],
+    queryFn: () => reservasFn(),
     enabled: open,
   });
 
@@ -92,6 +100,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
   const [idBono, setIdBono] = useState<string | null>(null);
+  const [idReservaAbono, setIdReservaAbono] = useState<string | null>(null);
 
   // Reset al abrir
   useEffect(() => {
@@ -102,6 +111,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       setPropinaPct(0.1);
       setPropinaCustom(null);
       setIdBono(null);
+      setIdReservaAbono(null);
     }
   }, [open]);
 
@@ -126,12 +136,25 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const descuentoBono = bonoPreviewQ.data?.descuento ?? 0;
   const bonoInfo = bonoPreviewQ.data ?? null;
 
-  const subtotalConDescuento = Math.max(0, totalSeleccionado - descuentoBono);
+  // Reserva (abono) seleccionado
+  const reservasAplicables = reservasAplicablesQ.data ?? [];
+  const reservaSel = reservasAplicables.find(
+    (r) => r.id_reserva === idReservaAbono,
+  ) ?? null;
+  // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
+  // No permitimos mezclar bono + abono de reserva por simplicidad.
+  const abonoActivo = !!reservaSel && !idBono;
+  const subtotalConDescuentoBono = Math.max(0, totalSeleccionado - descuentoBono);
+  const descuentoReserva = abonoActivo
+    ? Math.min(reservaSel.monto_abonado, totalSeleccionado)
+    : 0;
+  const reservaCubreTodo =
+    abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(subtotalConDescuento * (propinaPct ?? 0));
-  const totalConPropina = subtotalConDescuento + propina;
+      : Math.round(subtotalConDescuentoBono * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuentoBono + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -181,11 +204,48 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           setPropinaPct(0.1);
           setPropinaCustom(null);
           setIdBono(null);
+          setIdReservaAbono(null);
         }
       });
     },
     onError: (e) =>
       toast.error("No se pudo registrar el pago", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  const abonoMut = useMutation({
+    mutationFn: () =>
+      aplicarAbonoFn({
+        data: {
+          idReserva: idReservaAbono!,
+          idMesa,
+          itemIds: Array.from(selected),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Abono de reserva aplicado", {
+        icon: <CalendarCheck className="h-4 w-4" />,
+      });
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+      itemsQ.refetch().then((r) => {
+        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
+        if (restantes.length === 0) {
+          onOpenChange(false);
+          navigate({ to: "/servicio" });
+        } else {
+          setPaso("items");
+          setSelected(new Set());
+          setIdReservaAbono(null);
+        }
+      });
+    },
+    onError: (e) =>
+      toast.error("No se pudo aplicar el abono", {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
