@@ -29,6 +29,10 @@ const addItemSchema = z.object({
     .array(z.object({ id_insumo: z.string().uuid() }))
     .max(20)
     .default([]),
+  variantes: z
+    .array(z.object({ id_opcion: z.string().uuid() }))
+    .max(20)
+    .default([]),
 });
 
 export interface MesaServicio {
