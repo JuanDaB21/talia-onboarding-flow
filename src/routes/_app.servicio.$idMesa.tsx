@@ -399,6 +399,11 @@ function MesaEnServicio() {
         onReasignar={puedeReasignar ? () => setReasignarOpen(true) : undefined}
       />
 
+      {/* Pre-pedido en vivo (clientes armando desde el celular) */}
+      {prepQ.data && prepQ.data.items.length > 0 && (
+        <PrepedidoEnVivoCard idMesa={mesa.id_mesa} data={prepQ.data} />
+      )}
+
       {/* Pedidos confirmados */}
       {pedidosConfirmados.map((p, idx) => (
         <PedidoConfirmadoCard
