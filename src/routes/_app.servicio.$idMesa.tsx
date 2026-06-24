@@ -553,28 +553,28 @@ function MesaHeader({
         ? `Hay ${estado?.pagos_pendientes} transferencias por confirmar`
         : "";
   return (
-    <div className="rounded-2xl border bg-card p-5 shadow-sm">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="rounded-2xl border bg-card p-4 sm:p-5 shadow-sm">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Stat label="Total mesa" value={fmt.format(mesa.total_mesa)} accent />
         <Stat
           label="Tiempo en mesa"
           value={`${tiempo} min`}
           icon={<Clock className="h-4 w-4" />}
         />
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <UserCheck className="h-4 w-4" />
-            Mesero
+            <UserCheck className="h-4 w-4 shrink-0" />
+            <span className="truncate">Mesero</span>
           </p>
-          <div className="mt-1 flex items-center gap-2">
-            <p className="font-bold tabular-nums truncate text-lg">
+          <div className="mt-1 flex items-center gap-1 min-w-0">
+            <p className="font-bold tabular-nums truncate text-base sm:text-lg min-w-0 flex-1">
               {mesa.mesero_nombre ?? "Sin asignar"}
             </p>
             {onReasignar && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="h-7 px-2 text-xs shrink-0"
                 onClick={onReasignar}
               >
                 Cambiar
@@ -588,12 +588,12 @@ function MesaHeader({
           icon={<Utensils className="h-4 w-4" />}
         />
       </div>
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
+      <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2">
         <Button
           size="lg"
           onClick={onPagar}
           disabled={!hayPagar || pagando}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           {pagando ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -609,7 +609,7 @@ function MesaHeader({
           disabled={!puedeCerrar}
           title={!puedeCerrar ? motivoCerrar : "Cerrar y liberar mesa"}
           className={cn(
-            "gap-2",
+            "gap-2 w-full sm:w-auto",
             puedeCerrar && "bg-emerald-600 hover:bg-emerald-700 text-white",
           )}
         >
