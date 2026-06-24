@@ -64,6 +64,11 @@ function ServicioIndex() {
         { event: "*", schema: "public", table: "pedidos" },
         () => refetch(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items" },
+        () => refetch(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
