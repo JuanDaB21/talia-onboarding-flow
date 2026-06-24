@@ -121,7 +121,12 @@ function AlertaCard({
     styles = "border-primary bg-primary/10 text-primary";
     icon = <Plus className="h-5 w-5" />;
     titulo = `Mesa ${mesa.identificador} quiere pedir más`;
+  } else if (tipo === "TOMAR_PEDIDO") {
+    styles = "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    icon = <ClipboardCheck className="h-5 w-5 animate-pulse" />;
+    titulo = `Mesa ${mesa.identificador} terminó su pedido — ve a tomarlo`;
   }
+
 
   return (
     <div className={`rounded-xl border-2 p-3 shadow-sm ${styles}`}>
