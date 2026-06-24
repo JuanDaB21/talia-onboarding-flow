@@ -560,7 +560,14 @@ function PasoItems({
   setIdBono,
   descuentoBono,
   bonoInfo,
+  reservasAplicables,
+  idReservaAbono,
+  setIdReservaAbono,
+  descuentoReserva,
+  reservaCubreTodo,
   onContinue,
+  onPagarConAbono,
+  aplicandoAbono,
 }: {
   items: ItemCobrable[];
   selected: Set<string>;
@@ -575,7 +582,14 @@ function PasoItems({
   setIdBono: (v: string | null) => void;
   descuentoBono: number;
   bonoInfo: BonoPreview | null;
+  reservasAplicables: ReservaAplicable[];
+  idReservaAbono: string | null;
+  setIdReservaAbono: (v: string | null) => void;
+  descuentoReserva: number;
+  reservaCubreTodo: boolean;
   onContinue: () => void;
+  onPagarConAbono: () => void;
+  aplicandoAbono: boolean;
 }) {
   const { grupos, pagados } = useMemo(() => {
     const m = new Map<number, ItemCobrable[]>();
