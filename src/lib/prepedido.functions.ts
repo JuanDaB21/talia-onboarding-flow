@@ -403,6 +403,7 @@ export const agregarItemPrepedido = createServerFn({ method: "POST" })
     await getSesionPropia(data.idMesa, data.idCliente, data.idSesion);
     const precio = await getPrecioProducto(data.idProducto, idNegocio);
     await validarExtrasYExclusiones(data.idProducto, data.extras, data.exclusiones);
+    const variantesSnap = await resolverVariantes(data.idProducto, data.variantes);
 
     const { error } = await supabaseAdmin.from("prepedido_items").insert({
       id_mesa: data.idMesa,
@@ -414,6 +415,7 @@ export const agregarItemPrepedido = createServerFn({ method: "POST" })
       nota: data.nota?.trim() || null,
       extras: data.extras,
       exclusiones: data.exclusiones,
+      variantes: variantesSnap,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -436,6 +438,7 @@ export const editarItemPrepedido = createServerFn({ method: "POST" })
       data.extras,
       data.exclusiones,
     );
+    const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
       .from("prepedido_items")
@@ -445,6 +448,7 @@ export const editarItemPrepedido = createServerFn({ method: "POST" })
         nota: data.nota?.trim() || null,
         extras: data.extras,
         exclusiones: data.exclusiones,
+        variantes: variantesSnap,
       })
       .eq("id_prepedido_item", data.idItem);
     if (uErr) throw new Error(uErr.message);
