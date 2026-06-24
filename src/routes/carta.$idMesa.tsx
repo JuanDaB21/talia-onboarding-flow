@@ -347,24 +347,24 @@ function CartaPage() {
         type="button"
         aria-label="Ver pedido de la mesa"
         onClick={() => setPrepedidoOpen(true)}
-        className="fixed z-40 inline-flex items-center justify-center h-12 w-12 shadow-lg active:scale-95 transition-transform"
+        className="fixed z-40 inline-flex items-center justify-center h-14 w-14 shadow-xl active:scale-95 transition-transform"
         style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: 12,
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+          right: 16,
           background: "var(--menu-primary)",
           color: "var(--menu-primary-foreground)",
           borderRadius: "9999px",
         }}
       >
-        <ShoppingBag className="h-5 w-5" />
+        <ShoppingBag className="h-6 w-6" />
         {totalItemsPrepedido > 0 && (
           <span
-            className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 inline-flex items-center justify-center text-[11px] font-bold rounded-full"
+            className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 inline-flex items-center justify-center text-[11px] font-bold rounded-full"
             style={{
               background: "var(--menu-surface)",
               color: "var(--menu-primary)",
               borderColor: "var(--menu-primary)",
-              borderWidth: 1,
+              borderWidth: 2,
             }}
           >
             {totalItemsPrepedido}
