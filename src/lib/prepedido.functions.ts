@@ -298,6 +298,65 @@ async function validarExtrasYExclusiones(
   }
 }
 
+// Resuelve snapshots de variantes (nombre y precio) validando contra el producto
+async function resolverVariantes(
+  idProducto: string,
+  variantes: Array<{ id_opcion: string }>,
+): Promise<Array<{
+  id_opcion: string;
+  id_grupo: string;
+  id_producto_opcion: string;
+  nombre_grupo: string;
+  nombre_opcion: string;
+  precio_delta: number;
+}>> {
+  if (variantes.length === 0) return [];
+  const ids = variantes.map((v) => v.id_opcion);
+  const { data, error } = await supabaseAdmin
+    .from("producto_variante_opciones")
+    .select(
+      "id_opcion, id_grupo, id_producto_opcion, precio_delta, producto_variante_grupos:id_grupo(id_producto, nombre), productos:id_producto_opcion(nombre_producto)",
+    )
+    .in("id_opcion", ids);
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, {
+    id_opcion: string;
+    id_grupo: string;
+    id_producto_opcion: string;
+    nombre_grupo: string;
+    nombre_opcion: string;
+    precio_delta: number;
+  }>();
+  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const g = (raw as any).producto_variante_grupos;
+    if (!g || g.id_producto !== idProducto) continue;
+    map.set(raw.id_opcion as string, {
+      id_opcion: raw.id_opcion as string,
+      id_grupo: raw.id_grupo as string,
+      id_producto_opcion: raw.id_producto_opcion as string,
+      nombre_grupo: (g.nombre as string) ?? "",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nombre_opcion: ((raw as any).productos?.nombre_producto as string) ?? "—",
+      precio_delta: Number(raw.precio_delta ?? 0),
+    });
+  }
+  const out: Array<{
+    id_opcion: string;
+    id_grupo: string;
+    id_producto_opcion: string;
+    nombre_grupo: string;
+    nombre_opcion: string;
+    precio_delta: number;
+  }> = [];
+  for (const v of variantes) {
+    const snap = map.get(v.id_opcion);
+    if (!snap) throw new Error("Variante no permitida");
+    out.push(snap);
+  }
+  return out;
+
 // ============================================================
 // Server fns públicas (clientes en la mesa)
 // ============================================================
