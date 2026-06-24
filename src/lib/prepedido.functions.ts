@@ -429,3 +429,85 @@ export const aceptarPrepedido = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { aceptados: Number(count ?? 0) };
   });
+
+const editarStaffSchema = z.object({
+  idItem: uuid,
+  cantidad: z.number().int().min(1).max(50),
+  tieneAlergia: z.boolean().optional().default(false),
+  nota: z.string().max(300).optional().nullable(),
+  extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
+  exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+});
+
+async function verificarMesaStaff(
+  supabase: { from: (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }> } } } },
+  idMesa: string,
+) {
+  const { data, error } = await supabase
+    .from("mesas")
+    .select("id_mesa")
+    .eq("id_mesa", idMesa)
+    .maybeSingle();
+  if (error) throw new Error((error as { message: string }).message);
+  if (!data) throw new Error("No autorizado");
+}
+
+export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => editarStaffSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: item, error } = await supabaseAdmin
+      .from("prepedido_items")
+      .select("id_prepedido_item, id_mesa, id_producto")
+      .eq("id_prepedido_item", data.idItem)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!item) throw new Error("Item no encontrado");
+
+    await verificarMesaStaff(
+      context.supabase as unknown as Parameters<typeof verificarMesaStaff>[0],
+      item.id_mesa as string,
+    );
+    await validarExtrasYExclusiones(
+      item.id_producto as string,
+      data.extras,
+      data.exclusiones,
+    );
+
+    const { error: uErr } = await supabaseAdmin
+      .from("prepedido_items")
+      .update({
+        cantidad: data.cantidad,
+        tiene_alergia: !!data.tieneAlergia,
+        nota: data.nota?.trim() || null,
+        extras: data.extras,
+        exclusiones: data.exclusiones,
+      })
+      .eq("id_prepedido_item", data.idItem);
+    if (uErr) throw new Error(uErr.message);
+    return { ok: true };
+  });
+
+export const eliminarItemPrepedidoStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ idItem: uuid }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: item, error } = await supabaseAdmin
+      .from("prepedido_items")
+      .select("id_prepedido_item, id_mesa")
+      .eq("id_prepedido_item", data.idItem)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!item) return { ok: true };
+    await verificarMesaStaff(
+      context.supabase as unknown as Parameters<typeof verificarMesaStaff>[0],
+      item.id_mesa as string,
+    );
+    const { error: dErr } = await supabaseAdmin
+      .from("prepedido_items")
+      .delete()
+      .eq("id_prepedido_item", data.idItem);
+    if (dErr) throw new Error(dErr.message);
+    return { ok: true };
+  });
+
