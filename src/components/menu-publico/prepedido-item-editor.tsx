@@ -307,6 +307,55 @@ export function PrepedidoItemEditor({
             </div>
           ) : (
             <>
+              {(ops?.variantes ?? []).map((g) => {
+                const sel = variantes.get(g.id_grupo) ?? new Set<string>();
+                return (
+                  <section key={g.id_grupo} className="space-y-2">
+                    <h3
+                      className="text-sm font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--menu-muted)" }}
+                    >
+                      {g.nombre}
+                      <span className="ml-2 text-[10px] normal-case opacity-70">
+                        {g.seleccion === "UNICA" ? "Elige 1" : "Puedes elegir varias"}
+                      </span>
+                    </h3>
+                    <div className="space-y-2">
+                      {g.opciones.map((o) => {
+                        const checked = sel.has(o.id_opcion);
+                        return (
+                          <button
+                            key={o.id_opcion}
+                            type="button"
+                            onClick={() => toggleVariante(g.id_grupo, o.id_opcion, g.seleccion)}
+                            className="w-full flex items-center justify-between gap-3 p-3 text-left transition-colors"
+                            style={{
+                              background: checked
+                                ? "color-mix(in oklab, var(--menu-primary) 12%, var(--menu-surface))"
+                                : "var(--menu-surface)",
+                              border: `1px solid ${
+                                checked ? "var(--menu-primary)" : "var(--menu-border)"
+                              }`,
+                              borderRadius: "var(--menu-radius)",
+                            }}
+                          >
+                            <span className="font-medium text-sm">{o.nombre_producto_opcion}</span>
+                            {o.precio_delta > 0 && (
+                              <span
+                                className="text-sm font-semibold tabular-nums"
+                                style={{ color: "var(--menu-primary)" }}
+                              >
+                                +{fmt.format(o.precio_delta)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+
               {(ops?.extras?.length ?? 0) > 0 && (
                 <section className="space-y-2">
                   <h3 className="text-sm font-semibold uppercase tracking-wider"
