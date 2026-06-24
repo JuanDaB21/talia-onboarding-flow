@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,7 +15,9 @@ import {
   type PrepedidoData,
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
+import { solicitarAccionCliente } from "@/lib/menu-publico.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
+
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
