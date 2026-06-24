@@ -1260,6 +1260,75 @@ export type Database = {
           },
         ]
       }
+      reservas: {
+        Row: {
+          cantidad_personas: number
+          codigo_reserva: string
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          customer_phone: string | null
+          estado: string
+          fecha_reserva: string
+          hora_reserva: string
+          id_negocio: string
+          id_pedido_aplicado: string | null
+          id_reserva: string
+          monto_abonado: number
+          tipo_reserva: string | null
+          updated_at: string
+        }
+        Insert: {
+          cantidad_personas: number
+          codigo_reserva: string
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          estado?: string
+          fecha_reserva: string
+          hora_reserva: string
+          id_negocio: string
+          id_pedido_aplicado?: string | null
+          id_reserva?: string
+          monto_abonado?: number
+          tipo_reserva?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cantidad_personas?: number
+          codigo_reserva?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          estado?: string
+          fecha_reserva?: string
+          hora_reserva?: string
+          id_negocio?: string
+          id_pedido_aplicado?: string | null
+          id_reserva?: string
+          monto_abonado?: number
+          tipo_reserva?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "reservas_id_pedido_aplicado_fkey"
+            columns: ["id_pedido_aplicado"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id_pedido"]
+          },
+        ]
+      }
       subcategorias: {
         Row: {
           created_at: string
@@ -1533,6 +1602,10 @@ export type Database = {
         Args: { p_id_pedido: string }
         Returns: undefined
       }
+      pagar_con_abono_reserva: {
+        Args: { p_id_mesa: string; p_id_reserva: string; p_item_ids: string[] }
+        Returns: string
+      }
       purgar_prepedido_inactivo: { Args: never; Returns: number }
       recalcular_total_pedido: {
         Args: { p_id_pedido: string }
@@ -1590,7 +1663,7 @@ export type Database = {
         | "PAGADO"
         | "PARCIAL"
       estado_staff: "ACTIVO" | "INACTIVO" | "SUSPENDIDO"
-      metodo_pago: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO"
+      metodo_pago: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO" | "ABONO_RESERVA"
       rol_staff:
         | "SUPERADMIN"
         | "ADMIN"
@@ -1735,7 +1808,7 @@ export const Constants = {
         "PARCIAL",
       ],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
-      metodo_pago: ["EFECTIVO", "TRANSFERENCIA", "DATAFONO"],
+      metodo_pago: ["EFECTIVO", "TRANSFERENCIA", "DATAFONO", "ABONO_RESERVA"],
       rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA", "CAJERO"],
     },
   },
