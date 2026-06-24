@@ -99,6 +99,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
           nota,
           extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
           exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+          variantes: variantesArr,
         },
       }),
     onSuccess: () => {
@@ -126,6 +127,24 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
+      return n;
+    });
+  }
+  function toggleVariante(idGrupo: string, idOpcion: string, seleccion: "UNICA" | "MULTIPLE") {
+    setVariantes((m) => {
+      const n = new Map(m);
+      const next = new Set(n.get(idGrupo) ?? []);
+      if (seleccion === "UNICA") {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else {
+          next.clear();
+          next.add(idOpcion);
+        }
+      } else {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else next.add(idOpcion);
+      }
+      n.set(idGrupo, next);
       return n;
     });
   }
