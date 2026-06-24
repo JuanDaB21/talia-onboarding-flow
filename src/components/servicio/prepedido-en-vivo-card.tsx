@@ -127,6 +127,13 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
                           <AlertTriangle className="inline h-3.5 w-3.5 ml-1 text-amber-600" />
                         )}
                       </p>
+                      {it.variantes.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {it.variantes
+                            .map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}${v.precio_delta > 0 ? ` (+${fmt.format(v.precio_delta)})` : ""}`)
+                            .join(" · ")}
+                        </p>
+                      )}
                       {it.extras.length > 0 && (
                         <p className="text-xs text-muted-foreground">
                           + {it.extras.map((e) => e.nombre).join(", ")}
