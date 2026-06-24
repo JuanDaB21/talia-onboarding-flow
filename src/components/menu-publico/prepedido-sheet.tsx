@@ -54,7 +54,7 @@ export function PrepedidoSheet({
   void idSesion;
   const qc = useQueryClient();
   const delFn = useServerFn(eliminarItemPrepedido);
-  
+  const solicitarFn = useServerFn(solicitarAccionCliente);
 
   const delMut = useMutation({
     mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
@@ -67,6 +67,22 @@ export function PrepedidoSheet({
         description: e instanceof Error ? e.message : undefined,
       }),
   });
+
+  const completarMut = useMutation({
+    mutationFn: () =>
+      solicitarFn({ data: { idMesa, tipo: "TOMAR_PEDIDO" as const } }),
+    onSuccess: () => {
+      toast.success("¡Listo! Le avisamos a tu mesero 🛎️", {
+        description: "Va en camino para tomar tu pedido.",
+      });
+      onOpenChange(false);
+    },
+    onError: (e) =>
+      toast.error("No se pudo avisar al mesero", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
 
   const grupos = useMemo(() => {
     if (!data) return [];
