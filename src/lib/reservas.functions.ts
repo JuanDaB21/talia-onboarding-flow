@@ -93,6 +93,8 @@ export const crearReserva = createServerFn({ method: "POST" })
     if (!yo?.id_negocio) throw new Error("Usuario sin negocio");
     const { data: row, error } = await supabase
       .from("reservas")
+      // codigo_reserva lo genera un trigger BEFORE INSERT
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert({
         id_negocio: yo.id_negocio,
         customer_name: data.customer_name,
@@ -104,7 +106,7 @@ export const crearReserva = createServerFn({ method: "POST" })
         estado: data.estado,
         monto_abonado: data.monto_abonado,
         created_by: userId,
-      })
+      } as any)
       .select("id_reserva, codigo_reserva")
       .single();
     if (error) throw new Error(error.message);

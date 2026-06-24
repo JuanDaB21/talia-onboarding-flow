@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CartaIdMesaRouteImport } from './routes/carta.$idMesa'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AppServicioRouteImport } from './routes/_app.servicio'
+import { Route as AppReservasRouteImport } from './routes/_app.reservas'
 import { Route as AppOperacionRouteImport } from './routes/_app.operacion'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -83,6 +84,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
 const AppServicioRoute = AppServicioRouteImport.update({
   id: '/servicio',
   path: '/servicio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReservasRoute = AppReservasRouteImport.update({
+  id: '/reservas',
+  path: '/reservas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOperacionRoute = AppOperacionRouteImport.update({
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/menu': typeof AppMenuRouteWithChildren
   '/operacion': typeof AppOperacionRoute
+  '/reservas': typeof AppReservasRoute
   '/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
@@ -314,6 +321,7 @@ export interface FileRoutesByTo {
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/operacion': typeof AppOperacionRoute
+  '/reservas': typeof AppReservasRoute
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
@@ -355,6 +363,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
   '/_app/operacion': typeof AppOperacionRoute
+  '/_app/reservas': typeof AppReservasRoute
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
@@ -399,6 +408,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/menu'
     | '/operacion'
+    | '/reservas'
     | '/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
@@ -437,6 +447,7 @@ export interface FileRouteTypes {
     | '/cocina'
     | '/dashboard'
     | '/operacion'
+    | '/reservas'
     | '/api/chat'
     | '/carta/$idMesa'
     | '/bodega/compras'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/menu'
     | '/_app/operacion'
+    | '/_app/reservas'
     | '/_app/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
@@ -567,6 +579,13 @@ declare module '@tanstack/react-router' {
       path: '/servicio'
       fullPath: '/servicio'
       preLoaderRoute: typeof AppServicioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reservas': {
+      id: '/_app/reservas'
+      path: '/reservas'
+      fullPath: '/reservas'
+      preLoaderRoute: typeof AppReservasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/operacion': {
@@ -935,6 +954,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppMenuRoute: typeof AppMenuRouteWithChildren
   AppOperacionRoute: typeof AppOperacionRoute
+  AppReservasRoute: typeof AppReservasRoute
   AppServicioRoute: typeof AppServicioRouteWithChildren
 }
 
@@ -947,6 +967,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppMenuRoute: AppMenuRouteWithChildren,
   AppOperacionRoute: AppOperacionRoute,
+  AppReservasRoute: AppReservasRoute,
   AppServicioRoute: AppServicioRouteWithChildren,
 }
 
