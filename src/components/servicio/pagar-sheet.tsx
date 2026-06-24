@@ -739,9 +739,19 @@ function PasoItems({
             setIdBono={setIdBono}
             descuento={descuentoBono}
             bonoInfo={bonoInfo}
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || !!idReservaAbono}
           />
-          <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
+          <ReservaAbonoRow
+            reservas={reservasAplicables}
+            idReserva={idReservaAbono}
+            setIdReserva={setIdReservaAbono}
+            descuento={descuentoReserva}
+            totalSeleccionado={totalSeleccionado}
+            disabled={selected.size === 0 || !!idBono}
+          />
+          {!reservaCubreTodo && (
+            <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
+          )}
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
             <span className="text-2xl font-bold tabular-nums text-primary">
@@ -749,16 +759,134 @@ function PasoItems({
             </span>
           </div>
         </div>
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={selected.size === 0}
-          onClick={onContinue}
-        >
-          Continuar al método de pago
-        </Button>
+        {reservaCubreTodo ? (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={aplicandoAbono}
+            onClick={onPagarConAbono}
+          >
+            {aplicandoAbono ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CalendarCheck className="h-4 w-4 mr-2" />
+            )}
+            Aplicar abono de reserva
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={selected.size === 0}
+            onClick={onContinue}
+          >
+            Continuar al método de pago
+          </Button>
+        )}
       </div>
     </>
+  );
+}
+
+function ReservaAbonoRow({
+  reservas,
+  idReserva,
+  setIdReserva,
+  descuento,
+  totalSeleccionado,
+  disabled,
+}: {
+  reservas: ReservaAplicable[];
+  idReserva: string | null;
+  setIdReserva: (v: string | null) => void;
+  descuento: number;
+  totalSeleccionado: number;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  if (reservas.length === 0) return null;
+  const sel = reservas.find((r) => r.id_reserva === idReserva) ?? null;
+  const cubre = sel && sel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
+
+  if (!idReserva) {
+    return (
+      <div className="flex items-center justify-between text-sm">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
+            >
+              <CalendarCheck className="h-3.5 w-3.5 mr-1" />
+              Aplicar abono de reserva
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar reserva..." />
+              <CommandList>
+                <CommandEmpty>Sin reservas abonadas hoy</CommandEmpty>
+                <CommandGroup>
+                  {reservas.map((r) => (
+                    <CommandItem
+                      key={r.id_reserva}
+                      value={`${r.codigo_reserva} ${r.customer_name}`}
+                      onSelect={() => {
+                        setIdReserva(r.id_reserva);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="font-mono text-[10px] mr-2 px-1.5 py-0.5 rounded bg-muted">
+                        {r.codigo_reserva}
+                      </span>
+                      <span className="flex-1 truncate">{r.customer_name}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {fmt.format(r.monto_abonado)}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <span className="tabular-nums text-muted-foreground">—</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+          <CalendarCheck className="h-3.5 w-3.5" />
+          <span>
+            Descuento por Reserva{sel ? ` · ${sel.codigo_reserva}` : ""}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+            onClick={() => setIdReserva(null)}
+          >
+            Quitar
+          </Button>
+        </div>
+        <span className="tabular-nums font-medium text-emerald-700 dark:text-emerald-400">
+          -{fmt.format(descuento)}
+        </span>
+      </div>
+      {sel && !cubre && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 pl-1">
+          El abono cubre solo {fmt.format(sel.monto_abonado)}. Reduce items para
+          que el subtotal sea ≤ al abono, o cobra primero el resto con otro método.
+        </p>
+      )}
+    </div>
   );
 }
 
