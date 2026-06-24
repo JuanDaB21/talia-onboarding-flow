@@ -70,6 +70,8 @@ const unirseSchema = z.object({
   nombre: z.string().trim().min(1).max(40),
 });
 
+const varianteInputSchema = z.object({ id_opcion: uuid });
+
 const agregarSchema = z.object({
   idMesa: uuid,
   idSesion: uuid,
@@ -80,6 +82,7 @@ const agregarSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(varianteInputSchema).default([]),
 });
 
 const editarSchema = z.object({
@@ -90,6 +93,7 @@ const editarSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(varianteInputSchema).default([]),
 });
 
 const eliminarSchema = z.object({
