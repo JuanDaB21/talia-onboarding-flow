@@ -204,6 +204,44 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
             </div>
           ) : (
             <>
+              {(ops?.variantes ?? []).map((g) => {
+                const sel = variantes.get(g.id_grupo) ?? new Set<string>();
+                return (
+                  <div key={g.id_grupo} className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {g.nombre}
+                      <span className="ml-2 normal-case opacity-70">
+                        {g.seleccion === "UNICA" ? "Elige 1" : "Varias"}
+                      </span>
+                    </Label>
+                    <div className="space-y-1.5">
+                      {g.opciones.map((o) => {
+                        const checked = sel.has(o.id_opcion);
+                        return (
+                          <button
+                            key={o.id_opcion}
+                            type="button"
+                            onClick={() => toggleVariante(g.id_grupo, o.id_opcion, g.seleccion)}
+                            className={`w-full flex items-center justify-between gap-3 p-3 rounded-md border text-left text-sm transition-colors ${
+                              checked
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-card hover:bg-muted"
+                            }`}
+                          >
+                            <span className="font-medium">{o.nombre_producto_opcion}</span>
+                            {o.precio_delta > 0 && (
+                              <span className="font-semibold tabular-nums text-primary">
+                                +{fmt.format(o.precio_delta)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
               {(ops?.extras?.length ?? 0) > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
