@@ -42,6 +42,11 @@ import {
   previsualizarBono,
   type Bono,
 } from "@/lib/bonos.functions";
+import {
+  listarReservasAplicablesHoy,
+  aplicarAbonoEnCheckout,
+  type ReservaAplicable,
+} from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Command,
@@ -51,7 +56,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Ticket } from "lucide-react";
+import { Ticket, CalendarCheck } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -73,10 +78,18 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const navigate = useNavigate();
   const getItems = useServerFn(listarItemsCobrables);
   const pagarFn = useServerFn(registrarPago);
+  const reservasFn = useServerFn(listarReservasAplicablesHoy);
+  const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
 
   const itemsQ = useQuery({
     queryKey: ["pagos", "items", idMesa],
     queryFn: () => getItems({ data: { idMesa } }),
+    enabled: open,
+  });
+
+  const reservasAplicablesQ = useQuery({
+    queryKey: ["reservas", "aplicables-hoy"],
+    queryFn: () => reservasFn(),
     enabled: open,
   });
 
@@ -87,6 +100,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
   const [idBono, setIdBono] = useState<string | null>(null);
+  const [idReservaAbono, setIdReservaAbono] = useState<string | null>(null);
 
   // Reset al abrir
   useEffect(() => {
@@ -97,6 +111,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       setPropinaPct(0.1);
       setPropinaCustom(null);
       setIdBono(null);
+      setIdReservaAbono(null);
     }
   }, [open]);
 
@@ -121,12 +136,25 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const descuentoBono = bonoPreviewQ.data?.descuento ?? 0;
   const bonoInfo = bonoPreviewQ.data ?? null;
 
-  const subtotalConDescuento = Math.max(0, totalSeleccionado - descuentoBono);
+  // Reserva (abono) seleccionado
+  const reservasAplicables = reservasAplicablesQ.data ?? [];
+  const reservaSel = reservasAplicables.find(
+    (r) => r.id_reserva === idReservaAbono,
+  ) ?? null;
+  // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
+  // No permitimos mezclar bono + abono de reserva por simplicidad.
+  const abonoActivo = !!reservaSel && !idBono;
+  const subtotalConDescuentoBono = Math.max(0, totalSeleccionado - descuentoBono);
+  const descuentoReserva = abonoActivo
+    ? Math.min(reservaSel.monto_abonado, totalSeleccionado)
+    : 0;
+  const reservaCubreTodo =
+    abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(subtotalConDescuento * (propinaPct ?? 0));
-  const totalConPropina = subtotalConDescuento + propina;
+      : Math.round(subtotalConDescuentoBono * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuentoBono + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -176,11 +204,48 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           setPropinaPct(0.1);
           setPropinaCustom(null);
           setIdBono(null);
+          setIdReservaAbono(null);
         }
       });
     },
     onError: (e) =>
       toast.error("No se pudo registrar el pago", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  const abonoMut = useMutation({
+    mutationFn: () =>
+      aplicarAbonoFn({
+        data: {
+          idReserva: idReservaAbono!,
+          idMesa,
+          itemIds: Array.from(selected),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Abono de reserva aplicado", {
+        icon: <CalendarCheck className="h-4 w-4" />,
+      });
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["reservas"] });
+      itemsQ.refetch().then((r) => {
+        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
+        if (restantes.length === 0) {
+          onOpenChange(false);
+          navigate({ to: "/servicio" });
+        } else {
+          setPaso("items");
+          setSelected(new Set());
+          setIdReservaAbono(null);
+        }
+      });
+    },
+    onError: (e) =>
+      toast.error("No se pudo aplicar el abono", {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
@@ -243,7 +308,14 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             setIdBono={setIdBono}
             descuentoBono={descuentoBono}
             bonoInfo={bonoInfo}
+            reservasAplicables={reservasAplicables}
+            idReservaAbono={idReservaAbono}
+            setIdReservaAbono={setIdReservaAbono}
+            descuentoReserva={descuentoReserva}
+            reservaCubreTodo={reservaCubreTodo}
             onContinue={() => setPaso("metodo")}
+            onPagarConAbono={() => abonoMut.mutate()}
+            aplicandoAbono={abonoMut.isPending}
           />
         ) : (
           <PasoMetodo
@@ -488,7 +560,14 @@ function PasoItems({
   setIdBono,
   descuentoBono,
   bonoInfo,
+  reservasAplicables,
+  idReservaAbono,
+  setIdReservaAbono,
+  descuentoReserva,
+  reservaCubreTodo,
   onContinue,
+  onPagarConAbono,
+  aplicandoAbono,
 }: {
   items: ItemCobrable[];
   selected: Set<string>;
@@ -503,7 +582,14 @@ function PasoItems({
   setIdBono: (v: string | null) => void;
   descuentoBono: number;
   bonoInfo: BonoPreview | null;
+  reservasAplicables: ReservaAplicable[];
+  idReservaAbono: string | null;
+  setIdReservaAbono: (v: string | null) => void;
+  descuentoReserva: number;
+  reservaCubreTodo: boolean;
   onContinue: () => void;
+  onPagarConAbono: () => void;
+  aplicandoAbono: boolean;
 }) {
   const { grupos, pagados } = useMemo(() => {
     const m = new Map<number, ItemCobrable[]>();
@@ -525,7 +611,8 @@ function PasoItems({
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
   const hayPendientes = grupos.length > 0;
-  const totalConPropina = Math.max(0, totalSeleccionado - descuentoBono) + propina;
+  const subtotalNeto = Math.max(0, totalSeleccionado - descuentoBono - descuentoReserva);
+  const totalConPropina = subtotalNeto + (reservaCubreTodo ? 0 : propina);
 
   return (
     <>
@@ -652,9 +739,19 @@ function PasoItems({
             setIdBono={setIdBono}
             descuento={descuentoBono}
             bonoInfo={bonoInfo}
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || !!idReservaAbono}
           />
-          <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
+          <ReservaAbonoRow
+            reservas={reservasAplicables}
+            idReserva={idReservaAbono}
+            setIdReserva={setIdReservaAbono}
+            descuento={descuentoReserva}
+            totalSeleccionado={totalSeleccionado}
+            disabled={selected.size === 0 || !!idBono}
+          />
+          {!reservaCubreTodo && (
+            <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
+          )}
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
             <span className="text-2xl font-bold tabular-nums text-primary">
@@ -662,16 +759,134 @@ function PasoItems({
             </span>
           </div>
         </div>
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={selected.size === 0}
-          onClick={onContinue}
-        >
-          Continuar al método de pago
-        </Button>
+        {reservaCubreTodo ? (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={aplicandoAbono}
+            onClick={onPagarConAbono}
+          >
+            {aplicandoAbono ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CalendarCheck className="h-4 w-4 mr-2" />
+            )}
+            Aplicar abono de reserva
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={selected.size === 0}
+            onClick={onContinue}
+          >
+            Continuar al método de pago
+          </Button>
+        )}
       </div>
     </>
+  );
+}
+
+function ReservaAbonoRow({
+  reservas,
+  idReserva,
+  setIdReserva,
+  descuento,
+  totalSeleccionado,
+  disabled,
+}: {
+  reservas: ReservaAplicable[];
+  idReserva: string | null;
+  setIdReserva: (v: string | null) => void;
+  descuento: number;
+  totalSeleccionado: number;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  if (reservas.length === 0) return null;
+  const sel = reservas.find((r) => r.id_reserva === idReserva) ?? null;
+  const cubre = sel && sel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
+
+  if (!idReserva) {
+    return (
+      <div className="flex items-center justify-between text-sm">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
+            >
+              <CalendarCheck className="h-3.5 w-3.5 mr-1" />
+              Aplicar abono de reserva
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 p-0">
+            <Command>
+              <CommandInput placeholder="Buscar reserva..." />
+              <CommandList>
+                <CommandEmpty>Sin reservas abonadas hoy</CommandEmpty>
+                <CommandGroup>
+                  {reservas.map((r) => (
+                    <CommandItem
+                      key={r.id_reserva}
+                      value={`${r.codigo_reserva} ${r.customer_name}`}
+                      onSelect={() => {
+                        setIdReserva(r.id_reserva);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="font-mono text-[10px] mr-2 px-1.5 py-0.5 rounded bg-muted">
+                        {r.codigo_reserva}
+                      </span>
+                      <span className="flex-1 truncate">{r.customer_name}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {fmt.format(r.monto_abonado)}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <span className="tabular-nums text-muted-foreground">—</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+          <CalendarCheck className="h-3.5 w-3.5" />
+          <span>
+            Descuento por Reserva{sel ? ` · ${sel.codigo_reserva}` : ""}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+            onClick={() => setIdReserva(null)}
+          >
+            Quitar
+          </Button>
+        </div>
+        <span className="tabular-nums font-medium text-emerald-700 dark:text-emerald-400">
+          -{fmt.format(descuento)}
+        </span>
+      </div>
+      {sel && !cubre && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 pl-1">
+          El abono cubre solo {fmt.format(sel.monto_abonado)}. Reduce items para
+          que el subtotal sea ≤ al abono, o cobra primero el resto con otro método.
+        </p>
+      )}
+    </div>
   );
 }
 

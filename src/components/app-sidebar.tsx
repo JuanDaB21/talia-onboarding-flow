@@ -22,6 +22,7 @@ import {
   Activity,
   Wallet,
   Settings,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -74,6 +75,7 @@ const MENU_NAV = [
 const SERVICIO_NAV = [
   { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
+  { to: "/reservas", label: "Reservas", icon: CalendarDays },
   { to: "/cocina", label: "Cocina", icon: Flame },
   { to: "/barra", label: "Barra", icon: Wine },
 ] as const;
@@ -247,6 +249,7 @@ export function AppSidebar() {
             SERVICIO_NAV.filter((item) => {
               if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
+              if (item.to === "/reservas") return grupos.operacion || grupos.servicio;
               if (item.to === "/cocina") return grupos.cocina;
               if (item.to === "/barra") return grupos.barra;
               return false;
