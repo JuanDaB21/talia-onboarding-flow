@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, CreditCard, Plus, Radio, UserCheck, Wallet } from "lucide-react";
+import { Bell, ChefHat, ClipboardCheck, Clock, CreditCard, Plus, Radio, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
