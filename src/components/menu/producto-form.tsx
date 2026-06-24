@@ -140,6 +140,11 @@ export function ProductoForm({
         <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
       </div>
 
+      <div className="space-y-2 pt-2 border-t">
+        <Label>Variantes (opciones acompañantes)</Label>
+        <VariantesBuilder idProducto={producto.id_producto} />
+      </div>
+
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting || uploading}>
