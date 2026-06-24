@@ -308,7 +308,14 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             setIdBono={setIdBono}
             descuentoBono={descuentoBono}
             bonoInfo={bonoInfo}
+            reservasAplicables={reservasAplicables}
+            idReservaAbono={idReservaAbono}
+            setIdReservaAbono={setIdReservaAbono}
+            descuentoReserva={descuentoReserva}
+            reservaCubreTodo={reservaCubreTodo}
             onContinue={() => setPaso("metodo")}
+            onPagarConAbono={() => abonoMut.mutate()}
+            aplicandoAbono={abonoMut.isPending}
           />
         ) : (
           <PasoMetodo
