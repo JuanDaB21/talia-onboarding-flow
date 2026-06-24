@@ -191,7 +191,9 @@ function MesaCard({ m }: { m: MesaServicio }) {
       params={{ idMesa: m.id_mesa }}
       className={`block rounded-xl border bg-card p-4 hover:shadow-md transition-shadow ${
         m.alerta_listo ? "ring-2 ring-emerald-500" : ""
-      } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""}`}
+      } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""} ${
+        m.tiene_prepedido ? "ring-2 ring-primary/60" : ""
+      }`}
     >
       <div className="flex items-start justify-between">
         <div>
