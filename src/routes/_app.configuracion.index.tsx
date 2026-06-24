@@ -33,6 +33,12 @@ const SECCIONES = [
     description: "Define bonos, cupones y descuentos aplicables.",
     icon: Ticket,
   },
+  {
+    to: "/configuracion/propinas",
+    label: "Propinas",
+    description: "Porcentaje que retiene el negocio antes del reparto a meseros.",
+    icon: Coins,
+  },
 ] as const;
 
 export const Route = createFileRoute("/_app/configuracion/")({
