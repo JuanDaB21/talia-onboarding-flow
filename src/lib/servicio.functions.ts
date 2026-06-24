@@ -373,6 +373,7 @@ export interface ItemPedidoSesion {
   entregado_at: string | null;
   extras: { id_insumo_extra: string; nombre: string; precio: number }[];
   exclusiones: { id_insumo: string; nombre: string }[];
+  variantes: { id_opcion: string; nombre_grupo: string; nombre_opcion: string; precio_delta: number }[];
 }
 
 export interface PedidoSesion {
