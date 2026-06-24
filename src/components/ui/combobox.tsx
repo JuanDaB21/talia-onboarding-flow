@@ -43,7 +43,7 @@ export function Combobox({
   const current = options.find((o) => o.value === value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -73,6 +73,12 @@ export function Combobox({
                     onChange(opt.value);
                     setOpen(false);
                   }}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+
                 >
                   <Check
                     className={cn(
