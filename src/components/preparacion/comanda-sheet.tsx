@@ -147,6 +147,7 @@ export function ComandaSheet({
                       nota: it.nota,
                       extras: it.extras,
                       exclusiones: it.exclusiones,
+                      variantes: it.variantes,
                     })),
                   },
                 ])
