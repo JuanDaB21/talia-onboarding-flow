@@ -26,6 +26,14 @@ export interface PrepedidoExclusion {
   nombre: string;
 }
 
+export interface PrepedidoVariante {
+  id_opcion: string;
+  id_grupo: string;
+  nombre_grupo: string;
+  nombre_opcion: string;
+  precio_delta: number;
+}
+
 export interface PrepedidoItem {
   id_prepedido_item: string;
   id_sesion: string;
@@ -39,6 +47,7 @@ export interface PrepedidoItem {
   nota: string | null;
   extras: PrepedidoExtra[];
   exclusiones: PrepedidoExclusion[];
+  variantes: PrepedidoVariante[];
   subtotal: number;
   created_at: string;
 }
