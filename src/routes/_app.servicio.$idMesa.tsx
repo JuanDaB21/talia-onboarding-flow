@@ -915,35 +915,119 @@ function PedidoAbiertoCard({
     queryFn: () => getCat(),
   });
   const [catActiva, setCatActiva] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
   const [editing, setEditing] = useState<{
     id_producto: string;
     nombre_producto: string;
     precio_venta: number;
   } | null>(null);
+  const [pedidoSheetOpen, setPedidoSheetOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const productosFiltrados = useMemo(() => {
     if (!catQ.data) return [];
-    if (!catActiva) return catQ.data.productos;
-    return catQ.data.productos.filter((p) => p.id_categoria === catActiva);
-  }, [catQ.data, catActiva]);
+    const q = busqueda.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    return catQ.data.productos.filter((p) => {
+      if (catActiva && p.id_categoria !== catActiva) return false;
+      if (q) {
+        const n = p.nombre_producto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+        if (!n.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [catQ.data, catActiva, busqueda]);
+
+  const pedidoItemsList = (
+    <>
+      {pedido.items.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center border rounded-lg">
+          Selecciona productos del catálogo.
+        </p>
+      ) : (
+        <ul className="space-y-2 divide-y rounded-lg border bg-background p-3">
+          {pedido.items.map((it) => (
+            <ItemRow
+              key={it.id_item}
+              item={it}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </ul>
+      )}
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="h-12 gap-1"
+          disabled={pedido.items.length === 0}
+          onClick={onPrint}
+        >
+          <Printer className="h-4 w-4" />
+          Imprimir
+        </Button>
+        <Button
+          className="flex-1 h-12"
+          disabled={pedido.items.length === 0 || confirmando}
+          onClick={() => {
+            onConfirm();
+            setPedidoSheetOpen(false);
+          }}
+        >
+          {confirmando ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            "Confirmar orden"
+          )}
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <article className="rounded-xl border bg-card shadow-sm">
-      <header className="p-4 flex items-center justify-between border-b">
-        <div>
-          <h3 className="font-bold">
+      <header className="p-4 flex items-center justify-between gap-2 border-b min-w-0">
+        <div className="min-w-0">
+          <h3 className="font-bold truncate">
             {esPrimero ? "Tomando pedido" : "Nueva orden en curso"}
           </h3>
-          <p className="text-xs text-muted-foreground">
-            {pedido.items.length} items · {fmt.format(pedido.total)}
+          <p className="text-xs text-muted-foreground truncate">
+            Catálogo abajo · {pedido.items.length} en el pedido
           </p>
         </div>
-        <Badge variant="secondary">Borrador</Badge>
+        <Badge variant="secondary" className="shrink-0">Borrador</Badge>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px] p-4">
         {/* Catálogo */}
-        <div className="space-y-3">
+        <section className="space-y-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Catálogo
+            </h4>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto…"
+              className="pl-9 pr-9"
+            />
+            {busqueda && (
+              <button
+                type="button"
+                aria-label="Limpiar búsqueda"
+                onClick={() => setBusqueda("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
           {catQ.isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -951,7 +1035,7 @@ function PedidoAbiertoCard({
           ) : (
             <>
               {(catQ.data?.categorias.length ?? 0) > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                   <PillBtn
                     active={catActiva === null}
                     onClick={() => setCatActiva(null)}
@@ -972,85 +1056,122 @@ function PedidoAbiertoCard({
                   ))}
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {productosFiltrados.map((p) => (
-                  <button
-                    key={p.id_producto}
-                    onClick={() => setEditing(p)}
-                    className="text-left rounded-xl border bg-card p-3 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex gap-3">
-                      <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                        {p.url_imagen ? (
-                          <img
-                            src={p.url_imagen}
-                            alt={p.nombre_producto}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        )}
+
+              {productosFiltrados.length === 0 ? (
+                <div className="text-center py-10 border rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    {busqueda
+                      ? `Sin productos para “${busqueda}”`
+                      : "No hay productos en esta categoría"}
+                  </p>
+                  {(busqueda || catActiva) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => {
+                        setBusqueda("");
+                        setCatActiva(null);
+                      }}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className={cn(
+                  "grid grid-cols-1 sm:grid-cols-2 gap-3",
+                  // dejar espacio para la barra sticky en mobile
+                  isMobile && pedido.items.length > 0 && "pb-24",
+                )}>
+                  {productosFiltrados.map((p) => (
+                    <button
+                      key={p.id_producto}
+                      onClick={() => setEditing(p)}
+                      className="text-left rounded-xl border bg-card p-3 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex gap-3 min-w-0">
+                        <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          {p.url_imagen ? (
+                            <img
+                              src={p.url_imagen}
+                              alt={p.nombre_producto}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-semibold text-sm line-clamp-2 break-words">
+                            {p.nombre_producto}
+                          </h4>
+                          <p className="text-sm font-bold mt-1 tabular-nums">
+                            {fmt.format(p.precio_venta)}
+                          </p>
+                        </div>
+                        <Plus className="h-4 w-4 text-muted-foreground self-center shrink-0" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-sm line-clamp-1">
-                          {p.nombre_producto}
-                        </h4>
-                        <p className="text-sm font-bold mt-1 tabular-nums">
-                          {fmt.format(p.precio_venta)}
-                        </p>
-                      </div>
-                      <Plus className="h-4 w-4 text-muted-foreground self-center" />
-                    </div>
-                  </button>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
-        </div>
+        </section>
 
-        {/* Aside orden */}
-        <aside className="space-y-3 h-fit">
-          {pedido.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center border rounded-lg">
-              Selecciona productos del catálogo.
-            </p>
-          ) : (
-            <ul className="space-y-2 divide-y rounded-lg border p-3">
-              {pedido.items.map((it) => (
-                <ItemRow
-                  key={it.id_item}
-                  item={it}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-              ))}
-            </ul>
-          )}
+        {/* Aside orden — solo en desktop */}
+        {!isMobile && (
+          <aside className="space-y-3 h-fit lg:sticky lg:top-4 rounded-xl border bg-muted/30 p-3">
+            <div className="flex items-center justify-between gap-2 px-1">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Pedido en curso
+              </h4>
+              <span className="text-xs font-semibold tabular-nums">
+                {pedido.items.length} · {fmt.format(pedido.total)}
+              </span>
+            </div>
+            {pedidoItemsList}
+          </aside>
+        )}
+      </div>
 
-          <div className="flex gap-2">
+      {/* Barra sticky inferior en mobile */}
+      {isMobile && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur p-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted-foreground">Pedido en curso</p>
+              <p className="font-bold tabular-nums truncate">
+                {pedido.items.length} items · {fmt.format(pedido.total)}
+              </p>
+            </div>
             <Button
-              variant="outline"
-              className="h-12 gap-1"
-              disabled={pedido.items.length === 0}
-              onClick={onPrint}
+              onClick={() => setPedidoSheetOpen(true)}
+              className="gap-2 shrink-0"
+              size="lg"
+              variant={pedido.items.length === 0 ? "outline" : "default"}
             >
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </Button>
-            <Button
-              className="flex-1 h-12"
-              disabled={pedido.items.length === 0 || confirmando}
-              onClick={onConfirm}
-            >
-              {confirmando ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Confirmar orden"
-              )}
+              <Receipt className="h-4 w-4" />
+              Ver pedido
             </Button>
           </div>
-        </aside>
-      </div>
+        </div>
+      )}
+
+      <Sheet open={pedidoSheetOpen} onOpenChange={setPedidoSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Pedido en curso</SheetTitle>
+            <SheetDescription>
+              {pedido.items.length} items · {fmt.format(pedido.total)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            {pedidoItemsList}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ItemEditorSheet
         open={!!editing}
