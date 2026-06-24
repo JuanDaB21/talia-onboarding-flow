@@ -42,6 +42,11 @@ import {
   previsualizarBono,
   type Bono,
 } from "@/lib/bonos.functions";
+import {
+  listarReservasAplicablesHoy,
+  aplicarAbonoEnCheckout,
+  type ReservaAplicable,
+} from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Command,
@@ -51,7 +56,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Ticket } from "lucide-react";
+import { Ticket, CalendarCheck } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
