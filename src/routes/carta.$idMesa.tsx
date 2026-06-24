@@ -83,15 +83,26 @@ function CartaPage() {
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
   const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
 
-  // Si ya hay cliente registrado, saltar el onboarding
+  // Si ya hay cliente registrado, saltar el onboarding y revalidar la sesión
+  // (la fila en la BD puede haber sido eliminada mientras el localStorage seguía vigente).
   useEffect(() => {
-    if (hydrated && cliente?.idSesion) {
+    if (!hydrated || !cliente) return;
+    setNombreInput(cliente.nombre);
+    if (cliente.idSesion) {
       setFase("menu");
-      setNombreInput(cliente.nombre);
-    } else if (hydrated && cliente) {
-      setNombreInput(cliente.nombre);
+      // Re-upsert para garantizar que la sesión existe en la BD
+      unirseFn({
+        data: { idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre },
+      })
+        .then((res) => {
+          if (res.id_sesion !== cliente.idSesion) setSesion(res.id_sesion);
+        })
+        .catch(() => {
+          /* silencioso: el siguiente intento mostrará el error */
+        });
     }
-  }, [hydrated, cliente]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, cliente?.idCliente]);
 
   const unirseMut = useMutation({
     mutationFn: async (nombre: string) => {
