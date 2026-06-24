@@ -827,6 +827,68 @@ export type Database = {
           },
         ]
       }
+      pedido_item_variantes: {
+        Row: {
+          id_grupo: string | null
+          id_item: string
+          id_opcion: string | null
+          id_piv: string
+          id_producto_opcion: string | null
+          nombre_grupo: string
+          nombre_opcion: string
+          precio_delta: number
+        }
+        Insert: {
+          id_grupo?: string | null
+          id_item: string
+          id_opcion?: string | null
+          id_piv?: string
+          id_producto_opcion?: string | null
+          nombre_grupo: string
+          nombre_opcion: string
+          precio_delta?: number
+        }
+        Update: {
+          id_grupo?: string | null
+          id_item?: string
+          id_opcion?: string | null
+          id_piv?: string
+          id_producto_opcion?: string | null
+          nombre_grupo?: string
+          nombre_opcion?: string
+          precio_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_item_variantes_id_grupo_fkey"
+            columns: ["id_grupo"]
+            isOneToOne: false
+            referencedRelation: "producto_variante_grupos"
+            referencedColumns: ["id_grupo"]
+          },
+          {
+            foreignKeyName: "pedido_item_variantes_id_item_fkey"
+            columns: ["id_item"]
+            isOneToOne: false
+            referencedRelation: "pedido_items"
+            referencedColumns: ["id_item"]
+          },
+          {
+            foreignKeyName: "pedido_item_variantes_id_opcion_fkey"
+            columns: ["id_opcion"]
+            isOneToOne: false
+            referencedRelation: "producto_variante_opciones"
+            referencedColumns: ["id_opcion"]
+          },
+          {
+            foreignKeyName: "pedido_item_variantes_id_producto_opcion_fkey"
+            columns: ["id_producto_opcion"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
+          },
+        ]
+      }
       pedido_items: {
         Row: {
           cantidad: number
@@ -980,6 +1042,7 @@ export type Database = {
           precio_unitario: number
           tiene_alergia: boolean
           updated_at: string
+          variantes: Json
         }
         Insert: {
           cantidad: number
@@ -994,6 +1057,7 @@ export type Database = {
           precio_unitario: number
           tiene_alergia?: boolean
           updated_at?: string
+          variantes?: Json
         }
         Update: {
           cantidad?: number
@@ -1008,6 +1072,7 @@ export type Database = {
           precio_unitario?: number
           tiene_alergia?: boolean
           updated_at?: string
+          variantes?: Json
         }
         Relationships: [
           {
@@ -1065,6 +1130,86 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "mesas"
             referencedColumns: ["id_mesa"]
+          },
+        ]
+      }
+      producto_variante_grupos: {
+        Row: {
+          created_at: string
+          id_grupo: string
+          id_producto: string
+          nombre: string
+          orden: number
+          seleccion: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id_grupo?: string
+          id_producto: string
+          nombre: string
+          orden?: number
+          seleccion: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id_grupo?: string
+          id_producto?: string
+          nombre?: string
+          orden?: number
+          seleccion?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producto_variante_grupos_id_producto_fkey"
+            columns: ["id_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
+          },
+        ]
+      }
+      producto_variante_opciones: {
+        Row: {
+          created_at: string
+          id_grupo: string
+          id_opcion: string
+          id_producto_opcion: string
+          orden: number
+          precio_delta: number
+        }
+        Insert: {
+          created_at?: string
+          id_grupo: string
+          id_opcion?: string
+          id_producto_opcion: string
+          orden?: number
+          precio_delta?: number
+        }
+        Update: {
+          created_at?: string
+          id_grupo?: string
+          id_opcion?: string
+          id_producto_opcion?: string
+          orden?: number
+          precio_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "producto_variante_opciones_id_grupo_fkey"
+            columns: ["id_grupo"]
+            isOneToOne: false
+            referencedRelation: "producto_variante_grupos"
+            referencedColumns: ["id_grupo"]
+          },
+          {
+            foreignKeyName: "producto_variante_opciones_id_producto_opcion_fkey"
+            columns: ["id_producto_opcion"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id_producto"]
           },
         ]
       }
@@ -1496,6 +1641,7 @@ export type Database = {
           p_id_producto: string
           p_nota: string
           p_tiene_alergia: boolean
+          p_variantes?: Json
         }
         Returns: string
       }

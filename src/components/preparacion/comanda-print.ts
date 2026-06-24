@@ -10,6 +10,7 @@ export interface ComandaItemPrint {
   nota?: string | null;
   extras?: { nombre: string; cantidad?: number }[];
   exclusiones?: { nombre: string }[];
+  variantes?: { nombre_grupo: string; nombre_opcion: string }[];
 }
 
 export interface ComandaPrintData {
@@ -44,6 +45,12 @@ function fechaCorta(iso?: string | null): string {
 function renderItem(it: ComandaItemPrint): string {
   const cant = it.cantidad > 1 ? `x${it.cantidad}` : "x1";
   const head = `<div class="item-head"><span class="qty">${cant}</span><span class="name">${escapeHtml(it.nombre_producto)}</span></div>`;
+  const variantes = (it.variantes ?? [])
+    .map(
+      (v) =>
+        `<div class="mod plus">▸ ${escapeHtml(v.nombre_grupo)}: ${escapeHtml(v.nombre_opcion)}</div>`,
+    )
+    .join("");
   const extras = (it.extras ?? [])
     .map(
       (e) =>
@@ -59,7 +66,7 @@ function renderItem(it: ComandaItemPrint): string {
   const nota = it.nota
     ? `<div class="nota">Nota: ${escapeHtml(it.nota)}</div>`
     : "";
-  return `<li class="item">${head}${extras}${excl}${alergia}${nota}</li>`;
+  return `<li class="item">${head}${variantes}${extras}${excl}${alergia}${nota}</li>`;
 }
 
 function renderItems(items: ComandaItemPrint[]): string {

@@ -31,6 +31,7 @@ export interface ItemPreparacion {
   mesa_identificador: string;
   extras: { nombre: string; cantidad: number }[];
   exclusiones: { nombre: string }[];
+  variantes: { nombre_grupo: string; nombre_opcion: string }[];
 }
 
 export interface ComandaEstacion {
@@ -85,7 +86,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
     const todosItems = [...(itemsActivos ?? []), ...(itemsEntregados ?? [])];
     const itemIds = todosItems.map((i) => i.id_item);
 
-    const [{ data: extras }, { data: excl }] = await Promise.all([
+    const [{ data: extras }, { data: excl }, { data: varRows }] = await Promise.all([
       itemIds.length
         ? supabase
             .from("pedido_item_extras")
@@ -96,6 +97,12 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         ? supabase
             .from("pedido_item_exclusiones")
             .select("id_item, insumos:id_insumo(nombre_insumo)")
+            .in("id_item", itemIds)
+        : Promise.resolve({ data: [] as unknown[] }),
+      itemIds.length
+        ? supabase
+            .from("pedido_item_variantes")
+            .select("id_item, nombre_grupo, nombre_opcion")
             .in("id_item", itemIds)
         : Promise.resolve({ data: [] as unknown[] }),
     ]);
@@ -113,6 +120,13 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
       const arr = exclByItem.get(e.id_item) ?? [];
       arr.push({ nombre: e.insumos?.nombre_insumo ?? "—" });
       exclByItem.set(e.id_item, arr);
+    });
+    const varByItem = new Map<string, { nombre_grupo: string; nombre_opcion: string }[]>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (varRows as any[] | null)?.forEach((v) => {
+      const arr = varByItem.get(v.id_item) ?? [];
+      arr.push({ nombre_grupo: v.nombre_grupo ?? "", nombre_opcion: v.nombre_opcion ?? "" });
+      varByItem.set(v.id_item, arr);
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,6 +153,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
         mesa_identificador: p?.mesas?.identificador ?? "—",
         extras: extrasByItem.get(i.id_item) ?? [],
         exclusiones: exclByItem.get(i.id_item) ?? [],
+        variantes: varByItem.get(i.id_item) ?? [],
       };
     };
 

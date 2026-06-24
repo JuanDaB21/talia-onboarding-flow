@@ -196,6 +196,7 @@ export interface CuentaItem {
   subtotal: number;
   extras: Array<{ nombre: string; precio: number }>;
   exclusiones: Array<{ nombre: string }>;
+  variantes: Array<{ nombre_grupo: string; nombre_opcion: string; precio_delta: number }>;
   nota: string | null;
 }
 
@@ -250,8 +251,9 @@ export const getCuentaPublica = createServerFn({ method: "POST" })
       const itemIds = (itemsRaw ?? []).map((i) => i.id_item as string);
       let extrasRaw: Array<Record<string, unknown>> = [];
       let exclRaw: Array<Record<string, unknown>> = [];
+      let varRaw: Array<Record<string, unknown>> = [];
       if (itemIds.length > 0) {
-        const [{ data: ex }, { data: xc }] = await Promise.all([
+        const [{ data: ex }, { data: xc }, { data: vv }] = await Promise.all([
           supabaseAdmin
             .from("pedido_item_extras")
             .select("id_item, precio_extra, insumos:id_insumo_extra(nombre_insumo)")
@@ -260,9 +262,14 @@ export const getCuentaPublica = createServerFn({ method: "POST" })
             .from("pedido_item_exclusiones")
             .select("id_item, insumos:id_insumo(nombre_insumo)")
             .in("id_item", itemIds),
+          supabaseAdmin
+            .from("pedido_item_variantes")
+            .select("id_item, nombre_grupo, nombre_opcion, precio_delta")
+            .in("id_item", itemIds),
         ]);
         extrasRaw = (ex ?? []) as Array<Record<string, unknown>>;
         exclRaw = (xc ?? []) as Array<Record<string, unknown>>;
+        varRaw = (vv ?? []) as Array<Record<string, unknown>>;
       }
 
       const extrasByItem = new Map<string, CuentaItem["extras"]>();
@@ -284,13 +291,25 @@ export const getCuentaPublica = createServerFn({ method: "POST" })
         });
         exclByItem.set(x.id_item as string, arr);
       }
+      const varByItem = new Map<string, CuentaItem["variantes"]>();
+      for (const v of varRaw) {
+        const arr = varByItem.get(v.id_item as string) ?? [];
+        arr.push({
+          nombre_grupo: (v.nombre_grupo as string) ?? "",
+          nombre_opcion: (v.nombre_opcion as string) ?? "",
+          precio_delta: Number(v.precio_delta ?? 0),
+        });
+        varByItem.set(v.id_item as string, arr);
+      }
 
       for (const i of itemsRaw ?? []) {
         const cantidad = Number(i.cantidad);
         const precio = Number(i.precio_unitario);
         const extras = extrasByItem.get(i.id_item as string) ?? [];
+        const variantes = varByItem.get(i.id_item as string) ?? [];
         const extrasTotal = extras.reduce((s, e) => s + e.precio, 0);
-        const subtotal = (precio + extrasTotal) * cantidad;
+        const varTotal = variantes.reduce((s, v) => s + v.precio_delta, 0);
+        const subtotal = (precio + extrasTotal + varTotal) * cantidad;
         total += subtotal;
         items.push({
           id_item: i.id_item as string,
@@ -301,6 +320,7 @@ export const getCuentaPublica = createServerFn({ method: "POST" })
           subtotal,
           extras,
           exclusiones: exclByItem.get(i.id_item as string) ?? [],
+          variantes,
           nota: (i.nota as string | null) ?? null,
         });
       }

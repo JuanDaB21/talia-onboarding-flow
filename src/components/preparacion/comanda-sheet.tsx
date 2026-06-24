@@ -147,6 +147,7 @@ export function ComandaSheet({
                       nota: it.nota,
                       extras: it.extras,
                       exclusiones: it.exclusiones,
+                      variantes: it.variantes,
                     })),
                   },
                 ])
@@ -264,6 +265,19 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
             <div className="flex items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-950/30 rounded px-2 py-1">
               <AlertTriangle className="h-3.5 w-3.5" />
               ¡ALERGIA! Tomar precauciones
+            </div>
+          )}
+
+          {item.variantes.length > 0 && (
+            <div className="space-y-0.5">
+              {item.variantes.map((v, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400"
+                >
+                  <span>▸ {v.nombre_grupo}: <strong>{v.nombre_opcion}</strong></span>
+                </div>
+              ))}
             </div>
           )}
 

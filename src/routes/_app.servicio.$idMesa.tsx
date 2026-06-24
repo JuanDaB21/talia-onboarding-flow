@@ -145,6 +145,7 @@ function imprimirComandasDePedido(
           nota: it.nota,
           extras: it.extras.map((e) => ({ nombre: e.nombre })),
           exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+          variantes: it.variantes.map((v) => ({ nombre_grupo: v.nombre_grupo, nombre_opcion: v.nombre_opcion })),
         }));
       return {
         destino,
@@ -830,6 +831,13 @@ function ItemRow({
           {item.tiene_alergia && (
             <p className="text-[11px] text-destructive font-semibold mt-0.5">
               🚨 ALERGIA
+            </p>
+          )}
+          {item.variantes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {item.variantes
+                .map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`)
+                .join(" · ")}
             </p>
           )}
           {item.extras.length > 0 && (

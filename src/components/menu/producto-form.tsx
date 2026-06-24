@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { productoSchema, type ProductoInput } from "@/lib/menu-schemas";
+import { VariantesBuilder } from "./variantes-builder";
 import type { Producto } from "./productos-tab";
 
 export function ProductoForm({
@@ -137,6 +138,11 @@ export function ProductoForm({
           <p className="text-xs text-muted-foreground">Disponible para venta en el menú.</p>
         </div>
         <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
+      </div>
+
+      <div className="space-y-2 pt-2 border-t">
+        <Label>Variantes (opciones acompañantes)</Label>
+        <VariantesBuilder idProducto={producto.id_producto} />
       </div>
 
       <div className="flex gap-2 pt-2">

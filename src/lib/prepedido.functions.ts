@@ -26,6 +26,14 @@ export interface PrepedidoExclusion {
   nombre: string;
 }
 
+export interface PrepedidoVariante {
+  id_opcion: string;
+  id_grupo: string;
+  nombre_grupo: string;
+  nombre_opcion: string;
+  precio_delta: number;
+}
+
 export interface PrepedidoItem {
   id_prepedido_item: string;
   id_sesion: string;
@@ -39,6 +47,7 @@ export interface PrepedidoItem {
   nota: string | null;
   extras: PrepedidoExtra[];
   exclusiones: PrepedidoExclusion[];
+  variantes: PrepedidoVariante[];
   subtotal: number;
   created_at: string;
 }
@@ -61,6 +70,8 @@ const unirseSchema = z.object({
   nombre: z.string().trim().min(1).max(40),
 });
 
+const varianteInputSchema = z.object({ id_opcion: uuid });
+
 const agregarSchema = z.object({
   idMesa: uuid,
   idSesion: uuid,
@@ -71,6 +82,7 @@ const agregarSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(varianteInputSchema).default([]),
 });
 
 const editarSchema = z.object({
@@ -81,6 +93,7 @@ const editarSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(varianteInputSchema).default([]),
 });
 
 const eliminarSchema = z.object({
@@ -105,7 +118,7 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
   const { data: itemsRaw, error: iErr } = await supabaseAdmin
     .from("prepedido_items")
     .select(
-      "id_prepedido_item, id_sesion, id_producto, cantidad, precio_unitario, tiene_alergia, nota, extras, exclusiones, created_at, productos:id_producto(nombre_producto)",
+      "id_prepedido_item, id_sesion, id_producto, cantidad, precio_unitario, tiene_alergia, nota, extras, exclusiones, variantes, created_at, productos:id_producto(nombre_producto)",
     )
     .eq("id_mesa", idMesa)
     .order("created_at", { ascending: true });
@@ -162,6 +175,8 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
     const ses = sesionMap.get(i.id_sesion as string);
     const extrasRaw = (i.extras as Array<{ id_insumo_extra: string }>) ?? [];
     const exclusRaw = (i.exclusiones as Array<{ id_insumo: string }>) ?? [];
+    const variantesRaw =
+      (i.variantes as Array<Record<string, unknown>> | null | undefined) ?? [];
     const pid = i.id_producto as string;
     const precios = productoExtras.get(pid) ?? new Map<string, number>();
     const extras: PrepedidoExtra[] = extrasRaw.map((e) => ({
@@ -173,10 +188,18 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
       id_insumo: x.id_insumo,
       nombre: insumoNombres.get(x.id_insumo) ?? "—",
     }));
+    const variantes: PrepedidoVariante[] = variantesRaw.map((v) => ({
+      id_opcion: (v.id_opcion as string) ?? "",
+      id_grupo: (v.id_grupo as string) ?? "",
+      nombre_grupo: (v.nombre_grupo as string) ?? "",
+      nombre_opcion: (v.nombre_opcion as string) ?? "",
+      precio_delta: Number(v.precio_delta ?? 0),
+    }));
     const cantidad = Number(i.cantidad);
     const precio = Number(i.precio_unitario);
     const extrasSum = extras.reduce((a, e) => a + e.precio, 0);
-    const subtotal = (precio + extrasSum) * cantidad;
+    const variantesSum = variantes.reduce((a, v) => a + v.precio_delta, 0);
+    const subtotal = (precio + extrasSum + variantesSum) * cantidad;
     total += subtotal;
     return {
       id_prepedido_item: i.id_prepedido_item as string,
@@ -192,6 +215,7 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
       nota: (i.nota as string | null) ?? null,
       extras,
       exclusiones,
+      variantes,
       subtotal,
       created_at: i.created_at as string,
     };
@@ -274,6 +298,68 @@ async function validarExtrasYExclusiones(
   }
 }
 
+// Resuelve snapshots de variantes (nombre y precio) validando contra el producto
+async function resolverVariantes(
+  idProducto: string,
+  variantes: Array<{ id_opcion: string }>,
+): Promise<Array<{
+  id_opcion: string;
+  id_grupo: string;
+  id_producto_opcion: string;
+  nombre_grupo: string;
+  nombre_opcion: string;
+  precio_delta: number;
+}>> {
+  if (variantes.length === 0) return [];
+  const ids = variantes.map((v) => v.id_opcion);
+  const { data, error } = await supabaseAdmin
+    .from("producto_variante_opciones")
+    .select(
+      "id_opcion, id_grupo, id_producto_opcion, precio_delta, producto_variante_grupos:id_grupo(id_producto, nombre), productos:id_producto_opcion(nombre_producto)",
+    )
+    .in("id_opcion", ids);
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, {
+    id_opcion: string;
+    id_grupo: string;
+    id_producto_opcion: string;
+    nombre_grupo: string;
+    nombre_opcion: string;
+    precio_delta: number;
+  }>();
+  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const g = (raw as any).producto_variante_grupos;
+    if (!g || g.id_producto !== idProducto) continue;
+    map.set(raw.id_opcion as string, {
+      id_opcion: raw.id_opcion as string,
+      id_grupo: raw.id_grupo as string,
+      id_producto_opcion: raw.id_producto_opcion as string,
+      nombre_grupo: (g.nombre as string) ?? "",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nombre_opcion: ((raw as any).productos?.nombre_producto as string) ?? "—",
+      precio_delta: Number(raw.precio_delta ?? 0),
+    });
+  }
+  const out: Array<{
+    id_opcion: string;
+    id_grupo: string;
+    id_producto_opcion: string;
+    nombre_grupo: string;
+    nombre_opcion: string;
+    precio_delta: number;
+  }> = [];
+  for (const v of variantes) {
+    const snap = map.get(v.id_opcion);
+    if (!snap) throw new Error("Variante no permitida");
+    out.push(snap);
+  }
+  return out;
+}
+
+
+
 // ============================================================
 // Server fns públicas (clientes en la mesa)
 // ============================================================
@@ -317,6 +403,7 @@ export const agregarItemPrepedido = createServerFn({ method: "POST" })
     await getSesionPropia(data.idMesa, data.idCliente, data.idSesion);
     const precio = await getPrecioProducto(data.idProducto, idNegocio);
     await validarExtrasYExclusiones(data.idProducto, data.extras, data.exclusiones);
+    const variantesSnap = await resolverVariantes(data.idProducto, data.variantes);
 
     const { error } = await supabaseAdmin.from("prepedido_items").insert({
       id_mesa: data.idMesa,
@@ -328,6 +415,7 @@ export const agregarItemPrepedido = createServerFn({ method: "POST" })
       nota: data.nota?.trim() || null,
       extras: data.extras,
       exclusiones: data.exclusiones,
+      variantes: variantesSnap,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -350,6 +438,7 @@ export const editarItemPrepedido = createServerFn({ method: "POST" })
       data.extras,
       data.exclusiones,
     );
+    const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
       .from("prepedido_items")
@@ -359,6 +448,7 @@ export const editarItemPrepedido = createServerFn({ method: "POST" })
         nota: data.nota?.trim() || null,
         extras: data.extras,
         exclusiones: data.exclusiones,
+        variantes: variantesSnap,
       })
       .eq("id_prepedido_item", data.idItem);
     if (uErr) throw new Error(uErr.message);
@@ -399,7 +489,7 @@ export const getOpcionesProductoPublico = createServerFn({ method: "POST" })
     if (!prod || prod.id_negocio !== idNegocio) {
       throw new Error("Producto no encontrado");
     }
-    const [{ data: extras }, { data: receta }] = await Promise.all([
+    const [{ data: extras }, { data: receta }, { data: grupos }] = await Promise.all([
       supabaseAdmin
         .from("extras_permitidos")
         .select(
@@ -410,8 +500,32 @@ export const getOpcionesProductoPublico = createServerFn({ method: "POST" })
         .from("receta_detalle")
         .select("id_insumo, cantidad, insumos:id_insumo(nombre_insumo, unidad_receta)")
         .eq("id_receta", prod.id_receta as string),
+      supabaseAdmin
+        .from("producto_variante_grupos")
+        .select(
+          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_producto_opcion, precio_delta, orden, productos:id_producto_opcion(nombre_producto))",
+        )
+        .eq("id_producto", data.idProducto)
+        .order("orden", { ascending: true }),
     ]);
-    return { extras: extras ?? [], ingredientes: receta ?? [] };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variantes = ((grupos ?? []) as any[]).map((g) => ({
+      id_grupo: g.id_grupo as string,
+      nombre: g.nombre as string,
+      seleccion: g.seleccion as "UNICA" | "MULTIPLE",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      opciones: ((g.producto_variante_opciones ?? []) as any[])
+        .sort((a, b) => Number(a.orden ?? 0) - Number(b.orden ?? 0))
+        .map((o) => ({
+          id_opcion: o.id_opcion as string,
+          id_producto_opcion: o.id_producto_opcion as string,
+          nombre_producto_opcion: (o.productos?.nombre_producto as string) ?? "—",
+          precio_delta: Number(o.precio_delta ?? 0),
+        })),
+    }));
+
+    return { extras: extras ?? [], ingredientes: receta ?? [], variantes };
   });
 
 // ============================================================
@@ -437,6 +551,7 @@ const editarStaffSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(z.object({ id_opcion: uuid })).default([]),
 });
 
 async function verificarMesaStaff(
@@ -473,6 +588,7 @@ export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
       data.extras,
       data.exclusiones,
     );
+    const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
       .from("prepedido_items")
@@ -482,6 +598,7 @@ export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
         nota: data.nota?.trim() || null,
         extras: data.extras,
         exclusiones: data.exclusiones,
+        variantes: variantesSnap,
       })
       .eq("id_prepedido_item", data.idItem);
     if (uErr) throw new Error(uErr.message);

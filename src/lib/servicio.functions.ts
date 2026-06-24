@@ -29,6 +29,10 @@ const addItemSchema = z.object({
     .array(z.object({ id_insumo: z.string().uuid() }))
     .max(20)
     .default([]),
+  variantes: z
+    .array(z.object({ id_opcion: z.string().uuid() }))
+    .max(20)
+    .default([]),
 });
 
 export interface MesaServicio {
@@ -274,7 +278,7 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
       .single();
     if (!prod) throw new Error("Producto no encontrado");
 
-    const [{ data: extras }, { data: receta }] = await Promise.all([
+    const [{ data: extras }, { data: receta }, { data: grupos }] = await Promise.all([
       supabase
         .from("extras_permitidos")
         .select("id_insumo_extra, cantidad_porcion, precio_extra, insumos:id_insumo_extra(nombre_insumo, unidad_receta)")
@@ -283,9 +287,32 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
         .from("receta_detalle")
         .select("id_insumo, cantidad, insumos:id_insumo(nombre_insumo, unidad_receta)")
         .eq("id_receta", prod.id_receta),
+      supabase
+        .from("producto_variante_grupos")
+        .select(
+          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_producto_opcion, precio_delta, orden, productos:id_producto_opcion(nombre_producto))",
+        )
+        .eq("id_producto", data.idProducto)
+        .order("orden", { ascending: true }),
     ]);
 
-    return { extras: extras ?? [], ingredientes: receta ?? [] };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const variantes = ((grupos ?? []) as any[]).map((g) => ({
+      id_grupo: g.id_grupo as string,
+      nombre: g.nombre as string,
+      seleccion: g.seleccion as "UNICA" | "MULTIPLE",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      opciones: ((g.producto_variante_opciones ?? []) as any[])
+        .sort((a, b) => Number(a.orden ?? 0) - Number(b.orden ?? 0))
+        .map((o) => ({
+          id_opcion: o.id_opcion as string,
+          id_producto_opcion: o.id_producto_opcion as string,
+          nombre_producto_opcion: (o.productos?.nombre_producto as string) ?? "—",
+          precio_delta: Number(o.precio_delta ?? 0),
+        })),
+    }));
+
+    return { extras: extras ?? [], ingredientes: receta ?? [], variantes };
   });
 
 export const agregarItem = createServerFn({ method: "POST" })
@@ -301,6 +328,7 @@ export const agregarItem = createServerFn({ method: "POST" })
       p_nota: data.nota ?? "",
       p_extras: data.extras,
       p_exclusiones: data.exclusiones,
+      p_variantes: data.variantes,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -345,6 +373,7 @@ export interface ItemPedidoSesion {
   entregado_at: string | null;
   extras: { id_insumo_extra: string; nombre: string; precio: number }[];
   exclusiones: { id_insumo: string; nombre: string }[];
+  variantes: { id_opcion: string; nombre_grupo: string; nombre_opcion: string; precio_delta: number }[];
 }
 
 export interface PedidoSesion {
@@ -439,6 +468,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
     let itemsRaw: Array<Record<string, unknown>> = [];
     let extrasRaw: Array<Record<string, unknown>> = [];
     let exclRaw: Array<Record<string, unknown>> = [];
+    let varRaw: Array<Record<string, unknown>> = [];
 
     if (pedidoIds.length > 0) {
       const { data: it, error: iErr } = await supabase
@@ -455,7 +485,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
 
       const itemIds = itemsRaw.map((i) => i.id_item as string);
       if (itemIds.length > 0) {
-        const [{ data: ex }, { data: xc }] = await Promise.all([
+        const [{ data: ex }, { data: xc }, { data: vv }] = await Promise.all([
           supabase
             .from("pedido_item_extras")
             .select(
@@ -466,16 +496,20 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
             .from("pedido_item_exclusiones")
             .select("id_item, id_insumo, insumos:id_insumo(nombre_insumo)")
             .in("id_item", itemIds),
+          supabase
+            .from("pedido_item_variantes")
+            .select("id_item, id_opcion, nombre_grupo, nombre_opcion, precio_delta")
+            .in("id_item", itemIds),
         ]);
         extrasRaw = (ex ?? []) as Array<Record<string, unknown>>;
         exclRaw = (xc ?? []) as Array<Record<string, unknown>>;
+        varRaw = (vv ?? []) as Array<Record<string, unknown>>;
       }
     }
 
     const extrasByItem = new Map<string, ItemPedidoSesion["extras"]>();
     for (const e of extrasRaw) {
       const arr = extrasByItem.get(e.id_item as string) ?? [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       arr.push({
         id_insumo_extra: e.id_insumo_extra as string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -493,6 +527,17 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
         nombre: ((x as any).insumos?.nombre_insumo as string) ?? "—",
       });
       exclByItem.set(x.id_item as string, arr);
+    }
+    const varByItem = new Map<string, ItemPedidoSesion["variantes"]>();
+    for (const v of varRaw) {
+      const arr = varByItem.get(v.id_item as string) ?? [];
+      arr.push({
+        id_opcion: (v.id_opcion as string) ?? "",
+        nombre_grupo: (v.nombre_grupo as string) ?? "",
+        nombre_opcion: (v.nombre_opcion as string) ?? "",
+        precio_delta: Number(v.precio_delta ?? 0),
+      });
+      varByItem.set(v.id_item as string, arr);
     }
 
     const itemsByPedido = new Map<string, ItemPedidoSesion[]>();
@@ -514,6 +559,7 @@ export const obtenerMesaSesion = createServerFn({ method: "POST" })
         entregado_at: (i.entregado_at as string | null) ?? null,
         extras: extrasByItem.get(i.id_item as string) ?? [],
         exclusiones: exclByItem.get(i.id_item as string) ?? [],
+        variantes: varByItem.get(i.id_item as string) ?? [],
       });
       itemsByPedido.set(i.id_pedido as string, arr);
     }

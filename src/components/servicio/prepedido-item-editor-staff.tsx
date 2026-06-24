@@ -45,6 +45,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
   const [nota, setNota] = useState("");
   const [extras, setExtras] = useState<Set<string>>(new Set());
   const [exclus, setExclus] = useState<Set<string>>(new Set());
+  const [variantes, setVariantes] = useState<Map<string, Set<string>>>(new Map());
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesPublico", idMesa, item?.id_producto],
@@ -60,15 +61,33 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
     setNota(item.nota ?? "");
     setExtras(new Set(item.extras.map((e) => e.id_insumo_extra)));
     setExclus(new Set(item.exclusiones.map((e) => e.id_insumo)));
+    const vm = new Map<string, Set<string>>();
+    for (const v of item.variantes) {
+      const s = vm.get(v.id_grupo) ?? new Set<string>();
+      s.add(v.id_opcion);
+      vm.set(v.id_grupo, s);
+    }
+    setVariantes(vm);
   }, [open, item]);
+
+  const variantesArr = useMemo(() => {
+    const out: { id_opcion: string }[] = [];
+    variantes.forEach((s) => s.forEach((id) => out.push({ id_opcion: id })));
+    return out;
+  }, [variantes]);
 
   const total = useMemo(() => {
     if (!item) return 0;
     const extrasSum = (ops?.extras ?? [])
       .filter((e) => extras.has(e.id_insumo_extra as string))
       .reduce((a, e) => a + Number(e.precio_extra), 0);
-    return cantidad * (item.precio_unitario + extrasSum);
-  }, [ops, extras, cantidad, item]);
+    const varSum = (ops?.variantes ?? []).reduce((acc, g) => {
+      const sel = variantes.get(g.id_grupo);
+      if (!sel) return acc;
+      return acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0);
+    }, 0);
+    return cantidad * (item.precio_unitario + extrasSum + varSum);
+  }, [ops, extras, variantes, cantidad, item]);
 
   const mut = useMutation({
     mutationFn: () =>
@@ -80,6 +99,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
           nota,
           extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
           exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+          variantes: variantesArr,
         },
       }),
     onSuccess: () => {
@@ -107,6 +127,24 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
+      return n;
+    });
+  }
+  function toggleVariante(idGrupo: string, idOpcion: string, seleccion: "UNICA" | "MULTIPLE") {
+    setVariantes((m) => {
+      const n = new Map(m);
+      const next = new Set(n.get(idGrupo) ?? []);
+      if (seleccion === "UNICA") {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else {
+          next.clear();
+          next.add(idOpcion);
+        }
+      } else {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else next.add(idOpcion);
+      }
+      n.set(idGrupo, next);
       return n;
     });
   }
@@ -166,6 +204,44 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
             </div>
           ) : (
             <>
+              {(ops?.variantes ?? []).map((g) => {
+                const sel = variantes.get(g.id_grupo) ?? new Set<string>();
+                return (
+                  <div key={g.id_grupo} className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {g.nombre}
+                      <span className="ml-2 normal-case opacity-70">
+                        {g.seleccion === "UNICA" ? "Elige 1" : "Varias"}
+                      </span>
+                    </Label>
+                    <div className="space-y-1.5">
+                      {g.opciones.map((o) => {
+                        const checked = sel.has(o.id_opcion);
+                        return (
+                          <button
+                            key={o.id_opcion}
+                            type="button"
+                            onClick={() => toggleVariante(g.id_grupo, o.id_opcion, g.seleccion)}
+                            className={`w-full flex items-center justify-between gap-3 p-3 rounded-md border text-left text-sm transition-colors ${
+                              checked
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-card hover:bg-muted"
+                            }`}
+                          >
+                            <span className="font-medium">{o.nombre_producto_opcion}</span>
+                            {o.precio_delta > 0 && (
+                              <span className="font-semibold tabular-nums text-primary">
+                                +{fmt.format(o.precio_delta)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
               {(ops?.extras?.length ?? 0) > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
