@@ -94,7 +94,7 @@ const idMesaSchema = z.object({ idMesa: uuid });
 // Helpers
 // ============================================================
 
-async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
+export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
   const { data: sesionesRaw, error: sErr } = await supabaseAdmin
     .from("prepedido_sesiones")
     .select("id_sesion, id_cliente, nombre, created_at, last_seen_at")
