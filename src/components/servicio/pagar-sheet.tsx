@@ -611,7 +611,8 @@ function PasoItems({
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
   const hayPendientes = grupos.length > 0;
-  const totalConPropina = Math.max(0, totalSeleccionado - descuentoBono) + propina;
+  const subtotalNeto = Math.max(0, totalSeleccionado - descuentoBono - descuentoReserva);
+  const totalConPropina = subtotalNeto + (reservaCubreTodo ? 0 : propina);
 
   return (
     <>
