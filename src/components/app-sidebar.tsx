@@ -249,6 +249,7 @@ export function AppSidebar() {
             SERVICIO_NAV.filter((item) => {
               if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
+              if (item.to === "/reservas") return grupos.operacion || grupos.servicio;
               if (item.to === "/cocina") return grupos.cocina;
               if (item.to === "/barra") return grupos.barra;
               return false;
