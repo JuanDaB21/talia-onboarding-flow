@@ -356,6 +356,9 @@ async function resolverVariantes(
     out.push(snap);
   }
   return out;
+}
+
+
 
 // ============================================================
 // Server fns públicas (clientes en la mesa)
