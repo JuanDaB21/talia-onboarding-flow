@@ -167,7 +167,15 @@ function MesaEnServicio() {
     staleTime: 30_000,
   });
 
-  // Realtime: refrescar cuando cambien items/pedidos/mesa, y avisar cuando algo pase a LISTO
+  // Pre-pedido en vivo (clientes armando pedido desde su celular)
+  const getPrep = useServerFn(getPrepedidoMesa);
+  const prepQ = useQuery({
+    queryKey: ["prepedidoMesa", idMesa],
+    queryFn: () => getPrep({ data: { idMesa } }),
+    staleTime: 5_000,
+  });
+
+  // Realtime: refrescar cuando cambien items/pedidos/mesa/pre-pedido, y avisar cuando algo pase a LISTO
   useEffect(() => {
     const ch = supabase
       .channel(`mesa-sesion-${idMesa}`)
@@ -185,6 +193,16 @@ function MesaEnServicio() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "mesas", filter: `id_mesa=eq.${idMesa}` },
         () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
       .subscribe();
     return () => {
