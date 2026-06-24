@@ -274,12 +274,31 @@ export function PrepedidoSheet({
                   {fmt.format(data.total)}
                 </span>
               </div>
-              <p className="text-xs mt-2"
+              <button
+                type="button"
+                disabled={completarMut.isPending}
+                onClick={() => completarMut.mutate()}
+                className="mt-3 w-full h-12 font-semibold flex items-center justify-center gap-2 text-base disabled:opacity-60"
+                style={{
+                  background: "var(--menu-primary)",
+                  color: "var(--menu-primary-foreground)",
+                  borderRadius: "var(--menu-radius)",
+                }}
+              >
+                {completarMut.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5" />
+                )}
+                Pedido completado
+              </button>
+              <p className="text-xs mt-2 text-center"
                 style={{ color: "var(--menu-muted)" }}>
-                Tu mesero confirmará el pedido antes de enviarlo a cocina.
+                Avisaremos al mesero para que venga a tomar tu pedido.
               </p>
             </div>
           )}
+
         </SheetContent>
       </Sheet>
     </>
