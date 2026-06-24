@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, Utensils, QrCode, Palette, Ticket } from "lucide-react";
+import { Users, Utensils, QrCode, Palette, Ticket, Coins } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const SECCIONES = [
