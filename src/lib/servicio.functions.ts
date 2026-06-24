@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { cargarPrepedido, type PrepedidoData } from "@/lib/prepedido.functions";
 
 const idMesaInput = z.object({ idMesa: z.string().uuid() });
 const idPedidoInput = z.object({ idPedido: z.string().uuid() });
