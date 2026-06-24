@@ -22,6 +22,7 @@ import {
   Activity,
   Wallet,
   Settings,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
