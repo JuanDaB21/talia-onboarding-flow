@@ -74,10 +74,17 @@ export function PrepedidoSheet({
       arr.push(it);
       bySesion.set(it.id_sesion, arr);
     }
-    return data.sesiones
+    const todos = data.sesiones
       .map((s) => ({ sesion: s, items: bySesion.get(s.id_sesion) ?? [] }))
       .filter((g) => g.items.length > 0);
-  }, [data]);
+    // Poner "tú" siempre primero para que el cliente vea lo suyo de entrada
+    todos.sort((a, b) => {
+      const ap = a.sesion.id_cliente === idCliente ? 0 : 1;
+      const bp = b.sesion.id_cliente === idCliente ? 0 : 1;
+      return ap - bp;
+    });
+    return todos;
+  }, [data, idCliente]);
 
   return (
     <>
