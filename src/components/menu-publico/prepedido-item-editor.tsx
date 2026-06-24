@@ -139,6 +139,7 @@ export function PrepedidoItemEditor({
             nota,
             extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
             exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+            variantes: variantesArr,
           },
         });
       }
@@ -153,6 +154,7 @@ export function PrepedidoItemEditor({
           nota,
           extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
           exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+          variantes: variantesArr,
         },
       });
     },
@@ -180,6 +182,26 @@ export function PrepedidoItemEditor({
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
       else n.add(id);
+      return n;
+    });
+  }
+  function toggleVariante(idGrupo: string, idOpcion: string, seleccion: "UNICA" | "MULTIPLE") {
+    setVariantes((m) => {
+      const n = new Map(m);
+      const prev = n.get(idGrupo) ?? new Set<string>();
+      const next = new Set(prev);
+      if (seleccion === "UNICA") {
+        if (next.has(idOpcion)) {
+          next.delete(idOpcion);
+        } else {
+          next.clear();
+          next.add(idOpcion);
+        }
+      } else {
+        if (next.has(idOpcion)) next.delete(idOpcion);
+        else next.add(idOpcion);
+      }
+      n.set(idGrupo, next);
       return n;
     });
   }
