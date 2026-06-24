@@ -618,6 +618,7 @@ export type Database = {
           estado: boolean
           id_negocio: string
           nombre_comercial: string
+          porcentaje_retencion_propina: number
           razon_social: string
           telefono_contacto: string
           tema_menu: string
@@ -631,6 +632,7 @@ export type Database = {
           estado?: boolean
           id_negocio?: string
           nombre_comercial: string
+          porcentaje_retencion_propina?: number
           razon_social: string
           telefono_contacto: string
           tema_menu?: string
@@ -644,6 +646,7 @@ export type Database = {
           estado?: boolean
           id_negocio?: string
           nombre_comercial?: string
+          porcentaje_retencion_propina?: number
           razon_social?: string
           telefono_contacto?: string
           tema_menu?: string
