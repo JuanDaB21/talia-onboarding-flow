@@ -118,7 +118,7 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
   const { data: itemsRaw, error: iErr } = await supabaseAdmin
     .from("prepedido_items")
     .select(
-      "id_prepedido_item, id_sesion, id_producto, cantidad, precio_unitario, tiene_alergia, nota, extras, exclusiones, created_at, productos:id_producto(nombre_producto)",
+      "id_prepedido_item, id_sesion, id_producto, cantidad, precio_unitario, tiene_alergia, nota, extras, exclusiones, variantes, created_at, productos:id_producto(nombre_producto)",
     )
     .eq("id_mesa", idMesa)
     .order("created_at", { ascending: true });
@@ -175,6 +175,8 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
     const ses = sesionMap.get(i.id_sesion as string);
     const extrasRaw = (i.extras as Array<{ id_insumo_extra: string }>) ?? [];
     const exclusRaw = (i.exclusiones as Array<{ id_insumo: string }>) ?? [];
+    const variantesRaw =
+      (i.variantes as Array<Record<string, unknown>> | null | undefined) ?? [];
     const pid = i.id_producto as string;
     const precios = productoExtras.get(pid) ?? new Map<string, number>();
     const extras: PrepedidoExtra[] = extrasRaw.map((e) => ({
@@ -186,10 +188,18 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
       id_insumo: x.id_insumo,
       nombre: insumoNombres.get(x.id_insumo) ?? "—",
     }));
+    const variantes: PrepedidoVariante[] = variantesRaw.map((v) => ({
+      id_opcion: (v.id_opcion as string) ?? "",
+      id_grupo: (v.id_grupo as string) ?? "",
+      nombre_grupo: (v.nombre_grupo as string) ?? "",
+      nombre_opcion: (v.nombre_opcion as string) ?? "",
+      precio_delta: Number(v.precio_delta ?? 0),
+    }));
     const cantidad = Number(i.cantidad);
     const precio = Number(i.precio_unitario);
     const extrasSum = extras.reduce((a, e) => a + e.precio, 0);
-    const subtotal = (precio + extrasSum) * cantidad;
+    const variantesSum = variantes.reduce((a, v) => a + v.precio_delta, 0);
+    const subtotal = (precio + extrasSum + variantesSum) * cantidad;
     total += subtotal;
     return {
       id_prepedido_item: i.id_prepedido_item as string,
@@ -205,6 +215,7 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
       nota: (i.nota as string | null) ?? null,
       extras,
       exclusiones,
+      variantes,
       subtotal,
       created_at: i.created_at as string,
     };
