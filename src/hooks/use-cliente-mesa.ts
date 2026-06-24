@@ -51,11 +51,15 @@ export function useClienteMesa(idMesa: string) {
   };
 
   const setSesion = (idSesion: string) => {
-    if (!cliente) return;
-    const next = { ...cliente, idSesion };
-    escribir(idMesa, next);
-    setCliente(next);
+    setCliente((prev) => {
+      const base = prev ?? leer(idMesa);
+      if (!base) return prev;
+      const next = { ...base, idSesion };
+      escribir(idMesa, next);
+      return next;
+    });
   };
+
 
   return { cliente, hydrated, registrar, setSesion };
 }
