@@ -45,6 +45,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
   const [nota, setNota] = useState("");
   const [extras, setExtras] = useState<Set<string>>(new Set());
   const [exclus, setExclus] = useState<Set<string>>(new Set());
+  const [variantes, setVariantes] = useState<Map<string, Set<string>>>(new Map());
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesPublico", idMesa, item?.id_producto],
@@ -60,15 +61,33 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
     setNota(item.nota ?? "");
     setExtras(new Set(item.extras.map((e) => e.id_insumo_extra)));
     setExclus(new Set(item.exclusiones.map((e) => e.id_insumo)));
+    const vm = new Map<string, Set<string>>();
+    for (const v of item.variantes) {
+      const s = vm.get(v.id_grupo) ?? new Set<string>();
+      s.add(v.id_opcion);
+      vm.set(v.id_grupo, s);
+    }
+    setVariantes(vm);
   }, [open, item]);
+
+  const variantesArr = useMemo(() => {
+    const out: { id_opcion: string }[] = [];
+    variantes.forEach((s) => s.forEach((id) => out.push({ id_opcion: id })));
+    return out;
+  }, [variantes]);
 
   const total = useMemo(() => {
     if (!item) return 0;
     const extrasSum = (ops?.extras ?? [])
       .filter((e) => extras.has(e.id_insumo_extra as string))
       .reduce((a, e) => a + Number(e.precio_extra), 0);
-    return cantidad * (item.precio_unitario + extrasSum);
-  }, [ops, extras, cantidad, item]);
+    const varSum = (ops?.variantes ?? []).reduce((acc, g) => {
+      const sel = variantes.get(g.id_grupo);
+      if (!sel) return acc;
+      return acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0);
+    }, 0);
+    return cantidad * (item.precio_unitario + extrasSum + varSum);
+  }, [ops, extras, variantes, cantidad, item]);
 
   const mut = useMutation({
     mutationFn: () =>
