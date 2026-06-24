@@ -73,6 +73,12 @@ export function Combobox({
                     onChange(opt.value);
                     setOpen(false);
                   }}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+
                 >
                   <Check
                     className={cn(
