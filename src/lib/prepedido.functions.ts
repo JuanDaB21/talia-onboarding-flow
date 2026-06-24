@@ -588,6 +588,7 @@ export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
       data.extras,
       data.exclusiones,
     );
+    const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
       .from("prepedido_items")
@@ -597,6 +598,7 @@ export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
         nota: data.nota?.trim() || null,
         extras: data.extras,
         exclusiones: data.exclusiones,
+        variantes: variantesSnap,
       })
       .eq("id_prepedido_item", data.idItem);
     if (uErr) throw new Error(uErr.message);
