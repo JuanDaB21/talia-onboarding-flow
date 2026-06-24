@@ -129,7 +129,8 @@ export const actualizarReserva = createServerFn({ method: "POST" })
     }
     const { error } = await supabase
       .from("reservas")
-      .update(clean)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(clean as any)
       .eq("id_reserva", id_reserva);
     if (error) throw new Error(error.message);
     return { ok: true };
