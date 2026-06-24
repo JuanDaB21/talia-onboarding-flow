@@ -35,10 +35,12 @@ import {
   marcarSeguimientoVisto,
   listarMeserosNegocio,
   reasignarMeseroMesa,
+  getPrepedidoMesa,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
 } from "@/lib/servicio.functions";
+import { PrepedidoEnVivoCard } from "@/components/servicio/prepedido-en-vivo-card";
 import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
 import {
