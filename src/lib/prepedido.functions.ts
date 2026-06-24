@@ -551,6 +551,7 @@ const editarStaffSchema = z.object({
   nota: z.string().max(300).optional().nullable(),
   extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
   exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
+  variantes: z.array(z.object({ id_opcion: uuid })).default([]),
 });
 
 async function verificarMesaStaff(
