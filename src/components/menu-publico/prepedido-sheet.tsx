@@ -74,10 +74,17 @@ export function PrepedidoSheet({
       arr.push(it);
       bySesion.set(it.id_sesion, arr);
     }
-    return data.sesiones
+    const todos = data.sesiones
       .map((s) => ({ sesion: s, items: bySesion.get(s.id_sesion) ?? [] }))
       .filter((g) => g.items.length > 0);
-  }, [data]);
+    // Poner "tú" siempre primero para que el cliente vea lo suyo de entrada
+    todos.sort((a, b) => {
+      const ap = a.sesion.id_cliente === idCliente ? 0 : 1;
+      const bp = b.sesion.id_cliente === idCliente ? 0 : 1;
+      return ap - bp;
+    });
+    return todos;
+  }, [data, idCliente]);
 
   return (
     <>
@@ -104,7 +111,7 @@ export function PrepedidoSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-5 py-4 space-y-5">
+          <div className="px-5 py-4 pb-40 space-y-5">
             {loading && !data ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin"

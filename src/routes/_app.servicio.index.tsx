@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, Clock, CreditCard, Plus, UserCheck, Wallet } from "lucide-react";
+import { Bell, ChefHat, Clock, CreditCard, Plus, Radio, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,11 @@ function ServicioIndex() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedidos" },
+        () => refetch(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items" },
         () => refetch(),
       )
       .subscribe();
@@ -186,7 +191,9 @@ function MesaCard({ m }: { m: MesaServicio }) {
       params={{ idMesa: m.id_mesa }}
       className={`block rounded-xl border bg-card p-4 hover:shadow-md transition-shadow ${
         m.alerta_listo ? "ring-2 ring-emerald-500" : ""
-      } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""}`}
+      } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""} ${
+        m.tiene_prepedido ? "ring-2 ring-primary/60" : ""
+      }`}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -207,6 +214,11 @@ function MesaCard({ m }: { m: MesaServicio }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {m.tiene_prepedido && (
+          <Badge className="bg-primary text-primary-foreground animate-pulse gap-1">
+            <Radio className="h-3 w-3" /> Armando pedido
+          </Badge>
+        )}
         {m.alerta_listo && (
           <Badge className="bg-emerald-600 text-white animate-pulse gap-1">
             <Bell className="h-3 w-3" /> Recoger

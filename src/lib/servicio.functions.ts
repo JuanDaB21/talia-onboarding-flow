@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { cargarPrepedido, type PrepedidoData } from "@/lib/prepedido.functions";
 
 const idMesaInput = z.object({ idMesa: z.string().uuid() });
 const idPedidoInput = z.object({ idPedido: z.string().uuid() });
@@ -41,6 +42,7 @@ export interface MesaServicio {
   solicitud_at: string | null;
   alerta_listo: boolean;
   alerta_seguimiento: boolean;
+  tiene_prepedido: boolean;
 }
 
 export const listarMesasServicio = createServerFn({ method: "GET" })
@@ -82,6 +84,7 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
     const mesaIds = (mesas ?? []).map((m) => m.id_mesa);
     const listoSet = new Set<string>();
     const seguimientoSet = new Set<string>();
+    const prepedidoSet = new Set<string>();
 
     if (mesaIds.length > 0) {
       // Mesas con items LISTO esperando recogida
@@ -116,6 +119,13 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
           if (mid) listoSet.add(mid);
         });
       }
+
+      // Mesas con pre-pedido en curso (clientes armando pedido desde su celular)
+      const { data: preItems } = await supabase
+        .from("prepedido_items")
+        .select("id_mesa")
+        .in("id_mesa", mesaIds);
+      (preItems ?? []).forEach((p) => prepedidoSet.add(p.id_mesa as string));
     }
 
     const out: MesaServicio[] = (mesas ?? []).map((m) => ({
@@ -129,8 +139,27 @@ export const listarMesasServicio = createServerFn({ method: "GET" })
       solicitud_at: m.solicitud_at,
       alerta_listo: listoSet.has(m.id_mesa),
       alerta_seguimiento: seguimientoSet.has(m.id_mesa),
+      tiene_prepedido: prepedidoSet.has(m.id_mesa),
     }));
     return { mesas: out, esAdmin, userId };
+  });
+
+// Pre-pedido en vivo de una mesa (vista mesero/admin)
+const prepedidoMesaInput = z.object({ idMesa: z.string().uuid() });
+export const getPrepedidoMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => prepedidoMesaInput.parse(input))
+  .handler(async ({ data, context }): Promise<PrepedidoData> => {
+    const { supabase } = context;
+    // Verificar acceso vía RLS (la mesa debe pertenecer a un negocio del usuario)
+    const { data: mesa, error } = await supabase
+      .from("mesas")
+      .select("id_mesa")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!mesa) throw new Error("Mesa no encontrada");
+    return cargarPrepedido(data.idMesa);
   });
 
 

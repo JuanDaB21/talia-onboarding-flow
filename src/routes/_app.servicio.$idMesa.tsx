@@ -35,10 +35,12 @@ import {
   marcarSeguimientoVisto,
   listarMeserosNegocio,
   reasignarMeseroMesa,
+  getPrepedidoMesa,
   type PedidoSesion,
   type ItemPedidoSesion,
   type MesaSesion,
 } from "@/lib/servicio.functions";
+import { PrepedidoEnVivoCard } from "@/components/servicio/prepedido-en-vivo-card";
 import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
 import {
@@ -165,7 +167,15 @@ function MesaEnServicio() {
     staleTime: 30_000,
   });
 
-  // Realtime: refrescar cuando cambien items/pedidos/mesa, y avisar cuando algo pase a LISTO
+  // Pre-pedido en vivo (clientes armando pedido desde su celular)
+  const getPrep = useServerFn(getPrepedidoMesa);
+  const prepQ = useQuery({
+    queryKey: ["prepedidoMesa", idMesa],
+    queryFn: () => getPrep({ data: { idMesa } }),
+    staleTime: 5_000,
+  });
+
+  // Realtime: refrescar cuando cambien items/pedidos/mesa/pre-pedido, y avisar cuando algo pase a LISTO
   useEffect(() => {
     const ch = supabase
       .channel(`mesa-sesion-${idMesa}`)
@@ -183,6 +193,16 @@ function MesaEnServicio() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "mesas", filter: `id_mesa=eq.${idMesa}` },
         () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
+        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
       .subscribe();
     return () => {
@@ -378,6 +398,11 @@ function MesaEnServicio() {
         estado={estadoQ.data ?? null}
         onReasignar={puedeReasignar ? () => setReasignarOpen(true) : undefined}
       />
+
+      {/* Pre-pedido en vivo (clientes armando desde el celular) */}
+      {prepQ.data && prepQ.data.items.length > 0 && (
+        <PrepedidoEnVivoCard idMesa={mesa.id_mesa} data={prepQ.data} />
+      )}
 
       {/* Pedidos confirmados */}
       {pedidosConfirmados.map((p, idx) => (
