@@ -1641,6 +1641,7 @@ export type Database = {
           p_id_producto: string
           p_nota: string
           p_tiene_alergia: boolean
+          p_variantes?: Json
         }
         Returns: string
       }
