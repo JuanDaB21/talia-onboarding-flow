@@ -382,13 +382,15 @@ function MesaEnServicio() {
         />
       )}
       {(mesa.solicitud_cliente === "CUENTA" ||
-        mesa.solicitud_cliente === "PEDIR_MAS") && (
+        mesa.solicitud_cliente === "PEDIR_MAS" ||
+        mesa.solicitud_cliente === "TOMAR_PEDIDO") && (
         <SolicitudBanner
           idMesa={mesa.id_mesa}
-          tipo={mesa.solicitud_cliente as "CUENTA" | "PEDIR_MAS"}
+          tipo={mesa.solicitud_cliente as "CUENTA" | "PEDIR_MAS" | "TOMAR_PEDIDO"}
           solicitudAt={mesa.solicitud_at}
         />
       )}
+
 
       <MesaHeader
         mesa={mesa}
