@@ -31,6 +31,7 @@ export interface ItemPreparacion {
   mesa_identificador: string;
   extras: { nombre: string; cantidad: number }[];
   exclusiones: { nombre: string }[];
+  variantes: { nombre_grupo: string; nombre_opcion: string }[];
 }
 
 export interface ComandaEstacion {
