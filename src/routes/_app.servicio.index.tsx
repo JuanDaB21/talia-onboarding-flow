@@ -214,6 +214,11 @@ function MesaCard({ m }: { m: MesaServicio }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {m.tiene_prepedido && (
+          <Badge className="bg-primary text-primary-foreground animate-pulse gap-1">
+            <Radio className="h-3 w-3" /> Armando pedido
+          </Badge>
+        )}
         {m.alerta_listo && (
           <Badge className="bg-emerald-600 text-white animate-pulse gap-1">
             <Bell className="h-3 w-3" /> Recoger
