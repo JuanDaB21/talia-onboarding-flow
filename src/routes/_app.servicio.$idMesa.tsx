@@ -832,6 +832,13 @@ function ItemRow({
               🚨 ALERGIA
             </p>
           )}
+          {item.variantes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {item.variantes
+                .map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`)
+                .join(" · ")}
+            </p>
+          )}
           {item.extras.length > 0 && (
             <p className="text-[11px] text-muted-foreground mt-0.5">
               + {item.extras.map((e) => e.nombre).join(", ")}
