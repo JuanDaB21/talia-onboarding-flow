@@ -638,15 +638,15 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </p>
       <p
         className={cn(
           "mt-1 font-bold tabular-nums truncate",
-          accent ? "text-2xl text-primary" : "text-lg",
+          accent ? "text-xl sm:text-2xl text-primary" : "text-base sm:text-lg",
         )}
       >
         {value}
