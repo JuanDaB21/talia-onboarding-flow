@@ -34,6 +34,7 @@ import { Route as AppMenuRecetasRouteImport } from './routes/_app.menu.recetas'
 import { Route as AppMenuProductosRouteImport } from './routes/_app.menu.productos'
 import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.categorias'
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
+import { Route as AppConfiguracionPropinasRouteImport } from './routes/_app.configuracion.propinas'
 import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
 import { Route as AppConfiguracionBonosDescuentosRouteImport } from './routes/_app.configuracion.bonos-descuentos'
@@ -175,6 +176,12 @@ const AppConfiguracionUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AppConfiguracionRoute,
   } as any)
+const AppConfiguracionPropinasRoute =
+  AppConfiguracionPropinasRouteImport.update({
+    id: '/propinas',
+    path: '/propinas',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionMetodosPagoRoute =
   AppConfiguracionMetodosPagoRouteImport.update({
     id: '/metodos-pago',
@@ -280,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
@@ -315,6 +323,7 @@ export interface FileRoutesByTo {
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
@@ -357,6 +366,7 @@ export interface FileRoutesById {
   '/_app/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/_app/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/_app/menu/categorias': typeof AppMenuCategoriasRoute
   '/_app/menu/productos': typeof AppMenuProductosRoute
@@ -400,6 +410,7 @@ export interface FileRouteTypes {
     | '/configuracion/bonos-descuentos'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
+    | '/configuracion/propinas'
     | '/configuracion/usuarios'
     | '/menu/categorias'
     | '/menu/productos'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/configuracion/bonos-descuentos'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
+    | '/configuracion/propinas'
     | '/configuracion/usuarios'
     | '/menu/categorias'
     | '/menu/productos'
@@ -476,6 +488,7 @@ export interface FileRouteTypes {
     | '/_app/configuracion/bonos-descuentos'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/metodos-pago'
+    | '/_app/configuracion/propinas'
     | '/_app/configuracion/usuarios'
     | '/_app/menu/categorias'
     | '/_app/menu/productos'
@@ -682,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionUsuariosRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/propinas': {
+      id: '/_app/configuracion/propinas'
+      path: '/propinas'
+      fullPath: '/configuracion/propinas'
+      preLoaderRoute: typeof AppConfiguracionPropinasRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/configuracion/metodos-pago': {
       id: '/_app/configuracion/metodos-pago'
       path: '/metodos-pago'
@@ -841,6 +861,7 @@ interface AppConfiguracionRouteChildren {
   AppConfiguracionBonosDescuentosRoute: typeof AppConfiguracionBonosDescuentosRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
+  AppConfiguracionPropinasRoute: typeof AppConfiguracionPropinasRoute
   AppConfiguracionUsuariosRoute: typeof AppConfiguracionUsuariosRoute
   AppConfiguracionIndexRoute: typeof AppConfiguracionIndexRoute
 }
@@ -850,6 +871,7 @@ const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionBonosDescuentosRoute: AppConfiguracionBonosDescuentosRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
+  AppConfiguracionPropinasRoute: AppConfiguracionPropinasRoute,
   AppConfiguracionUsuariosRoute: AppConfiguracionUsuariosRoute,
   AppConfiguracionIndexRoute: AppConfiguracionIndexRoute,
 }
@@ -942,13 +964,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

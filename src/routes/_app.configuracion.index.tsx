@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, Utensils, QrCode, Palette, Ticket } from "lucide-react";
+import { Users, Utensils, QrCode, Palette, Ticket, Coins } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const SECCIONES = [
@@ -32,6 +32,12 @@ const SECCIONES = [
     label: "Bonos y descuentos",
     description: "Define bonos, cupones y descuentos aplicables.",
     icon: Ticket,
+  },
+  {
+    to: "/configuracion/propinas",
+    label: "Propinas",
+    description: "Porcentaje que retiene el negocio antes del reparto a meseros.",
+    icon: Coins,
   },
 ] as const;
 

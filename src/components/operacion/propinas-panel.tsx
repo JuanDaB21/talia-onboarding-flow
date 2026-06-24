@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getPropinasPorUsuario } from "@/lib/propinas.functions";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
@@ -28,6 +29,7 @@ function hoyIso() {
 
 export function PropinasPanel() {
   const fn = useServerFn(getPropinasPorUsuario);
+  const cfgFn = useServerFn(getNegocioConfig);
   const [desde, setDesde] = useState(hoyIso());
   const [hasta, setHasta] = useState(hoyIso());
 
@@ -37,8 +39,14 @@ export function PropinasPanel() {
     ...POLL.NORMAL,
   });
 
+  const { data: cfg } = useQuery({
+    queryKey: ["negocio-config"],
+    queryFn: () => cfgFn(),
+  });
+
   const filas = data?.filas ?? [];
   const total = filas.reduce((acc, f) => acc + f.total_propinas, 0);
+  const retencion = Number(cfg?.porcentaje_retencion_propina ?? 0);
 
   return (
     <Card>
@@ -47,6 +55,9 @@ export function PropinasPanel() {
           <Coins className="h-4 w-4" /> Propinas por usuario
           <Badge variant="secondary">{formatMoney(total)}</Badge>
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          El negocio retiene {retencion}% · se reparte {(100 - retencion).toFixed(retencion % 1 ? 2 : 0)}% entre meseros en turno.
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
