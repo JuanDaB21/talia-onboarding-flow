@@ -196,6 +196,7 @@ export interface CuentaItem {
   subtotal: number;
   extras: Array<{ nombre: string; precio: number }>;
   exclusiones: Array<{ nombre: string }>;
+  variantes: Array<{ nombre_grupo: string; nombre_opcion: string; precio_delta: number }>;
   nota: string | null;
 }
 
