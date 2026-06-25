@@ -43,6 +43,10 @@ async function getAuthedStaff(request: Request) {
   return { staff, negocio, supabaseAdmin };
 }
 
+function isAdminRol(rol: string | null | undefined) {
+  return rol === "ADMIN" || rol === "SUPERADMIN";
+}
+
 function buildTools(idNegocio: string) {
   // Lazy import inside tools to keep this top-level light
   const adminPromise = import("@/integrations/supabase/client.server").then(
