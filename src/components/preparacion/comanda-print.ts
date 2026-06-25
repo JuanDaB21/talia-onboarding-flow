@@ -111,7 +111,7 @@ function renderComanda(c: ComandaPrintData, negocio: string): string {
 
 const STYLES = `
   @page { size: 90mm auto; margin: 4mm; }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; color: #000 !important; }
   html, body {
     margin: 0;
     padding: 0;
@@ -119,28 +119,28 @@ const STYLES = `
     color: #000;
     background: #fff;
     font-family: "Courier New", ui-monospace, monospace;
-    font-size: 12pt;
-    line-height: 1.25;
+    font-size: 14pt;
+    line-height: 1.3;
   }
   .comanda { width: 100%; padding: 2mm 0; }
   .comanda + .comanda { page-break-before: always; }
   header { text-align: center; margin-bottom: 2mm; }
   .destino {
-    font-size: 22pt;
+    font-size: 28pt;
     font-weight: 900;
     letter-spacing: 2px;
     border: 2px solid #000;
     padding: 2mm 0;
     margin-bottom: 2mm;
   }
-  .negocio { font-size: 11pt; font-weight: bold; }
-  .mesa { font-size: 16pt; font-weight: bold; margin-top: 1mm; }
-  .meta { font-size: 9pt; }
+  .negocio { font-size: 14pt; font-weight: bold; }
+  .mesa { font-size: 20pt; font-weight: bold; margin-top: 1mm; }
+  .meta { font-size: 11pt; }
   hr { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
   ul.items { list-style: none; padding: 0; margin: 0 0 2mm 0; }
   .subcat {
     margin: 2mm 0 1mm 0;
-    font-size: 11pt;
+    font-size: 14pt;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -150,9 +150,9 @@ const STYLES = `
   li.item { padding: 2mm 0; border-bottom: 1px dotted #000; }
   li.item:last-child { border-bottom: none; }
   .item-head { display: flex; gap: 2mm; align-items: baseline; }
-  .qty { font-weight: 900; font-size: 14pt; min-width: 10mm; }
-  .name { font-weight: bold; font-size: 13pt; flex: 1; word-wrap: break-word; }
-  .mod { font-size: 11pt; padding-left: 12mm; }
+  .qty { font-weight: 900; font-size: 18pt; min-width: 10mm; }
+  .name { font-weight: bold; font-size: 16pt; flex: 1; word-wrap: break-word; }
+  .mod { font-size: 13pt; padding-left: 12mm; }
   .mod.plus { font-weight: bold; }
   .mod.minus { font-style: italic; }
   .alergia {
@@ -162,16 +162,16 @@ const STYLES = `
     border: 2px solid #000;
     font-weight: 900;
     text-align: center;
-    font-size: 11pt;
+    font-size: 13pt;
   }
   .nota {
     margin-top: 1mm;
     padding-left: 12mm;
-    font-size: 11pt;
+    font-size: 13pt;
     font-style: italic;
   }
   .empty { text-align: center; font-style: italic; padding: 4mm 0; }
-  footer { text-align: center; font-size: 9pt; margin-top: 2mm; }
+  footer { text-align: center; font-size: 11pt; margin-top: 2mm; }
   .toolbar { text-align: center; padding: 8px; background: #f3f3f3; }
   .toolbar button {
     font-size: 14pt;
