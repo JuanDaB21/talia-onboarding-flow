@@ -3,9 +3,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import { ChatPanel } from "./chat-panel";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 
 export function FloatingChatButton() {
   const [open, setOpen] = useState(false);
+  const { rol } = useMiStaff();
+  if (rol !== "ADMIN" && rol !== "SUPERADMIN") return null;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

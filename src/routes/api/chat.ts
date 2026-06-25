@@ -43,6 +43,10 @@ async function getAuthedStaff(request: Request) {
   return { staff, negocio, supabaseAdmin };
 }
 
+function isAdminRol(rol: string | null | undefined) {
+  return rol === "ADMIN" || rol === "SUPERADMIN";
+}
+
 function buildTools(idNegocio: string) {
   // Lazy import inside tools to keep this top-level light
   const adminPromise = import("@/integrations/supabase/client.server").then(
@@ -246,6 +250,8 @@ export const Route = createFileRoute("/api/chat")({
 
         const authed = await getAuthedStaff(request);
         if (!authed) return new Response("Unauthorized", { status: 401 });
+        if (!isAdminRol(authed.staff.rol)) return new Response("Forbidden", { status: 403 });
+
 
         const { messages } = (await request.json()) as ChatRequestBody;
         if (!Array.isArray(messages)) {
