@@ -1,93 +1,110 @@
-## Objetivo
-Permitir que el admin defina, por producto del menú, grupos de variantes (ej. "Tipo de papa") cuyas opciones son otros productos del catálogo, con selección única o múltiple y delta de precio sumado al plato.
+## Goal
 
-## Modelo de datos
+Add an async Printing Bridge Service that fires on order confirmation. It must run as a non-blocking background process — the existing `confirmar_pedido` RPC and UI flow stay unchanged. Failures are swallowed (logged) so service never stops.
 
-### Nuevas tablas (migración)
+## 1. New file: `src/services/printService.ts`
 
-**`producto_variante_grupos`** — un grupo de variantes para un producto.
-- `id_grupo` uuid PK
-- `id_producto` uuid → productos (CASCADE)
-- `nombre` text (ej. "Tipo de papa", texto libre del admin)
-- `seleccion` text CHECK in (`UNICA`, `MULTIPLE`)
-- `orden` int default 0
-- `created_at`, `updated_at`
+Pure client-side service (runs in the waiter's browser, after the server fn resolves).
 
-**`producto_variante_opciones`** — opciones dentro del grupo.
-- `id_opcion` uuid PK
-- `id_grupo` uuid → producto_variante_grupos (CASCADE)
-- `id_producto_opcion` uuid → productos (RESTRICT) — el producto referenciado
-- `precio_delta` numeric default 0 (suma al precio base del plato)
-- `orden` int default 0
-- UNIQUE(id_grupo, id_producto_opcion)
-- `created_at`
+```ts
+export type PrintZone = 'barra' | 'cocina';
 
-**`pedido_item_variantes`** — variantes seleccionadas al pedir.
-- `id_piv` uuid PK
-- `id_item` uuid → pedido_items (CASCADE)
-- `id_grupo` uuid → producto_variante_grupos (RESTRICT) (referencia informativa)
-- `id_opcion` uuid → producto_variante_opciones (RESTRICT)
-- `nombre_grupo` text (snapshot)
-- `nombre_opcion` text (snapshot del nombre del producto opción)
-- `precio_delta` numeric (snapshot)
+const PRINT_API_URL =
+  import.meta.env.VITE_PRINT_API_URL || 'https://api.talia-printing-placeholder.local';
 
-`prepedido_items.variantes` JSONB ya existe-estilo `extras`/`exclusiones`; usaremos un campo nuevo `variantes jsonb default '[]'` con shape `[{ id_grupo, id_opcion, nombre_grupo, nombre_opcion, precio_delta }]`.
+export async function sendPrintJob(payload: unknown, zone: PrintZone): Promise<{ ok: boolean }> {
+  try {
+    const res = await fetch(`${PRINT_API_URL}/print/${zone}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return { ok: true };
+  } catch (err) {
+    // Placeholder mode / network failure — log structured payload and continue.
+    console.log(`[printService] (${zone}) placeholder payload`, { zone, payload, error: err });
+    return { ok: false };
+  }
+}
+```
 
-Todas con GRANT SELECT/INSERT/UPDATE/DELETE a `authenticated` + ALL a `service_role`, RLS scopeada por `current_user_negocio()` (vía join a productos / pedido_items según corresponda). No se da acceso a `anon` (lectura pública se hace por server fn publishable existente).
+Also export a helper that builds the segregated payloads and dispatches them with `Promise.allSettled`:
 
-### Cómputo de precio
+```ts
+export interface PrintItem {
+  nombre_producto: string;
+  cantidad: number;
+  notas_preparacion: string | null;   // nota + exclusiones, joined
+  extras: { nombre: string; precio: number }[];
+}
+export interface PrintPayload {
+  id_pedido: string;
+  mesa_nombre_identificador: string;
+  mesero_nombre: string | null;
+  timestamp: string;
+  items: PrintItem[];
+}
 
-`precio_unitario` de `pedido_items` y `prepedido_items` queda como precio base. Las variantes suman su `precio_delta` (snapshot) al render del subtotal y al confirmar pedido. Se mantiene compatibilidad con items existentes sin variantes.
+export async function dispatchPrintJobsForPedido(input: {
+  idPedido: string;
+  mesaIdentificador: string;
+  meseroNombre: string | null;
+  items: Array<{
+    destino: string | null;
+    nombre_producto: string;
+    cantidad: number;
+    nota: string | null;
+    exclusiones: { nombre: string }[];
+    extras: { nombre: string; precio: number }[];
+    variantes: { nombre_grupo: string; nombre_opcion: string }[];
+  }>;
+}): Promise<void> { /* split by destino, build payloads, fire allSettled */ }
+```
 
-### Inventario
+Zone mapping: item `destino` is `"COCINA"` or `"BARRA"` (existing values) → lowercased to `'cocina'` / `'barra'`. Items with no `destino` default to `'cocina'` (matches current print behavior at line 140 of the route file). `notas_preparacion` = `nota` + variantes ("Con: …") + exclusiones ("Sin: …"), joined.
 
-Cuando un pedido se confirma y un item tiene una opción de variante que apunta a un producto con receta, descontar también los insumos de la receta de ese producto-opción por la `cantidad` del item padre. Se modifica el trigger / server fn existente que descuenta inventario al confirmar (revisar `preparacion.functions.ts` y `servicio.functions.ts`).
+Conditional triggering: only zones with ≥1 item get a job. If both zones present, both fire independently via `Promise.allSettled`.
 
-## Cambios de backend
+## 2. Hook into "Confirmar orden" — `src/routes/_app.servicio.$idMesa.tsx`
 
-- `src/lib/menu-schemas.ts` — schemas Zod para `VarianteGrupoForm`, `VarianteOpcionForm`.
-- `src/lib/productos.functions.ts` (o donde estén CRUD de productos — verificar) — nuevas server fns: `listarVariantesProducto`, `upsertGrupoVariante`, `eliminarGrupoVariante`, `upsertOpcionVariante`, `eliminarOpcionVariante`. Todas con `requireSupabaseAuth` + validación de pertenencia.
-- `src/lib/menu-publico.functions.ts` — incluir variantes en el detalle público del producto (servidor publishable). Validar opciones permitidas por producto al agregar al prepedido.
-- `src/lib/prepedido.functions.ts` — `agregarItemPrepedido`, `editarItemPrepedido` aceptan array `variantes` validado contra `producto_variante_opciones`; calcula y guarda snapshot.
-- `src/lib/servicio.functions.ts` — al confirmar prepedido a pedido, copiar variantes a `pedido_item_variantes`. Incluir variantes en `getCatalogoServicio`/`obtenerMesaSesion` para mostrarlas en `ItemRow` y en el editor del mesero.
-- `src/lib/preparacion.functions.ts` — incluir variantes en datos de comanda para que cocina/barra vean "Con: papa criolla". Ajustar descuento de inventario.
+Only touch `confMut.onSuccess` (around line 280). The mutation already has access to `idPedido` (mutation var), `mesaQ.data` (mesa identificador + mesero), and the pedido's items.
 
-## Cambios de UI
+```ts
+const confMut = useMutation({
+  mutationFn: (idPedido: string) => confFn({ data: { idPedido } }),
+  onSuccess: (_r, idPedido) => {
+    toast.success("¡Orden enviada a cocina/barra!", { ... });
 
-### Configuración (admin)
-- `src/components/menu/producto-form.tsx` — nueva sección "Variantes" (acordeón). Lista de grupos; por grupo: nombre, tipo (Única/Múltiple), botón eliminar. Dentro de cada grupo: lista de opciones con selector de producto (Combobox que busca en productos del negocio), input `precio_delta` (puede ser 0), botón eliminar. Botones "Agregar grupo" y "Agregar opción".
-- Validaciones: no permitir referenciar el mismo producto que se edita; no duplicar opciones dentro de un grupo.
+    // Fire-and-forget print bridge — never blocks UI.
+    const pedido = mesaQ.data?.pedidos.find((p) => p.id_pedido === idPedido);
+    if (pedido && mesaQ.data) {
+      void dispatchPrintJobsForPedido({
+        idPedido,
+        mesaIdentificador: mesaQ.data.identificador,
+        meseroNombre: mesaQ.data.mesero_nombre,
+        items: pedido.items,
+      });
+    }
 
-### Cliente (menú público)
-- `src/components/menu-publico/producto-detalle-dialog.tsx` y `prepedido-item-editor.tsx` — renderizar los grupos de variantes:
-  - Grupo `UNICA` → `RadioGroup` shadcn con opciones (nombre + "+$delta" si > 0).
-  - Grupo `MULTIPLE` → lista de `Checkbox`.
-  - Recalcular subtotal mostrando "Base + ∑ deltas × cantidad".
-  - En estado se mantiene `variantes: Array<{ id_grupo, id_opcion }>` y se envía al server fn que ya valida y completa snapshot.
+    qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+  },
+  onError: (e) => toast.error(...),
+});
+```
 
-### Mesero (servicio)
-- `src/components/servicio/item-editor-sheet.tsx` y `editar-item-dialog.tsx` — mismo control de variantes que el cliente.
-- `src/routes/_app.servicio.$idMesa.tsx` `ItemRow` — mostrar `Con: papa criolla` debajo de extras/exclusiones (similar al patrón actual).
-- `src/components/servicio/prepedido-item-editor-staff.tsx` — soportar variantes para edición de staff.
+The server-side `confirmar_pedido` RPC is untouched. The local `imprimirComandasDePedido` (browser print dialog) stays as-is — it's separate from this API bridge.
 
-### Comanda / cocina
-- `src/components/preparacion/comanda-print.ts` y `comanda-card.tsx` — agregar línea "▸ Con: <nombre opción>" por variante seleccionada, similar a extras.
+## Technical notes
 
-## Pasos de implementación
-1. Migración: crear tablas + GRANTs + RLS + columna `prepedido_items.variantes`.
-2. Server fns CRUD de grupos/opciones + integración en lectura/escritura de pedidos y prepedidos.
-3. UI de configuración en `producto-form.tsx`.
-4. UI de selección en cliente (detalle + editor de prepedido).
-5. UI de selección en mesero (item-editor-sheet, editor staff) y render en `ItemRow` + comanda.
-6. Ajuste de descuento de inventario al confirmar pedido.
+- Service lives in `src/services/` (new folder) — pure browser code, no server fn, no DB changes.
+- Env var `VITE_PRINT_API_URL` is optional; default placeholder URL ensures fetch always attempts then catches.
+- `Promise.allSettled` isolates barra vs cocina failures.
+- No changes to: schemas, migrations, server functions, print HTML renderer, comanda-print.ts.
 
-## Fuera de alcance
-- Variantes ligadas a recetas en vez de productos.
-- Reemplazo de precio (solo delta).
-- Min/Max de opciones, obligatoriedad, cantidad por opción (puede agregarse después extendiendo `producto_variante_grupos`).
-- Migración de los `extras_permitidos` existentes al nuevo modelo (siguen funcionando en paralelo).
+## Out of scope
 
-## Notas técnicas
-- Snapshot de nombre y precio en `pedido_item_variantes` protege contra cambios futuros al producto-opción.
-- El producto-opción sigue siendo un producto normal; puede venderse suelto sin variantes.
-- Indexar `producto_variante_opciones(id_grupo)` y `pedido_item_variantes(id_item)` para lectura.
+- Real Print API contract (waiting on external spec — current JSON shape is the documented placeholder).
+- Retry / queue / persistence of failed jobs.
+- Server-side dispatch (kept in browser so it triggers exactly once per waiter confirmation).

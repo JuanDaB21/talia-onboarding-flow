@@ -95,6 +95,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { dispatchPrintJobsForPedido } from "@/services/printService";
 
 export const Route = createFileRoute("/_app/servicio/$idMesa")({
   head: () => ({ meta: [{ title: "Mesa en servicio" }] }),
@@ -279,10 +280,20 @@ function MesaEnServicio() {
 
   const confMut = useMutation({
     mutationFn: (idPedido: string) => confFn({ data: { idPedido } }),
-    onSuccess: () => {
+    onSuccess: (_r, idPedido) => {
       toast.success("¡Orden enviada a cocina/barra!", {
         icon: <CheckCircle2 className="h-4 w-4" />,
       });
+      // Print Bridge: fire-and-forget, nunca bloquea la UI ni el flujo.
+      const pedido = mesaQ.data?.pedidos.find((p) => p.id_pedido === idPedido);
+      if (pedido && mesaQ.data) {
+        void dispatchPrintJobsForPedido({
+          idPedido,
+          mesaIdentificador: mesaQ.data.identificador,
+          meseroNombre: mesaQ.data.mesero_nombre,
+          items: pedido.items,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
     },
     onError: (e) =>
