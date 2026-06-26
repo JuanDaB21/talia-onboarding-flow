@@ -379,7 +379,11 @@ export function PrepedidoItemEditor({
                       const id = e.id_insumo_extra as string;
                       const checked = extras.has(id);
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const nombre = ((e as any).insumos?.nombre_insumo as string) ?? "Extra";
+                      const insumo = (e as any).insumos ?? {};
+                      const nombre = (insumo.nombre_insumo as string) ?? "Extra";
+                      const unidad = (insumo.unidad_receta as string) ?? "";
+                      const cantidad = Number(e.cantidad_porcion ?? 0);
+                      const precio = Number(e.precio_extra);
                       return (
                         <button
                           key={id}
@@ -396,11 +400,25 @@ export function PrepedidoItemEditor({
                             borderRadius: "var(--menu-radius)",
                           }}
                         >
-                          <span className="font-medium text-sm">{nombre}</span>
-                          <span className="text-sm font-semibold tabular-nums"
-                            style={{ color: "var(--menu-primary)" }}>
-                            +{fmt.format(Number(e.precio_extra))}
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-sm">{nombre}</span>
+                            {cantidad > 0 && (
+                              <span
+                                className="block text-xs mt-0.5"
+                                style={{ color: "var(--menu-muted)" }}
+                              >
+                                {cantidad} {unidad}
+                              </span>
+                            )}
                           </span>
+                          {precio > 0 && (
+                            <span
+                              className="text-sm font-semibold tabular-nums shrink-0"
+                              style={{ color: "var(--menu-primary)" }}
+                            >
+                              +{fmt.format(precio)}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
