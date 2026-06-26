@@ -84,6 +84,38 @@ function ReportePage() {
           <Row label="TOTAL VENTAS DEL DÍA" value={formatMoney(total)} bold />
         </Section>
 
+        {data.ajustes.length > 0 && (
+          <>
+            <Separator className="my-4" />
+            <Section title="Ajustes adicionales">
+              <ul className="space-y-1">
+                {data.ajustes.map((a) => (
+                  <li key={a.id_ajuste} className="flex items-center justify-between text-sm">
+                    <span>
+                      {a.nombre}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({a.signo === "POSITIVO" ? "+" : "−"})
+                      </span>
+                      {a.nota && (
+                        <span className="ml-2 text-xs text-muted-foreground">— {a.nota}</span>
+                      )}
+                    </span>
+                    <span className="font-medium">
+                      {a.signo === "POSITIVO" ? "+" : "−"}
+                      {formatMoney(a.monto)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Row
+                label="Total ajustes"
+                value={`${data.total_ajustes >= 0 ? "+" : ""}${formatMoney(data.total_ajustes)}`}
+                bold
+              />
+            </Section>
+          </>
+        )}
+
         {data.nota_cuadre && (
           <>
             <Separator className="my-4" />
