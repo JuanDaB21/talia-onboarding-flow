@@ -14,7 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getEstadoCaja, cerrarCaja, listarTiposAjuste, crearTipoAjuste, type AjusteTipo } from "@/lib/caja.functions";
+import {
+  getEstadoCaja,
+  cerrarCaja,
+  listarTiposAjuste,
+  crearTipoAjuste,
+  listarAjustesCajaActual,
+  type AjusteTipo,
+} from "@/lib/caja.functions";
+
 import { formatMoney } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/caja/cierre")({
@@ -40,6 +48,11 @@ function CierreWizard() {
     queryKey: ["caja-ajuste-tipos"],
     queryFn: () => tiposFn(),
   });
+  const ajustesPreviosFn = useServerFn(listarAjustesCajaActual);
+  const { data: ajustesPrevios } = useQuery({
+    queryKey: ["caja-ajustes-actual"],
+    queryFn: () => ajustesPreviosFn(),
+  });
   const [step, setStep] = useState(1);
   const [efectivoFisico, setEfectivoFisico] = useState("0");
   const [datafonoFisico, setDatafonoFisico] = useState("0");
@@ -49,12 +62,21 @@ function CierreWizard() {
     Array<{ idTipo: string; nombre: string; signo: "POSITIVO" | "NEGATIVO"; monto: number }>
   >([]);
 
+  const sumAjustesPrevios = useMemo(
+    () =>
+      (ajustesPrevios ?? []).reduce(
+        (acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto),
+        0,
+      ),
+    [ajustesPrevios],
+  );
   const sumAjustes = useMemo(
     () => ajustes.reduce((acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto), 0),
     [ajustes],
   );
   const base = data?.caja?.base_inicial ?? 0;
-  const efectivoEsperado = base + (data?.efectivo ?? 0) + sumAjustes;
+  const efectivoEsperado = base + (data?.efectivo ?? 0) + sumAjustesPrevios + sumAjustes;
+
   const datafonoEsperado = data?.datafono ?? 0;
   const difEfectivo = useMemo(
     () => Number(efectivoFisico || 0) - efectivoEsperado,
@@ -93,17 +115,23 @@ function CierreWizard() {
       toast.error("Ingresa una nota de cuadre");
       return;
     }
-    // Si hay ajustes, el RPC valida diferencia sin considerarlos, así que
-    // construimos una nota automática para que la validación del servidor pase.
+    // Si hay ajustes (previos o nuevos), el RPC valida diferencia sin considerarlos,
+    // así que construimos una nota automática para que la validación del servidor pase.
     let notaFinal = nota.trim();
-    if (ajustes.length > 0) {
-      const detalle = ajustes
-        .map((a) => `${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`)
-        .join("; ");
+    const detallePartes: string[] = [];
+    for (const a of ajustesPrevios ?? []) {
+      detallePartes.push(`${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`);
+    }
+    for (const a of ajustes) {
+      detallePartes.push(`${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`);
+    }
+    if (detallePartes.length > 0) {
+      const detalle = detallePartes.join("; ");
       notaFinal = notaFinal
         ? `${notaFinal} | Ajustes: ${detalle}`
         : `Ajustes registrados: ${detalle}`;
     }
+
     setBusy(true);
     try {
       const { idCaja } = await cerrar({
@@ -252,6 +280,34 @@ function CierreWizard() {
           <CardContent className="space-y-3">
             <Diff label="Efectivo" sistema={efectivoEsperado} fisico={Number(efectivoFisico)} dif={difEfectivo} />
             <Diff label="Datáfono" sistema={datafonoEsperado} fisico={Number(datafonoFisico)} dif={difDatafono} />
+            {(ajustesPrevios ?? []).length > 0 && (
+              <div className="space-y-1 rounded-md border bg-muted/30 p-3">
+                <div className="text-sm font-semibold">
+                  Ajustes ya registrados hoy
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {(ajustesPrevios ?? []).map((a) => (
+                    <li key={a.id_ajuste} className="flex items-center justify-between">
+                      <span>
+                        {a.nombre}
+                        {a.nota && (
+                          <span className="ml-2 text-xs text-muted-foreground">· {a.nota}</span>
+                        )}
+                      </span>
+                      <span className="font-medium">
+                        {a.signo === "POSITIVO" ? "+" : "−"}
+                        {formatMoney(a.monto)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  Estos ajustes ya están aplicados al efectivo esperado. Edítalos desde la pantalla
+                  principal de Caja antes de cerrar.
+                </p>
+              </div>
+            )}
+
             <AjustesEditor
               tipos={tipos ?? []}
               ajustes={ajustes}

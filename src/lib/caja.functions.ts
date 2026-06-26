@@ -333,3 +333,98 @@ export const listarCierres = createServerFn({ method: "POST" })
     };
   });
 
+export interface AjusteCajaRow {
+  id_ajuste: string;
+  id_tipo: string;
+  nombre: string;
+  signo: "POSITIVO" | "NEGATIVO";
+  monto: number;
+  nota: string | null;
+  created_at: string;
+}
+
+
+
+
+export const listarAjustesCajaActual = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AjusteCajaRow[]> => {
+    const { supabase } = context;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const { data: caja } = await supabase
+      .from("caja_dia")
+      .select("id_caja")
+      .eq("fecha", hoy)
+      .maybeSingle();
+    if (!caja?.id_caja) return [];
+    const { data, error } = await supabase
+      .from("caja_ajustes")
+      .select("id_ajuste, id_tipo, monto, nota, created_at, caja_ajuste_tipos:id_tipo(nombre, signo)")
+      .eq("id_caja", caja.id_caja)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((a) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const t = (a as any).caja_ajuste_tipos;
+      return {
+        id_ajuste: a.id_ajuste as string,
+        id_tipo: a.id_tipo as string,
+        nombre: t?.nombre ?? "—",
+        signo: (t?.signo ?? "NEGATIVO") as "POSITIVO" | "NEGATIVO",
+        monto: Number(a.monto),
+        nota: (a.nota as string | null) ?? null,
+        created_at: a.created_at as string,
+      };
+    });
+  });
+
+export const crearAjusteCaja = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        idTipo: z.string().uuid(),
+        monto: z.number().positive().max(1000000000),
+        nota: z.string().trim().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ idAjuste: string }> => {
+    const { supabase } = context;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const { data: caja } = await supabase
+      .from("caja_dia")
+      .select("id_caja, id_negocio, estado")
+      .eq("fecha", hoy)
+      .maybeSingle();
+    if (!caja?.id_caja) throw new Error("No hay caja abierta hoy");
+    if (caja.estado === "CERRADA") throw new Error("La caja ya está cerrada");
+    const { data: row, error } = await supabase
+      .from("caja_ajustes")
+      .insert({
+        id_caja: caja.id_caja,
+        id_negocio: caja.id_negocio,
+        id_tipo: data.idTipo,
+        monto: data.monto,
+        nota: data.nota?.trim() ? data.nota.trim() : null,
+        created_by: context.userId,
+      })
+      .select("id_ajuste")
+      .single();
+    if (error) throw new Error(error.message);
+    return { idAjuste: row.id_ajuste as string };
+  });
+
+export const eliminarAjusteCaja = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ idAjuste: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("caja_ajustes")
+      .delete()
+      .eq("id_ajuste", data.idAjuste);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
