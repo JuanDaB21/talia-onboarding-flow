@@ -339,7 +339,7 @@ export function PrepedidoItemEditor({
                               borderRadius: "var(--menu-radius)",
                             }}
                           >
-                            <span className="font-medium text-sm">{o.nombre_producto_opcion}</span>
+                            <span className="font-medium text-sm">{o.nombre_opcion}</span>
                             {o.precio_delta > 0 && (
                               <span
                                 className="text-sm font-semibold tabular-nums"

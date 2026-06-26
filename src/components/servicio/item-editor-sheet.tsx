@@ -209,7 +209,7 @@ export function ItemEditorSheet({
                               : "border-border bg-card hover:bg-muted"
                           }`}
                         >
-                          <span className="font-medium">{o.nombre_producto_opcion}</span>
+                          <span className="font-medium">{o.nombre_opcion}</span>
                           {o.precio_delta > 0 && (
                             <span className="text-xs font-semibold tabular-nums text-primary">
                               +${o.precio_delta.toLocaleString("es-CO")}
