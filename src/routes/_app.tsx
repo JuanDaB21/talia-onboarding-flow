@@ -53,37 +53,44 @@ function AppLayout() {
 }
 
 function RoleRedirect() {
-  const { rol, loading } = useMiStaff();
+  const { rol, loading, staff } = useMiStaff();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (loading || !rol) return;
-    const rules: Record<string, { home: string; allowed: string[] }> = {
-      MESERO: { home: "/servicio", allowed: ["/servicio"] },
-      COCINA: { home: "/cocina", allowed: ["/cocina"] },
-      BARRA: { home: "/barra", allowed: ["/barra"] },
-      CAJERO: {
-        home: "/caja",
-        allowed: [
-          "/caja",
-          "/operacion",
-          "/servicio",
-          "/reservas",
-          "/cocina",
-          "/barra",
-          "/bodega/compras",
-          "/bodega/inventario",
-        ],
-      },
-    };
-    const cfg = rules[rol];
-    if (!cfg) return; // ADMIN/SUPERADMIN sin restricción
-    const permitido = cfg.allowed.some((p) => pathname.startsWith(p));
-    if (!permitido) {
-      navigate({ to: cfg.home });
+    if (rol === "ADMIN" || rol === "SUPERADMIN") return;
+
+    if (rol === "MESERO") {
+      if (!pathname.startsWith("/servicio")) navigate({ to: "/servicio" });
+      return;
     }
-  }, [rol, loading, pathname, navigate]);
+    if (rol === "COCINA" || rol === "BARRA" || rol === "ESTACION") {
+      const slug =
+        staff?.espacio_slug ??
+        (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : null);
+      const home = slug ? `/estacion/${slug}` : "/";
+      if (!pathname.startsWith(home) && !pathname.startsWith("/estacion/")) {
+        navigate({ to: home });
+      }
+      return;
+    }
+    if (rol === "CAJERO") {
+      const allowed = [
+        "/caja",
+        "/operacion",
+        "/servicio",
+        "/reservas",
+        "/estacion",
+        "/cocina",
+        "/barra",
+        "/bodega/compras",
+        "/bodega/inventario",
+      ];
+      const permitido = allowed.some((p) => pathname.startsWith(p));
+      if (!permitido) navigate({ to: "/caja" });
+    }
+  }, [rol, loading, pathname, navigate, staff?.espacio_slug]);
 
   return null;
 }

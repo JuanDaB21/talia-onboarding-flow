@@ -16,6 +16,7 @@ import {
   ConciergeBell,
   Flame,
   Wine,
+  Utensils,
   Play,
   Square,
   LayoutDashboard,
@@ -58,6 +59,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useMiStaff, type Rol } from "@/hooks/use-mi-staff";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useEspacios, type EspacioTrabajo } from "@/hooks/use-espacios";
 import { iniciarTurno, finalizarTurno } from "@/lib/turno.functions";
 
 const BODEGA_NAV = [
@@ -76,8 +78,6 @@ const SERVICIO_NAV = [
   { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
   { to: "/reservas", label: "Reservas", icon: CalendarDays },
-  { to: "/cocina", label: "Cocina", icon: Flame },
-  { to: "/barra", label: "Barra", icon: Wine },
 ] as const;
 
 const CONFIG_NAV = [
@@ -88,6 +88,12 @@ const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/caja", label: "Caja", icon: Wallet },
 ] as const;
+
+function iconoEspacio(slug: string) {
+  if (slug === "COCINA") return Flame;
+  if (slug === "BARRA") return Wine;
+  return Utensils;
+}
 
 function gruposPorRol(rol: Rol | null) {
   if (rol === "ADMIN" || rol === "SUPERADMIN") {
@@ -100,8 +106,7 @@ function gruposPorRol(rol: Rol | null) {
       menu: true,
       operacion: true,
       servicio: true,
-      cocina: true,
-      barra: true,
+      estaciones: "ALL" as const,
       config: true,
     };
   }
@@ -115,8 +120,21 @@ function gruposPorRol(rol: Rol | null) {
       menu: false,
       operacion: true,
       servicio: true,
-      cocina: true,
-      barra: true,
+      estaciones: "ALL" as const,
+      config: false,
+    };
+  }
+  if (rol === "COCINA" || rol === "BARRA" || rol === "ESTACION") {
+    return {
+      admin: false,
+      dashboard: false,
+      caja: false,
+      bodega: false,
+      bodegaProveedores: false,
+      menu: false,
+      operacion: false,
+      servicio: false,
+      estaciones: "MINE" as const,
       config: false,
     };
   }
@@ -129,8 +147,7 @@ function gruposPorRol(rol: Rol | null) {
     menu: false,
     operacion: false,
     servicio: rol === "MESERO",
-    cocina: rol === "COCINA",
-    barra: rol === "BARRA",
+    estaciones: "NONE" as const,
     config: false,
   };
 }
@@ -145,7 +162,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { user } = useAuthUser();
   const email = user?.email ?? "";
-  const { rol, enTurno, turnoIniciadoAt, invalidate } = useMiStaff();
+  const { rol, enTurno, turnoIniciadoAt, invalidate, staff } = useMiStaff();
+  const { espacios } = useEspacios({ soloActivos: true });
   const iniciar = useServerFn(iniciarTurno);
   const finalizar = useServerFn(finalizarTurno);
   const [confirmCerrarOpen, setConfirmCerrarOpen] = useState(false);
@@ -187,7 +205,18 @@ export function AppSidebar() {
   };
 
   const grupos = gruposPorRol(rol);
-  const mostrarTurno = rol === "MESERO" || rol === "COCINA" || rol === "BARRA";
+  const mostrarTurno = rol === "MESERO" || rol === "COCINA" || rol === "BARRA" || rol === "ESTACION";
+
+  // Espacios visibles según rol
+  let espaciosVisibles: EspacioTrabajo[] = [];
+  if (grupos.estaciones === "ALL") {
+    espaciosVisibles = espacios;
+  } else if (grupos.estaciones === "MINE") {
+    const slug =
+      staff?.espacio_slug ??
+      (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : null);
+    espaciosVisibles = slug ? espacios.filter((e) => e.slug === slug) : [];
+  }
 
   const horaInicio = turnoIniciadoAt
     ? new Date(turnoIniciadoAt).toLocaleTimeString([], {
@@ -211,17 +240,45 @@ export function AppSidebar() {
       </SidebarMenuItem>
     );
   };
+
+  const renderEspacioItem = (esp: EspacioTrabajo) => {
+    const Icon = iconoEspacio(esp.slug);
+    const to = `/estacion/${esp.slug}`;
+    const active = pathname.startsWith(to);
+    return (
+      <SidebarMenuItem key={esp.id_espacio}>
+        <SidebarMenuButton asChild isActive={active} tooltip={esp.nombre}>
+          <Link
+            to="/estacion/$slug"
+            params={{ slug: esp.slug }}
+            onClick={closeIfMobile}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{esp.nombre}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   const renderGroup = (
     label: string,
     items: ReadonlyArray<{ to: string; label: string; icon: typeof Boxes }>,
+    extra?: React.ReactNode,
   ) => (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
+        <SidebarMenu>
+          {items.map(renderItem)}
+          {extra}
+        </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
   );
+
+  const mostrarGrupoServicio =
+    grupos.operacion || grupos.servicio || espaciosVisibles.length > 0;
 
   return (
     <Sidebar collapsible="icon">
@@ -246,17 +303,16 @@ export function AppSidebar() {
               return false;
             }),
           )}
-        {(grupos.operacion || grupos.servicio || grupos.cocina || grupos.barra) &&
+        {mostrarGrupoServicio &&
           renderGroup(
             "Servicio",
             SERVICIO_NAV.filter((item) => {
               if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
               if (item.to === "/reservas") return grupos.operacion || grupos.servicio;
-              if (item.to === "/cocina") return grupos.cocina;
-              if (item.to === "/barra") return grupos.barra;
               return false;
             }),
+            espaciosVisibles.map(renderEspacioItem),
           )}
         {grupos.bodega &&
           renderGroup(
