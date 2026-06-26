@@ -11,14 +11,16 @@ import {
   Loader2,
   QrCode as QrCodeIcon,
   Smartphone,
+  Ticket,
   X,
+  CalendarCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -48,15 +50,6 @@ import {
   type ReservaAplicable,
 } from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Ticket, CalendarCheck } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -144,17 +137,20 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
   // No permitimos mezclar bono + abono de reserva por simplicidad.
   const abonoActivo = !!reservaSel && !idBono;
-  const subtotalConDescuentoBono = Math.max(0, totalSeleccionado - descuentoBono);
   const descuentoReserva = abonoActivo
     ? Math.min(reservaSel.monto_abonado, totalSeleccionado)
     : 0;
+  const subtotalConDescuentos = Math.max(
+    0,
+    totalSeleccionado - descuentoBono - descuentoReserva,
+  );
   const reservaCubreTodo =
     abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(subtotalConDescuentoBono * (propinaPct ?? 0));
-  const totalConPropina = subtotalConDescuentoBono + propina;
+      : Math.round(subtotalConDescuentos * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuentos + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -176,6 +172,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     itemIds: string[];
     propina: number;
     idBono: string | null;
+    idReserva: string | null;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => pagarFn({ data: input }),
@@ -326,7 +323,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             totalConPropina={totalConPropina}
             propinaProps={propinaProps}
             descuentoBono={descuentoBono}
+            descuentoReserva={descuentoReserva}
             bonoInfo={bonoInfo}
+            reservaInfo={reservaSel}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -337,6 +336,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 itemIds: Array.from(selected),
                 propina,
                 idBono,
+                idReserva: abonoActivo ? idReservaAbono : null,
               })
             }
             isLoading={pagarMut.isPending}
@@ -362,6 +362,7 @@ function PropinaResumenRow({
   propinaProps: PropinaProps;
 }) {
   const { propinaPct, propinaCustom, onPickPct, onCustom } = propinaProps;
+  const [open, setOpen] = useState(false);
   const [customStr, setCustomStr] = useState<string>(
     propinaCustom !== null ? String(propinaCustom) : "",
   );
@@ -376,74 +377,114 @@ function PropinaResumenRow({
       : `${Math.round((propinaPct ?? 0) * 100)}%`;
 
   const opciones = [0, 0.05, 0.1, 0.15];
+  const montosFijos = [2000, 5000, 10000, 20000];
 
   return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-1 text-muted-foreground">
-        <span>Propina · {etiqueta}</span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-[11px] font-normal text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
-            >
-              Editar
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-3 space-y-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-12 w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-foreground">Propina</span>
+          <span className="block text-xs text-muted-foreground">{etiqueta}</span>
+        </span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+          {fmt.format(propina)}
+        </span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-sm sm:translate-y-[-50%] sm:rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Propina</DialogTitle>
+            <DialogDescription>
+              Selecciona un porcentaje o define un monto fijo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 overflow-y-auto">
+            <section className="space-y-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
                 Porcentaje
               </p>
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-4 gap-2">
                 {opciones.map((pct) => {
                   const active = propinaCustom === null && propinaPct === pct;
                   return (
-                    <button
+                    <Button
                       key={pct}
                       type="button"
+                      variant={active ? "default" : "outline"}
+                      className="h-12"
                       onClick={() => {
                         onPickPct(pct);
                         setCustomStr("");
                       }}
-                      className={`rounded-md border px-1 py-1.5 text-xs transition-colors ${
-                        active
-                          ? "border-primary bg-primary/10 text-primary font-semibold"
-                          : "border-border bg-card hover:bg-muted"
-                      }`}
                     >
                       {Math.round(pct * 100)}%
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
-            </div>
-            <div>
-              <Label htmlFor="propina-custom" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Monto fijo
-              </Label>
+            </section>
+
+            <section className="space-y-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                Montos fijos
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {montosFijos.map((monto) => {
+                  const active = propinaCustom === monto;
+                  return (
+                    <Button
+                      key={monto}
+                      type="button"
+                      variant={active ? "default" : "outline"}
+                      className="h-12"
+                      onClick={() => {
+                        setCustomStr(String(monto));
+                        onCustom(monto);
+                      }}
+                    >
+                      {fmt.format(monto)}
+                    </Button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <Label htmlFor="propina-custom">Monto variable</Label>
               <Input
                 id="propina-custom"
                 inputMode="numeric"
-                placeholder="0"
+                placeholder="Escribe el monto"
                 value={customStr}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^\d]/g, "");
                   setCustomStr(v);
                   onCustom(v === "" ? null : Number(v));
                 }}
-                className={`mt-1 h-8 ${propinaCustom !== null ? "border-primary" : ""}`}
+                className="h-12 text-base"
               />
+            </section>
+
+            <div className="rounded-lg bg-muted p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Propina actual</span>
+                <span className="font-bold tabular-nums">{fmt.format(propina)}</span>
+              </div>
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-      <span className="tabular-nums font-medium text-foreground">
-        {fmt.format(propina)}
-      </span>
-    </div>
+
+            <Button className="h-12 w-full" onClick={() => setOpen(false)}>
+              Aplicar propina
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -453,83 +494,120 @@ function BonoRow({
   descuento,
   bonoInfo,
   disabled,
+  onEnsureSelection,
 }: {
   idBono: string | null;
   setIdBono: (v: string | null) => void;
   descuento: number;
   bonoInfo: BonoPreview | null;
   disabled?: boolean;
+  onEnsureSelection: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const listFn = useServerFn(listarBonos);
   const bonosQ = useQuery({
     queryKey: ["bonos", "activos"],
     queryFn: () => listFn({}),
   });
   const bonos = (bonosQ.data?.bonos ?? []).filter((b: Bono) => b.activo);
+  const visibles = bonos.filter((b) =>
+    b.nombre.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   if (!idBono) {
     return (
-      <div className="flex items-center justify-between text-sm">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
-            >
-              <Ticket className="h-3.5 w-3.5 mr-1" />
-              Agregar bono
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-0 z-[60]">
-            <Command>
-              <CommandInput placeholder="Buscar bono..." />
-              <CommandList>
-                <CommandEmpty>Sin bonos activos</CommandEmpty>
-                <CommandGroup>
-                  {bonos.map((b) => (
-                    <CommandItem
-                      key={b.id_bono}
-                      value={b.nombre}
-                      onSelect={() => {
-                        setIdBono(b.id_bono);
-                        setOpen(false);
-                      }}
-                    >
-                      <span className="flex-1">{b.nombre}</span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {b.tipo === "VALOR"
-                          ? `-${fmt.format(b.valor)}`
-                          : `-${b.porcentaje ?? 0}%`}
-                      </span>
+      <>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="flex min-h-12 w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Ticket className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">Agregar bono</span>
+              <span className="block text-xs text-muted-foreground">
+                {disabled ? "No disponible" : "Seleccionar descuento"}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">—</span>
+        </button>
 
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <span className="tabular-nums text-muted-foreground">—</span>
-      </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-md sm:translate-y-[-50%] sm:rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Agregar bono</DialogTitle>
+              <DialogDescription>
+                Selecciona el bono que se aplicará a los productos marcados.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 overflow-y-auto">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar bono"
+                className="h-12"
+              />
+              <div className="space-y-2">
+                {bonosQ.isLoading && (
+                  <div className="flex h-20 items-center justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+                {!bonosQ.isLoading && visibles.length === 0 && (
+                  <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    Sin bonos activos
+                  </p>
+                )}
+                {visibles.map((b) => (
+                  <button
+                    key={b.id_bono}
+                    type="button"
+                    onClick={() => {
+                      onEnsureSelection();
+                      setIdBono(b.id_bono);
+                      setOpen(false);
+                    }}
+                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        {b.nombre}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {b.tipo === "VALOR" ? "Valor fijo" : "Porcentaje"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
+                      {b.tipo === "VALOR"
+                        ? `-${fmt.format(b.valor)}`
+                        : `-${b.porcentaje ?? 0}%`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-        <Ticket className="h-3.5 w-3.5" />
-        <span>
-          Bono {bonoInfo ? `· ${bonoInfo.nombre} (${bonoInfo.tipo === "VALOR" ? fmt.format(bonoInfo.valor) : `${bonoInfo.porcentaje}%`})` : ""}
+    <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+      <div className="flex min-w-0 items-center gap-2 text-emerald-700 dark:text-emerald-400">
+        <Ticket className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 truncate">
+          Bono {bonoInfo ? `· ${bonoInfo.nombre}` : "aplicado"}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-destructive"
           onClick={() => setIdBono(null)}
         >
           Quitar
@@ -745,7 +823,8 @@ function PasoItems({
             setIdBono={setIdBono}
             descuento={descuentoBono}
             bonoInfo={bonoInfo}
-            disabled={selected.size === 0 || !!idReservaAbono}
+            disabled={!!idReservaAbono || !hayPendientes}
+            onEnsureSelection={onSelectAll}
           />
           <ReservaAbonoRow
             reservas={reservasAplicables}
@@ -756,7 +835,7 @@ function PasoItems({
             }}
             descuento={descuentoReserva}
             totalSeleccionado={totalSeleccionado}
-            disabled={!!idBono}
+            disabled={!!idBono || !hayPendientes}
           />
           {!reservaCubreTodo && (
             <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
@@ -813,73 +892,104 @@ function ReservaAbonoRow({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   if (reservas.length === 0) return null;
   const sel = reservas.find((r) => r.id_reserva === idReserva) ?? null;
   const cubre = sel && sel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
+  const visibles = reservas.filter((r) =>
+    `${r.codigo_reserva} ${r.customer_name}`
+      .toLowerCase()
+      .includes(search.trim().toLowerCase()),
+  );
 
   if (!idReserva) {
     return (
-      <div className="flex items-center justify-between text-sm">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
-            >
-              <CalendarCheck className="h-3.5 w-3.5 mr-1" />
-              Aplicar abono de reserva
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 p-0 z-[60]">
-            <Command>
-              <CommandInput placeholder="Buscar reserva..." />
-              <CommandList>
-                <CommandEmpty>Sin reservas abonadas hoy</CommandEmpty>
-                <CommandGroup>
-                  {reservas.map((r) => (
-                    <CommandItem
-                      key={r.id_reserva}
-                      value={`${r.codigo_reserva} ${r.customer_name}`}
-                      onSelect={() => {
-                        setIdReserva(r.id_reserva);
-                        setOpen(false);
-                      }}
-                    >
-                      <span className="font-mono text-[10px] mr-2 px-1.5 py-0.5 rounded bg-muted">
+      <>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="flex min-h-12 w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <CalendarCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">
+                Abono de reserva
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {disabled ? "No disponible" : "Seleccionar reserva"}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">—</span>
+        </button>
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-md sm:translate-y-[-50%] sm:rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Abono de reserva</DialogTitle>
+              <DialogDescription>
+                Selecciona una reserva abonada de hoy para descontarla del pago.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 overflow-y-auto">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar reserva"
+                className="h-12"
+              />
+              <div className="space-y-2">
+                {visibles.length === 0 && (
+                  <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    Sin reservas abonadas hoy
+                  </p>
+                )}
+                {visibles.map((r) => (
+                  <button
+                    key={r.id_reserva}
+                    type="button"
+                    onClick={() => {
+                      setIdReserva(r.id_reserva);
+                      setOpen(false);
+                    }}
+                    className="flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="min-w-0">
+                      <span className="inline-flex rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                         {r.codigo_reserva}
                       </span>
-                      <span className="flex-1 truncate">{r.customer_name}</span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {fmt.format(r.monto_abonado)}
+                      <span className="mt-1 block truncate text-sm font-semibold text-foreground">
+                        {r.customer_name}
                       </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <span className="tabular-nums text-muted-foreground">—</span>
-      </div>
+                    </span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
+                      -{fmt.format(r.monto_abonado)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-          <CalendarCheck className="h-3.5 w-3.5" />
+    <div className="space-y-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+      <div className="flex min-h-8 items-center justify-between gap-3 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-emerald-700 dark:text-emerald-400">
+          <CalendarCheck className="h-4 w-4 shrink-0" />
           <span>
-            Descuento por Reserva{sel ? ` · ${sel.codigo_reserva}` : ""}
+            Abono{sel ? ` · ${sel.codigo_reserva}` : ""}
           </span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
             onClick={() => setIdReserva(null)}
           >
             Quitar
@@ -891,8 +1001,8 @@ function ReservaAbonoRow({
       </div>
       {sel && !cubre && (
         <p className="text-[11px] text-amber-700 dark:text-amber-400 pl-1">
-          El abono cubre solo {fmt.format(sel.monto_abonado)}. Reduce items para
-          que el subtotal sea ≤ al abono, o cobra primero el resto con otro método.
+          El abono cubre {fmt.format(sel.monto_abonado)}. El saldo se cobra con el
+          método de pago que elijas.
         </p>
       )}
     </div>
@@ -907,7 +1017,9 @@ function PasoMetodo({
   totalConPropina,
   propinaProps,
   descuentoBono,
+  descuentoReserva,
   bonoInfo,
+  reservaInfo,
   onPagar,
   isLoading,
 }: {
@@ -918,7 +1030,9 @@ function PasoMetodo({
   totalConPropina: number;
   propinaProps: PropinaProps;
   descuentoBono: number;
+  descuentoReserva: number;
   bonoInfo: BonoPreview | null;
+  reservaInfo: ReservaAplicable | null;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;
@@ -993,6 +1107,26 @@ function PasoMetodo({
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums font-medium">{fmt.format(total)}</span>
           </div>
+          {descuentoBono > 0 && (
+            <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
+              <span className="truncate">
+                Bono{bonoInfo ? ` · ${bonoInfo.nombre}` : ""}
+              </span>
+              <span className="shrink-0 tabular-nums font-medium">
+                -{fmt.format(descuentoBono)}
+              </span>
+            </div>
+          )}
+          {descuentoReserva > 0 && (
+            <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
+              <span className="truncate">
+                Abono{reservaInfo ? ` · ${reservaInfo.codigo_reserva}` : ""}
+              </span>
+              <span className="shrink-0 tabular-nums font-medium">
+                -{fmt.format(descuentoReserva)}
+              </span>
+            </div>
+          )}
           <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="h-px bg-border my-1" />
           <div className="flex items-end justify-between">
