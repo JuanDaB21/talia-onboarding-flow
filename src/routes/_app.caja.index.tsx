@@ -315,6 +315,15 @@ function CajaResumen({
         {!cerrada && (
           <>
             <Separator />
+            <AjustesCajaLive />
+          </>
+        )}
+
+
+
+        {!cerrada && (
+          <>
+            <Separator />
             {bloqueos.length > 0 && (
               <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
                 <div className="flex items-center gap-2 font-medium text-destructive">
