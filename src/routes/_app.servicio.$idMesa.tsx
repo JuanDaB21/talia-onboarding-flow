@@ -1198,7 +1198,7 @@ function PedidoAbiertoCard({
                     >
                       {c.nombre}{" "}
                       <span className="ml-1 text-[10px] opacity-70">
-                        {c.destino === "BARRA" ? "🍷" : "🍳"}
+                        {c.destino === "BARRA" ? "🍷" : c.destino === "COCINA" ? "🍳" : "🍽️"}
                       </span>
                     </PillBtn>
                   ))}
