@@ -9,16 +9,27 @@ import { iniciarTurno } from "@/lib/turno.functions";
 
 interface Props {
   rolesRequeridos: Array<Exclude<Rol, "SUPERADMIN" | "ADMIN" | null>>;
+  /** Si se pasa, exige que el usuario tenga ese espacio asignado (admins exentos). */
+  espacioSlug?: string;
   children: React.ReactNode;
 }
 
-export function TurnoGate({ rolesRequeridos, children }: Props) {
-  const { rol, enTurno, loading, invalidate } = useMiStaff();
+export function TurnoGate({ rolesRequeridos, espacioSlug, children }: Props) {
+  const { rol, enTurno, loading, invalidate, staff } = useMiStaff();
   const navigate = useNavigate();
   const iniciar = useServerFn(iniciarTurno);
 
-  const accesoPermitido =
-    rol === "ADMIN" || rol === "SUPERADMIN" || (rol && rolesRequeridos.includes(rol as never));
+  const esAdmin = rol === "ADMIN" || rol === "SUPERADMIN";
+  const rolPermitido =
+    esAdmin || (rol && rolesRequeridos.includes(rol as never));
+  const espacioOk =
+    !espacioSlug ||
+    esAdmin ||
+    (staff?.espacio_slug ?? "").toUpperCase() === espacioSlug.toUpperCase() ||
+    // Compat: roles legados COCINA/BARRA sin id_espacio_asignado
+    (rol === "COCINA" && espacioSlug.toUpperCase() === "COCINA") ||
+    (rol === "BARRA" && espacioSlug.toUpperCase() === "BARRA");
+  const accesoPermitido = Boolean(rolPermitido && espacioOk);
 
   useEffect(() => {
     if (!loading && rol && !accesoPermitido) {
@@ -45,7 +56,7 @@ export function TurnoGate({ rolesRequeridos, children }: Props) {
   }
 
   // ADMIN/SUPERADMIN no requieren turno
-  if (rol === "ADMIN" || rol === "SUPERADMIN") {
+  if (esAdmin) {
     return <>{children}</>;
   }
 
