@@ -704,12 +704,14 @@ function PedidoConfirmadoCard({
   onPrint: () => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [vista, setVista] = useState<"detallado" | "resumen">("detallado");
   const total = pedido.items.length;
   const listos = pedido.items.filter(
     (i) => i.estado_preparacion === "LISTO" || i.estado_preparacion === "ENTREGADO",
   ).length;
   const pct = total > 0 ? Math.round((listos / total) * 100) : 0;
   const tieneAlgunEnCola = pedido.items.some((i) => i.estado_preparacion === "EN_COLA");
+  const resumen = useMemo(() => agruparItemsResumen(pedido.items), [pedido.items]);
   const estado = ESTADO_LABEL[pedido.estado_global] ?? ESTADO_LABEL.EN_COLA;
   const necesitaEntrega = pedido.estado_global === "LISTO";
 
