@@ -183,13 +183,29 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             </div>
             <div>
               <Label htmlFor="hora">Hora *</Label>
-              <Input
-                id="hora"
+              <Select
                 value={form.hora_reserva}
-                onChange={(e) => set("hora_reserva", e.target.value)}
-                placeholder="20:30 o 8 pm"
-                maxLength={20}
-              />
+                onValueChange={(v) => set("hora_reserva", v)}
+              >
+                <SelectTrigger id="hora">
+                  <SelectValue placeholder="Selecciona hora" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {Array.from({ length: 24 }).map((_, h) => {
+                    const value = `${String(h).padStart(2, "0")}:00`;
+                    const label = (() => {
+                      const period = h < 12 ? "am" : "pm";
+                      const h12 = ((h + 11) % 12) + 1;
+                      return `${value} (${h12} ${period})`;
+                    })();
+                    return (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
               {errors.hora_reserva && (
                 <p className="text-xs text-destructive mt-1">{errors.hora_reserva}</p>
               )}
