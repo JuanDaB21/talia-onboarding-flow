@@ -235,6 +235,19 @@ async function asegurarMesa(idMesa: string): Promise<string> {
   return data.id_negocio as string;
 }
 
+async function ocuparMesaSiLibre(idMesa: string) {
+  const { error } = await supabaseAdmin
+    .from("mesas")
+    .update({
+      estado: "OCUPADA",
+      asignada_at: new Date().toISOString(),
+      liberada_at: null,
+    })
+    .eq("id_mesa", idMesa)
+    .eq("estado", "LIBRE");
+  if (error) throw new Error(error.message);
+}
+
 async function getSesionPropia(idMesa: string, idCliente: string, idSesion?: string) {
   let q = supabaseAdmin
     .from("prepedido_sesiones")
@@ -383,6 +396,7 @@ export const unirseSesionPrepedido = createServerFn({ method: "POST" })
   .inputValidator((input) => unirseSchema.parse(input))
   .handler(async ({ data }) => {
     await asegurarMesa(data.idMesa);
+    await ocuparMesaSiLibre(data.idMesa);
     const { error } = await supabaseAdmin
       .from("prepedido_sesiones")
       .upsert(
