@@ -190,6 +190,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
     const payload = ingredientes.map((x) => ({ id_insumo: x.id_insumo, cantidad: x.cantidad }));
     try {
       let productoId = idProducto;
+      let recetaIdFinal: string | null = idReceta ?? null;
 
       if (mode === "create") {
         const { data: newRecetaId, error } = await supabase.rpc("crear_receta", {
@@ -201,11 +202,12 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           p_tiempo_preparacion_min: tiempoPrepNum,
         });
         if (error) throw error;
+        recetaIdFinal = newRecetaId as unknown as string;
         // Obtener id_producto recién creado
         const { data: prod } = await supabase
           .from("productos")
           .select("id_producto")
-          .eq("id_receta", newRecetaId as unknown as string)
+          .eq("id_receta", recetaIdFinal)
           .maybeSingle();
         productoId = prod?.id_producto ?? null;
       } else if (idReceta) {
@@ -232,10 +234,15 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         }
       }
 
-      toast.success("Receta creada", {
-        description: "Se creó también el producto asociado.",
-      });
-      navigate({ to: "/menu/productos", search: { editar: productoId } });
+      if (mode === "create" && recetaIdFinal) {
+        toast.success("Receta creada", {
+          description: "Ahora puedes configurar las variantes en el paso 5.",
+        });
+        navigate({ to: "/menu/recetas/$id", params: { id: recetaIdFinal } });
+      } else {
+        toast.success("Receta actualizada");
+        navigate({ to: "/menu/productos", search: { editar: productoId } });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
       toast.error("No se pudo guardar", { description: msg });
