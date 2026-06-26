@@ -50,8 +50,6 @@ import {
   type ReservaAplicable,
 } from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
-import {
-} from "@/components/ui/command";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -139,17 +137,20 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
   // No permitimos mezclar bono + abono de reserva por simplicidad.
   const abonoActivo = !!reservaSel && !idBono;
-  const subtotalConDescuentoBono = Math.max(0, totalSeleccionado - descuentoBono);
   const descuentoReserva = abonoActivo
     ? Math.min(reservaSel.monto_abonado, totalSeleccionado)
     : 0;
+  const subtotalConDescuentos = Math.max(
+    0,
+    totalSeleccionado - descuentoBono - descuentoReserva,
+  );
   const reservaCubreTodo =
     abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(subtotalConDescuentoBono * (propinaPct ?? 0));
-  const totalConPropina = subtotalConDescuentoBono + propina;
+      : Math.round(subtotalConDescuentos * (propinaPct ?? 0));
+  const totalConPropina = subtotalConDescuentos + propina;
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -171,6 +172,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     itemIds: string[];
     propina: number;
     idBono: string | null;
+    idReserva: string | null;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => pagarFn({ data: input }),
@@ -321,7 +323,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             totalConPropina={totalConPropina}
             propinaProps={propinaProps}
             descuentoBono={descuentoBono}
+            descuentoReserva={descuentoReserva}
             bonoInfo={bonoInfo}
+            reservaInfo={reservaSel}
             onPagar={(extras) =>
               pagarMut.mutate({
                 idMesa,
@@ -332,6 +336,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 itemIds: Array.from(selected),
                 propina,
                 idBono,
+                idReserva: abonoActivo ? idReservaAbono : null,
               })
             }
             isLoading={pagarMut.isPending}
