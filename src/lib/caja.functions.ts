@@ -343,13 +343,8 @@ export interface AjusteCajaRow {
   created_at: string;
 }
 
-async function getCajaAbiertaHoy(
-  supabase: Parameters<Parameters<typeof createServerFn>[0] extends never ? never : never>[0] extends never ? never : never,
-): Promise<never> {
-  // placeholder to satisfy TS — real impl inline below
-  return null as never;
-}
-void getCajaAbiertaHoy;
+
+
 
 export const listarAjustesCajaActual = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
