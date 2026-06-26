@@ -280,6 +280,34 @@ function CierreWizard() {
           <CardContent className="space-y-3">
             <Diff label="Efectivo" sistema={efectivoEsperado} fisico={Number(efectivoFisico)} dif={difEfectivo} />
             <Diff label="Datáfono" sistema={datafonoEsperado} fisico={Number(datafonoFisico)} dif={difDatafono} />
+            {(ajustesPrevios ?? []).length > 0 && (
+              <div className="space-y-1 rounded-md border bg-muted/30 p-3">
+                <div className="text-sm font-semibold">
+                  Ajustes ya registrados hoy
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {(ajustesPrevios ?? []).map((a) => (
+                    <li key={a.id_ajuste} className="flex items-center justify-between">
+                      <span>
+                        {a.nombre}
+                        {a.nota && (
+                          <span className="ml-2 text-xs text-muted-foreground">· {a.nota}</span>
+                        )}
+                      </span>
+                      <span className="font-medium">
+                        {a.signo === "POSITIVO" ? "+" : "−"}
+                        {formatMoney(a.monto)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  Estos ajustes ya están aplicados al efectivo esperado. Edítalos desde la pantalla
+                  principal de Caja antes de cerrar.
+                </p>
+              </div>
+            )}
+
             <AjustesEditor
               tipos={tipos ?? []}
               ajustes={ajustes}
