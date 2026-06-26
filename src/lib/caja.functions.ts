@@ -186,6 +186,8 @@ export interface CierreDetalle {
   negocio_nombre: string;
   top_productos: Array<{ nombre: string; cantidad: number; total: number }>;
   hora_pico: { hora: number; total: number } | null;
+  ajustes: Array<{ id_ajuste: string; nombre: string; signo: "POSITIVO" | "NEGATIVO"; monto: number; nota: string | null }>;
+  total_ajustes: number;
 }
 
 export const getCierre = createServerFn({ method: "POST" })
