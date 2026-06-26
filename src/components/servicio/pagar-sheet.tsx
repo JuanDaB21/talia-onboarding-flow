@@ -362,6 +362,7 @@ function PropinaResumenRow({
   propinaProps: PropinaProps;
 }) {
   const { propinaPct, propinaCustom, onPickPct, onCustom } = propinaProps;
+  const [open, setOpen] = useState(false);
   const [customStr, setCustomStr] = useState<string>(
     propinaCustom !== null ? String(propinaCustom) : "",
   );
@@ -376,74 +377,114 @@ function PropinaResumenRow({
       : `${Math.round((propinaPct ?? 0) * 100)}%`;
 
   const opciones = [0, 0.05, 0.1, 0.15];
+  const montosFijos = [2000, 5000, 10000, 20000];
 
   return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-1 text-muted-foreground">
-        <span>Propina · {etiqueta}</span>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-[11px] font-normal text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
-            >
-              Editar
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-3 space-y-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-12 w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-foreground">Propina</span>
+          <span className="block text-xs text-muted-foreground">{etiqueta}</span>
+        </span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+          {fmt.format(propina)}
+        </span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-sm sm:translate-y-[-50%] sm:rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Propina</DialogTitle>
+            <DialogDescription>
+              Selecciona un porcentaje o define un monto fijo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 overflow-y-auto">
+            <section className="space-y-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
                 Porcentaje
               </p>
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-4 gap-2">
                 {opciones.map((pct) => {
                   const active = propinaCustom === null && propinaPct === pct;
                   return (
-                    <button
+                    <Button
                       key={pct}
                       type="button"
+                      variant={active ? "default" : "outline"}
+                      className="h-12"
                       onClick={() => {
                         onPickPct(pct);
                         setCustomStr("");
                       }}
-                      className={`rounded-md border px-1 py-1.5 text-xs transition-colors ${
-                        active
-                          ? "border-primary bg-primary/10 text-primary font-semibold"
-                          : "border-border bg-card hover:bg-muted"
-                      }`}
                     >
                       {Math.round(pct * 100)}%
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
-            </div>
-            <div>
-              <Label htmlFor="propina-custom" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Monto fijo
-              </Label>
+            </section>
+
+            <section className="space-y-2">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                Montos fijos
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {montosFijos.map((monto) => {
+                  const active = propinaCustom === monto;
+                  return (
+                    <Button
+                      key={monto}
+                      type="button"
+                      variant={active ? "default" : "outline"}
+                      className="h-12"
+                      onClick={() => {
+                        setCustomStr(String(monto));
+                        onCustom(monto);
+                      }}
+                    >
+                      {fmt.format(monto)}
+                    </Button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <Label htmlFor="propina-custom">Monto variable</Label>
               <Input
                 id="propina-custom"
                 inputMode="numeric"
-                placeholder="0"
+                placeholder="Escribe el monto"
                 value={customStr}
                 onChange={(e) => {
                   const v = e.target.value.replace(/[^\d]/g, "");
                   setCustomStr(v);
                   onCustom(v === "" ? null : Number(v));
                 }}
-                className={`mt-1 h-8 ${propinaCustom !== null ? "border-primary" : ""}`}
+                className="h-12 text-base"
               />
+            </section>
+
+            <div className="rounded-lg bg-muted p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Propina actual</span>
+                <span className="font-bold tabular-nums">{fmt.format(propina)}</span>
+              </div>
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-      <span className="tabular-nums font-medium text-foreground">
-        {fmt.format(propina)}
-      </span>
-    </div>
+
+            <Button className="h-12 w-full" onClick={() => setOpen(false)}>
+              Aplicar propina
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
