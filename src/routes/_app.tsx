@@ -63,6 +63,19 @@ function RoleRedirect() {
       MESERO: { home: "/servicio", allowed: ["/servicio"] },
       COCINA: { home: "/cocina", allowed: ["/cocina"] },
       BARRA: { home: "/barra", allowed: ["/barra"] },
+      CAJERO: {
+        home: "/caja",
+        allowed: [
+          "/caja",
+          "/operacion",
+          "/servicio",
+          "/reservas",
+          "/cocina",
+          "/barra",
+          "/bodega/compras",
+          "/bodega/inventario",
+        ],
+      },
     };
     const cfg = rules[rol];
     if (!cfg) return; // ADMIN/SUPERADMIN sin restricción
