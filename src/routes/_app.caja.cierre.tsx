@@ -14,7 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getEstadoCaja, cerrarCaja, listarTiposAjuste, crearTipoAjuste, type AjusteTipo } from "@/lib/caja.functions";
+import {
+  getEstadoCaja,
+  cerrarCaja,
+  listarTiposAjuste,
+  crearTipoAjuste,
+  listarAjustesCajaActual,
+  type AjusteTipo,
+} from "@/lib/caja.functions";
+
 import { formatMoney } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/caja/cierre")({
