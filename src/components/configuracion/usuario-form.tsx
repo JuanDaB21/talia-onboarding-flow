@@ -27,7 +27,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ROLES_UI,
   usuarioCreateSchema,
   usuarioUpdateSchema,
   type RolStaffUi,
@@ -38,12 +37,14 @@ import {
   crearUsuarioStaff,
   actualizarUsuarioStaff,
 } from "@/lib/usuarios.functions";
+import { useEspacios } from "@/hooks/use-espacios";
 
 interface ExistingUsuario {
   id_usuario: string;
   nombre: string;
   correo: string;
   rol: RolStaffUi;
+  id_espacio_asignado: string | null;
   estado: boolean;
   recibe_propinas: boolean;
 }
@@ -55,11 +56,14 @@ interface Props {
   onDelete?: () => void | Promise<void>;
 }
 
+const ROLES_BASE: RolStaffUi[] = ["ADMIN", "CAJERO", "MESERO"];
+
 export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
   const isEdit = Boolean(usuario);
   const [deleting, setDeleting] = useState(false);
   const crear = useServerFn(crearUsuarioStaff);
   const actualizar = useServerFn(actualizarUsuarioStaff);
+  const { espacios } = useEspacios({ soloActivos: true });
 
   type FormValues = UsuarioCreateInput | UsuarioUpdateInput;
 
@@ -75,6 +79,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
       ? {
           nombre: usuario!.nombre,
           rol: usuario!.rol,
+          id_espacio_asignado: usuario!.id_espacio_asignado,
           estado: usuario!.estado,
           recibe_propinas: usuario!.recibe_propinas,
           password: "",
@@ -84,6 +89,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
           correo: "",
           password: "",
           rol: "MESERO",
+          id_espacio_asignado: null,
           estado: true,
           recibe_propinas: false,
         },
@@ -91,7 +97,53 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
 
   const estado = watch("estado");
   const rol = watch("rol");
+  const idEspacio = watch("id_espacio_asignado") ?? null;
   const recibePropinas = watch("recibe_propinas");
+
+  // Construir opciones de "rol" como combinación de roles base + una opción por espacio activo.
+  // Internamente: COCINA/BARRA siguen su rol homónimo; otros espacios → rol=ESTACION + id_espacio.
+  type RolOption =
+    | { kind: "base"; value: RolStaffUi; label: string }
+    | { kind: "espacio"; value: string; label: string; slug: string; idEspacio: string; rol: RolStaffUi };
+
+  const opciones: RolOption[] = [
+    ...ROLES_BASE.map((r) => ({ kind: "base" as const, value: r, label: r })),
+    ...espacios.map((e) => ({
+      kind: "espacio" as const,
+      value: `ESP:${e.id_espacio}`,
+      label: `Estación · ${e.nombre}`,
+      slug: e.slug,
+      idEspacio: e.id_espacio,
+      rol: (e.slug === "COCINA" ? "COCINA" : e.slug === "BARRA" ? "BARRA" : "ESTACION") as RolStaffUi,
+    })),
+  ];
+
+  const currentValue: string = (() => {
+    if (rol === "COCINA" || rol === "BARRA" || rol === "ESTACION") {
+      const match = opciones.find(
+        (o) => o.kind === "espacio" && o.idEspacio === idEspacio,
+      );
+      if (match) return match.value;
+      // Fallback por slug si no se ha cargado el espacio
+      const bySlug = opciones.find(
+        (o) => o.kind === "espacio" && o.slug === (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : ""),
+      );
+      if (bySlug) return bySlug.value;
+    }
+    return rol;
+  })();
+
+  const handleRolChange = (val: string) => {
+    const opt = opciones.find((o) => o.value === val);
+    if (!opt) return;
+    if (opt.kind === "base") {
+      setValue("rol", opt.value, { shouldDirty: true });
+      setValue("id_espacio_asignado", null, { shouldDirty: true });
+    } else {
+      setValue("rol", opt.rol, { shouldDirty: true });
+      setValue("id_espacio_asignado", opt.idEspacio, { shouldDirty: true });
+    }
+  };
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -102,6 +154,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
             id_usuario: usuario.id_usuario,
             nombre: v.nombre,
             rol: v.rol,
+            id_espacio_asignado: v.id_espacio_asignado ?? null,
             estado: v.estado,
             recibe_propinas: v.recibe_propinas,
             password: v.password || undefined,
@@ -110,7 +163,12 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
         toast.success("Usuario actualizado");
       } else {
         const v = values as UsuarioCreateInput;
-        await crear({ data: v });
+        await crear({
+          data: {
+            ...v,
+            id_espacio_asignado: v.id_espacio_asignado ?? null,
+          },
+        });
         toast.success("Usuario creado");
       }
       onSuccess();
@@ -172,21 +230,23 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
 
       <div className="space-y-1.5">
         <Label>Rol</Label>
-        <Select
-          value={rol}
-          onValueChange={(v) => setValue("rol", v as RolStaffUi, { shouldDirty: true })}
-        >
+        <Select value={currentValue} onValueChange={handleRolChange}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ROLES_UI.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
+            {opciones.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {(errors as Record<string, { message?: string }>).id_espacio_asignado && (
+          <p className="text-xs text-destructive">
+            {(errors as Record<string, { message?: string }>).id_espacio_asignado.message}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-between rounded-md border p-3">
