@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { productoSchema, type ProductoInput } from "@/lib/menu-schemas";
-import { VariantesBuilder } from "./variantes-builder";
+// Variantes ahora se editan en la receta (paso 5), no en el producto.
 import type { Producto } from "./productos-tab";
 
 export function ProductoForm({
@@ -140,10 +140,7 @@ export function ProductoForm({
         <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
       </div>
 
-      <div className="space-y-2 pt-2 border-t">
-        <Label>Variantes (opciones acompañantes)</Label>
-        <VariantesBuilder idProducto={producto.id_producto} />
-      </div>
+      {/* Las variantes se editan desde la receta asociada. */}
 
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
