@@ -750,10 +750,13 @@ function PasoItems({
           <ReservaAbonoRow
             reservas={reservasAplicables}
             idReserva={idReservaAbono}
-            setIdReserva={setIdReservaAbono}
+            setIdReserva={(v) => {
+              setIdReservaAbono(v);
+              if (v && selected.size === 0) onSelectAll();
+            }}
             descuento={descuentoReserva}
             totalSeleccionado={totalSeleccionado}
-            disabled={selected.size === 0 || !!idBono}
+            disabled={!!idBono}
           />
           {!reservaCubreTodo && (
             <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
