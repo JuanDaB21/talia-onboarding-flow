@@ -339,10 +339,22 @@ export function PrepedidoItemEditor({
                               borderRadius: "var(--menu-radius)",
                             }}
                           >
-                            <span className="font-medium text-sm">{o.nombre_opcion}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-medium text-sm">
+                                {o.nombre_opcion}
+                              </span>
+                              {o.cantidad_porcion > 0 && (
+                                <span
+                                  className="block text-xs mt-0.5"
+                                  style={{ color: "var(--menu-muted)" }}
+                                >
+                                  {o.cantidad_porcion} {o.unidad_receta}
+                                </span>
+                              )}
+                            </span>
                             {o.precio_delta > 0 && (
                               <span
-                                className="text-sm font-semibold tabular-nums"
+                                className="text-sm font-semibold tabular-nums shrink-0"
                                 style={{ color: "var(--menu-primary)" }}
                               >
                                 +{fmt.format(o.precio_delta)}
