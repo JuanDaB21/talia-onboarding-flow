@@ -3,17 +3,43 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, Unlock, FileText, AlertCircle, Calendar as CalendarIcon, X } from "lucide-react";
+import { Lock, Unlock, FileText, AlertCircle, Calendar as CalendarIcon, X, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getEstadoCaja, abrirCaja, listarCierres } from "@/lib/caja.functions";
+import {
+  getEstadoCaja,
+  abrirCaja,
+  listarCierres,
+  listarTiposAjuste,
+  crearTipoAjuste,
+  listarAjustesCajaActual,
+  crearAjusteCaja,
+  eliminarAjusteCaja,
+  type AjusteTipo,
+} from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
+
 
 export const Route = createFileRoute("/_app/caja/")({
   head: () => ({ meta: [{ title: "Caja — Talia" }] }),
