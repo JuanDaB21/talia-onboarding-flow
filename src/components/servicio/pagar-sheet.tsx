@@ -11,14 +11,16 @@ import {
   Loader2,
   QrCode as QrCodeIcon,
   Smartphone,
+  Ticket,
   X,
+  CalendarCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -49,14 +51,7 @@ import {
 } from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
 } from "@/components/ui/command";
-import { Ticket, CalendarCheck } from "lucide-react";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
