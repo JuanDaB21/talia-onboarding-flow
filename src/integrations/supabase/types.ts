@@ -126,6 +126,99 @@ export type Database = {
           },
         ]
       }
+      caja_ajuste_tipos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id_negocio: string
+          id_tipo: string
+          nombre: string
+          signo: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id_negocio: string
+          id_tipo?: string
+          nombre: string
+          signo?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id_negocio?: string
+          id_tipo?: string
+          nombre?: string
+          signo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caja_ajuste_tipos_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
+      caja_ajustes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id_ajuste: string
+          id_caja: string
+          id_negocio: string
+          id_tipo: string
+          monto: number
+          nota: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id_ajuste?: string
+          id_caja: string
+          id_negocio: string
+          id_tipo: string
+          monto: number
+          nota?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id_ajuste?: string
+          id_caja?: string
+          id_negocio?: string
+          id_tipo?: string
+          monto?: number
+          nota?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caja_ajustes_id_caja_fkey"
+            columns: ["id_caja"]
+            isOneToOne: false
+            referencedRelation: "caja_dia"
+            referencedColumns: ["id_caja"]
+          },
+          {
+            foreignKeyName: "caja_ajustes_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "caja_ajustes_id_tipo_fkey"
+            columns: ["id_tipo"]
+            isOneToOne: false
+            referencedRelation: "caja_ajuste_tipos"
+            referencedColumns: ["id_tipo"]
+          },
+        ]
+      }
       caja_dia: {
         Row: {
           abierta_at: string
