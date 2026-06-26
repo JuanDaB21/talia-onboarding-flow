@@ -484,7 +484,7 @@ function BonoRow({
               Agregar bono
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-0">
+          <PopoverContent align="start" className="w-64 p-0 z-[60]">
             <Command>
               <CommandInput placeholder="Buscar bono..." />
               <CommandList>
