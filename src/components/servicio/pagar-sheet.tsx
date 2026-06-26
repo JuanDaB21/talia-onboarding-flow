@@ -541,10 +541,13 @@ function BonoRow({
 
 type BonoPreview = {
   nombre: string;
+  tipo: "PORCENTAJE" | "VALOR";
   porcentaje: number;
+  valor: number;
   descuento: number;
   descuento_neto: number;
 };
+
 
 function PasoItems({
   items,
