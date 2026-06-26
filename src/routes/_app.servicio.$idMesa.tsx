@@ -971,6 +971,68 @@ function ItemRow({
   );
 }
 
+type ItemResumido = {
+  key: string;
+  nombre: string;
+  cantidad: number;
+  nota: string | null;
+  extras: { nombre: string }[];
+  exclusiones: { nombre: string }[];
+  variantes: { nombre_grupo: string; nombre_opcion: string }[];
+  tieneModificaciones: boolean;
+};
+
+function agruparItemsResumen(items: ItemPedidoSesion[]): ItemResumido[] {
+  const collator = new Intl.Collator("es", { sensitivity: "base" });
+  const map = new Map<string, ItemResumido>();
+  for (const it of items) {
+    const nota = (it.nota ?? "").trim();
+    const extras = [...it.extras]
+      .map((e) => ({ nombre: e.nombre }))
+      .sort((a, b) => collator.compare(a.nombre, b.nombre));
+    const exclusiones = [...it.exclusiones]
+      .map((e) => ({ nombre: e.nombre }))
+      .sort((a, b) => collator.compare(a.nombre, b.nombre));
+    const variantes = [...it.variantes]
+      .map((v) => ({ nombre_grupo: v.nombre_grupo, nombre_opcion: v.nombre_opcion }))
+      .sort(
+        (a, b) =>
+          collator.compare(a.nombre_grupo, b.nombre_grupo) ||
+          collator.compare(a.nombre_opcion, b.nombre_opcion),
+      );
+    const key = [
+      it.id_producto,
+      nota.toLowerCase(),
+      extras.map((e) => e.nombre.toLowerCase()).join("|"),
+      exclusiones.map((e) => e.nombre.toLowerCase()).join("|"),
+      variantes.map((v) => `${v.nombre_grupo}:${v.nombre_opcion}`.toLowerCase()).join("|"),
+    ].join("§");
+    const tieneModificaciones =
+      nota.length > 0 || extras.length > 0 || exclusiones.length > 0 || variantes.length > 0;
+    const existing = map.get(key);
+    if (existing) {
+      existing.cantidad += Number(it.cantidad);
+    } else {
+      map.set(key, {
+        key,
+        nombre: it.nombre_producto,
+        cantidad: Number(it.cantidad),
+        nota: nota.length > 0 ? nota : null,
+        extras,
+        exclusiones,
+        variantes,
+        tieneModificaciones,
+      });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.tieneModificaciones !== b.tieneModificaciones) {
+      return a.tieneModificaciones ? 1 : -1;
+    }
+    return collator.compare(a.nombre, b.nombre);
+  });
+}
+
 function PedidoAbiertoCard({
   pedido,
   mesa,
