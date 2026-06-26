@@ -762,16 +762,76 @@ function PedidoConfirmadoCard({
 
       {open && (
         <div className="p-4 space-y-3">
-          <ul className="space-y-2 divide-y">
-            {pedido.items.map((it) => (
-              <ItemRow
-                key={it.id_item}
-                item={it}
-                onEdit={onEditItem}
-                onDelete={onDeleteItem}
-              />
-            ))}
-          </ul>
+          <div className="inline-flex rounded-md border p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setVista("detallado")}
+              className={cn(
+                "px-2.5 py-1 rounded-sm transition-colors",
+                vista === "detallado"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Detallado
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista("resumen")}
+              className={cn(
+                "px-2.5 py-1 rounded-sm transition-colors",
+                vista === "resumen"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Resumen
+            </button>
+          </div>
+
+          {vista === "detallado" ? (
+            <ul className="space-y-2 divide-y">
+              {pedido.items.map((it) => (
+                <ItemRow
+                  key={it.id_item}
+                  item={it}
+                  onEdit={onEditItem}
+                  onDelete={onDeleteItem}
+                />
+              ))}
+            </ul>
+          ) : (
+            <ul className="space-y-2 divide-y">
+              {resumen.map((g) => (
+                <li key={g.key} className="pt-2 first:pt-0">
+                  <p className="text-sm font-medium break-words">
+                    {g.nombre}
+                    {g.tieneModificaciones ? " (con nota)" : ""} x{g.cantidad}
+                  </p>
+                  {g.variantes.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {g.variantes.map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`).join(" · ")}
+                    </p>
+                  )}
+                  {g.extras.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      + {g.extras.map((e) => e.nombre).join(", ")}
+                    </p>
+                  )}
+                  {g.exclusiones.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Sin {g.exclusiones.map((x) => x.nombre).join(", ")}
+                    </p>
+                  )}
+                  {g.nota && (
+                    <p className="text-[11px] italic text-muted-foreground mt-0.5">
+                      Nota: {g.nota}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {tieneAlgunEnCola && (
