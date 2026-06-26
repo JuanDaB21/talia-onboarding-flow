@@ -1942,6 +1942,7 @@ export type Database = {
         Args: {
           p_id_bono?: string
           p_id_mesa: string
+          p_id_reserva?: string
           p_item_ids: string[]
           p_metodo: Database["public"]["Enums"]["metodo_pago"]
           p_propina?: number
