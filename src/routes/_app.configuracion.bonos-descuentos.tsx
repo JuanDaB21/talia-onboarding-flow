@@ -129,8 +129,12 @@ function BonosTab() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["bonos"] });
 
   const crearMut = useMutation({
-    mutationFn: (input: { nombre: string; porcentaje: number }) =>
-      crear({ data: input }),
+    mutationFn: (input: {
+      nombre: string;
+      tipo: "PORCENTAJE" | "VALOR";
+      porcentaje: number | null;
+      valor: number | null;
+    }) => crear({ data: input }),
     onSuccess: () => {
       toast.success("Bono creado");
       setOpenCrear(false);
@@ -146,7 +150,9 @@ function BonosTab() {
     mutationFn: (input: {
       idBono: string;
       nombre: string;
-      porcentaje: number;
+      tipo: "PORCENTAJE" | "VALOR";
+      porcentaje: number | null;
+      valor: number | null;
       activo: boolean;
     }) => actualizar({ data: input }),
     onSuccess: () => {
@@ -204,8 +210,13 @@ function BonosTab() {
                   {!b.activo && <Badge variant="secondary">Inactivo</Badge>}
                 </div>
                 <CardDescription className="text-2xl font-bold text-primary">
-                  {b.porcentaje}%
+                  {b.tipo === "PORCENTAJE"
+                    ? `${b.porcentaje ?? 0}%`
+                    : fmt.format(b.valor)}
                 </CardDescription>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {b.tipo === "PORCENTAJE" ? "Porcentaje" : "Valor fijo"}
+                </p>
               </CardHeader>
               <CardContent className="flex gap-2 pt-0">
                 <Button
@@ -236,7 +247,14 @@ function BonosTab() {
       <BonoDialog
         open={openCrear}
         onOpenChange={setOpenCrear}
-        onSubmit={(v) => crearMut.mutate(v)}
+        onSubmit={(v) =>
+          crearMut.mutate({
+            nombre: v.nombre,
+            tipo: v.tipo,
+            porcentaje: v.tipo === "PORCENTAJE" ? v.porcentaje : null,
+            valor: v.tipo === "VALOR" ? v.valor : null,
+          })
+        }
         loading={crearMut.isPending}
         title="Crear bono"
       />
@@ -249,7 +267,9 @@ function BonosTab() {
           actualizarMut.mutate({
             idBono: editar.id_bono,
             nombre: v.nombre,
-            porcentaje: v.porcentaje,
+            tipo: v.tipo,
+            porcentaje: v.tipo === "PORCENTAJE" ? v.porcentaje : null,
+            valor: v.tipo === "VALOR" ? v.valor : null,
             activo: v.activo ?? editar.activo,
           })
         }
@@ -260,6 +280,7 @@ function BonosTab() {
     </div>
   );
 }
+
 
 function BonoDialog({
   open,
@@ -273,33 +294,49 @@ function BonoDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   initial?: Bono;
-  onSubmit: (v: { nombre: string; porcentaje: number; activo?: boolean }) => void;
+  onSubmit: (v: {
+    nombre: string;
+    tipo: "PORCENTAJE" | "VALOR";
+    porcentaje: number;
+    valor: number;
+    activo?: boolean;
+  }) => void;
   loading: boolean;
   title: string;
   showActivo?: boolean;
 }) {
   const [nombre, setNombre] = useState(initial?.nombre ?? "");
+  const [tipo, setTipo] = useState<"PORCENTAJE" | "VALOR">(
+    initial?.tipo ?? "PORCENTAJE",
+  );
   const [porcentaje, setPorcentaje] = useState<string>(
-    initial ? String(initial.porcentaje) : "",
+    initial?.porcentaje != null ? String(initial.porcentaje) : "",
+  );
+  const [valor, setValor] = useState<string>(
+    initial && initial.tipo === "VALOR" ? String(initial.valor) : "",
   );
   const [activo, setActivo] = useState(initial?.activo ?? true);
 
-  // Resync when opening with different initial
   useMemo(() => {
     if (open) {
       setNombre(initial?.nombre ?? "");
-      setPorcentaje(initial ? String(initial.porcentaje) : "");
+      setTipo(initial?.tipo ?? "PORCENTAJE");
+      setPorcentaje(
+        initial?.porcentaje != null ? String(initial.porcentaje) : "",
+      );
+      setValor(initial && initial.tipo === "VALOR" ? String(initial.valor) : "");
       setActivo(initial?.activo ?? true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial?.id_bono]);
 
   const pct = Number(porcentaje);
+  const val = Number(valor);
   const valido =
     nombre.trim().length > 0 &&
-    Number.isFinite(pct) &&
-    pct > 0 &&
-    pct <= 100;
+    (tipo === "PORCENTAJE"
+      ? Number.isFinite(pct) && pct > 0 && pct <= 100
+      : Number.isFinite(val) && val > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -318,22 +355,58 @@ function BonoDialog({
             />
           </div>
           <div>
-            <Label htmlFor="bono-pct">Porcentaje de descuento</Label>
-            <div className="relative">
-              <Input
-                id="bono-pct"
-                inputMode="decimal"
-                value={porcentaje}
-                onChange={(e) =>
-                  setPorcentaje(e.target.value.replace(/[^\d.]/g, ""))
-                }
-                placeholder="10"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                %
-              </span>
-            </div>
+            <Label>Tipo de descuento</Label>
+            <Select
+              value={tipo}
+              onValueChange={(v) => setTipo(v as "PORCENTAJE" | "VALOR")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PORCENTAJE">Porcentaje (%)</SelectItem>
+                <SelectItem value="VALOR">Valor fijo ($)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          {tipo === "PORCENTAJE" ? (
+            <div>
+              <Label htmlFor="bono-pct">Porcentaje de descuento</Label>
+              <div className="relative">
+                <Input
+                  id="bono-pct"
+                  inputMode="decimal"
+                  value={porcentaje}
+                  onChange={(e) =>
+                    setPorcentaje(e.target.value.replace(/[^\d.]/g, ""))
+                  }
+                  placeholder="10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  %
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label htmlFor="bono-val">Valor del descuento</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  id="bono-val"
+                  inputMode="numeric"
+                  className="pl-7"
+                  value={valor}
+                  onChange={(e) =>
+                    setValor(e.target.value.replace(/[^\d]/g, ""))
+                  }
+                  placeholder="5000"
+                />
+              </div>
+            </div>
+          )}
           {showActivo && (
             <div className="flex items-center justify-between">
               <Label htmlFor="bono-activo">Activo</Label>
@@ -354,7 +427,9 @@ function BonoDialog({
             onClick={() =>
               onSubmit({
                 nombre: nombre.trim(),
-                porcentaje: pct,
+                tipo,
+                porcentaje: tipo === "PORCENTAJE" ? pct : 0,
+                valor: tipo === "VALOR" ? val : 0,
                 activo: showActivo ? activo : undefined,
               })
             }
@@ -367,6 +442,7 @@ function BonoDialog({
     </Dialog>
   );
 }
+
 
 function HistorialTab() {
   const historialFn = useServerFn(historialBonos);

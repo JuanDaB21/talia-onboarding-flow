@@ -2,13 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type TipoBono = "PORCENTAJE" | "VALOR";
+
 export interface Bono {
   id_bono: string;
   nombre: string;
-  porcentaje: number;
+  tipo: TipoBono;
+  porcentaje: number | null;
+  valor: number;
   activo: boolean;
   created_at: string;
 }
+
 
 export interface BonoAplicacion {
   id_aplicacion: string;
@@ -26,17 +31,40 @@ export interface BonoAplicacion {
   created_at: string;
 }
 
-const crearSchema = z.object({
-  nombre: z.string().min(1).max(80),
-  porcentaje: z.number().min(0.01).max(100),
-});
+const tipoSchema = z.enum(["PORCENTAJE", "VALOR"]);
 
-const actualizarSchema = z.object({
-  idBono: z.string().uuid(),
-  nombre: z.string().min(1).max(80),
-  porcentaje: z.number().min(0.01).max(100),
-  activo: z.boolean(),
-});
+const crearSchema = z
+  .object({
+    nombre: z.string().min(1).max(80),
+    tipo: tipoSchema,
+    porcentaje: z.number().min(0.01).max(100).nullable().optional(),
+    valor: z.number().min(1).max(100_000_000).nullable().optional(),
+  })
+  .refine(
+    (v) =>
+      v.tipo === "PORCENTAJE"
+        ? typeof v.porcentaje === "number" && v.porcentaje > 0
+        : typeof v.valor === "number" && v.valor > 0,
+    { message: "Valor o porcentaje requerido según el tipo" },
+  );
+
+const actualizarSchema = z
+  .object({
+    idBono: z.string().uuid(),
+    nombre: z.string().min(1).max(80),
+    tipo: tipoSchema,
+    porcentaje: z.number().min(0.01).max(100).nullable().optional(),
+    valor: z.number().min(1).max(100_000_000).nullable().optional(),
+    activo: z.boolean(),
+  })
+  .refine(
+    (v) =>
+      v.tipo === "PORCENTAJE"
+        ? typeof v.porcentaje === "number" && v.porcentaje > 0
+        : typeof v.valor === "number" && v.valor > 0,
+    { message: "Valor o porcentaje requerido según el tipo" },
+  );
+
 
 const idBonoSchema = z.object({ idBono: z.string().uuid() });
 
@@ -71,7 +99,7 @@ export const listarBonos = createServerFn({ method: "GET" })
     const admin = await esAdmin(supabase, userId);
     let q = supabase
       .from("bonos")
-      .select("id_bono, nombre, porcentaje, activo, created_at")
+      .select("id_bono, nombre, tipo, porcentaje, valor, activo, created_at")
       .order("created_at", { ascending: false });
     if (!admin) q = q.eq("activo", true);
     const { data, error } = await q;
@@ -81,7 +109,9 @@ export const listarBonos = createServerFn({ method: "GET" })
       bonos: (data ?? []).map((b) => ({
         id_bono: b.id_bono,
         nombre: b.nombre,
-        porcentaje: Number(b.porcentaje),
+        tipo: (b.tipo ?? "PORCENTAJE") as TipoBono,
+        porcentaje: b.porcentaje == null ? null : Number(b.porcentaje),
+        valor: Number(b.valor ?? 0),
         activo: b.activo,
         created_at: b.created_at,
       })) as Bono[],
@@ -104,7 +134,9 @@ export const crearBono = createServerFn({ method: "POST" })
       .insert({
         id_negocio: staff.id_negocio,
         nombre: data.nombre.trim(),
-        porcentaje: data.porcentaje,
+        tipo: data.tipo,
+        porcentaje: data.tipo === "PORCENTAJE" ? data.porcentaje! : null,
+        valor: data.tipo === "VALOR" ? data.valor! : 0,
       })
       .select("id_bono")
       .single();
@@ -121,13 +153,16 @@ export const actualizarBono = createServerFn({ method: "POST" })
       .from("bonos")
       .update({
         nombre: data.nombre.trim(),
-        porcentaje: data.porcentaje,
+        tipo: data.tipo,
+        porcentaje: data.tipo === "PORCENTAJE" ? data.porcentaje! : null,
+        valor: data.tipo === "VALOR" ? data.valor! : 0,
         activo: data.activo,
       })
       .eq("id_bono", data.idBono);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const eliminarBono = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -150,7 +185,7 @@ export const previsualizarBono = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: bono, error: bErr } = await supabase
       .from("bonos")
-      .select("nombre, porcentaje, activo")
+      .select("nombre, tipo, porcentaje, valor, activo")
       .eq("id_bono", data.idBono)
       .maybeSingle();
     if (bErr) throw new Error(bErr.message);
@@ -167,18 +202,31 @@ export const previsualizarBono = createServerFn({ method: "POST" })
     const costo = Number(
       (costos as { costo_total?: number } | null)?.costo_total ?? 0,
     );
-    const porcentaje = Number(bono.porcentaje);
-    const descuento = Math.min(precio, Math.round((precio * porcentaje) / 100));
+    const tipo = (bono.tipo ?? "PORCENTAJE") as TipoBono;
+    const porcentaje = bono.porcentaje == null ? 0 : Number(bono.porcentaje);
+    const valor = Number(bono.valor ?? 0);
+    const descuentoBruto =
+      tipo === "PORCENTAJE" ? Math.round((precio * porcentaje) / 100) : valor;
+    const descuento = Math.min(precio, descuentoBruto);
+    const pctAplicado =
+      tipo === "PORCENTAJE"
+        ? porcentaje
+        : precio > 0
+          ? Math.round((descuento * 10000) / precio) / 100
+          : 0;
     const margen = precio > 0 ? Math.max(0, (precio - costo) / precio) : 0;
     const neto = Math.round(descuento * margen);
     return {
       nombre: bono.nombre as string,
-      porcentaje,
+      tipo,
+      porcentaje: pctAplicado,
+      valor,
       descuento,
       descuento_neto: neto,
       subtotal: precio,
     };
   });
+
 
 export const historialBonos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

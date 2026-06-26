@@ -501,8 +501,11 @@ function BonoRow({
                     >
                       <span className="flex-1">{b.nombre}</span>
                       <span className="text-xs text-muted-foreground tabular-nums">
-                        -{b.porcentaje}%
+                        {b.tipo === "VALOR"
+                          ? `-${fmt.format(b.valor)}`
+                          : `-${b.porcentaje ?? 0}%`}
                       </span>
+
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -520,7 +523,7 @@ function BonoRow({
       <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
         <Ticket className="h-3.5 w-3.5" />
         <span>
-          Bono {bonoInfo ? `· ${bonoInfo.nombre} (${bonoInfo.porcentaje}%)` : ""}
+          Bono {bonoInfo ? `· ${bonoInfo.nombre} (${bonoInfo.tipo === "VALOR" ? fmt.format(bonoInfo.valor) : `${bonoInfo.porcentaje}%`})` : ""}
         </span>
         <Button
           type="button"
@@ -541,10 +544,13 @@ function BonoRow({
 
 type BonoPreview = {
   nombre: string;
+  tipo: "PORCENTAJE" | "VALOR";
   porcentaje: number;
+  valor: number;
   descuento: number;
   descuento_neto: number;
 };
+
 
 function PasoItems({
   items,
