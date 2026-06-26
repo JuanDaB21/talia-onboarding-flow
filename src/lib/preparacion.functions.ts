@@ -2,14 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const destinoSchema = z.object({ destino: z.enum(["COCINA", "BARRA"]) });
+const destinoSchema = z.object({ destino: z.string().min(1).max(40) });
 const avanzarSchema = z.object({
   idItem: z.string().uuid(),
   nuevoEstado: z.enum(["EN_PREPARACION", "LISTO"]),
 });
 const iniciarComandaSchema = z.object({
   idPedido: z.string().uuid(),
-  destino: z.enum(["COCINA", "BARRA"]),
+  destino: z.string().min(1).max(40),
 });
 
 export interface ItemPreparacion {
@@ -58,7 +58,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
          productos:id_producto(nombre_producto, receta_master:id_receta(subcategorias:id_subcategoria(nombre))),
          pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
-      .eq("destino", data.destino)
+      .eq("destino", data.destino.toUpperCase())
       .neq("estado_preparacion", "ENTREGADO")
       .eq("pedidos.estado", "CONFIRMADO")
       .order("created_at", { ascending: true });
@@ -75,7 +75,7 @@ export const listarComandasEstacion = createServerFn({ method: "POST" })
          productos:id_producto(nombre_producto, receta_master:id_receta(subcategorias:id_subcategoria(nombre))),
          pedidos!inner(id_pedido, estado, created_at, id_mesa, id_mesero, mesas:id_mesa(identificador))`,
       )
-      .eq("destino", data.destino)
+      .eq("destino", data.destino.toUpperCase())
       .eq("estado_preparacion", "ENTREGADO")
       .gte("entregado_at", haceUnaHora)
       .order("entregado_at", { ascending: false })
