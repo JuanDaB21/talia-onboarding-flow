@@ -185,6 +185,17 @@ export const solicitarAccionCliente = createServerFn({ method: "POST" })
       p_tipo: data.tipo,
     });
     if (error) throw new Error(error.message);
+
+    // Asignar mesero a la mesa con el mismo comportamiento que "Llamar mesero":
+    // si la mesa aún no tiene mesero asignado, intentar asignar uno en turno.
+    const { data: mesa } = await supabaseAdmin
+      .from("mesas")
+      .select("id_mesero_asignado")
+      .eq("id_mesa", data.idMesa)
+      .maybeSingle();
+    if (mesa && !mesa.id_mesero_asignado) {
+      await supabaseAdmin.rpc("asignar_mesero_a_mesa", { p_id_mesa: data.idMesa });
+    }
     return { ok: true };
   });
 
