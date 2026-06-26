@@ -1,17 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Lock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, AlertCircle, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getEstadoCaja, cerrarCaja } from "@/lib/caja.functions";
+import { getEstadoCaja, cerrarCaja, listarTiposAjuste, crearTipoAjuste, type AjusteTipo } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/caja/cierre")({
