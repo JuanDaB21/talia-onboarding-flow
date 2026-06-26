@@ -835,7 +835,7 @@ function PasoItems({
             }}
             descuento={descuentoReserva}
             totalSeleccionado={totalSeleccionado}
-            disabled={!!idBono}
+            disabled={!!idBono || !hayPendientes}
           />
           {!reservaCubreTodo && (
             <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
