@@ -1,43 +1,44 @@
-# Unir pre-pedido + adiciones del mesero en un mismo pedido
+## Problema
 
-## Problema actual
+La mesa no entra a `OCUPADA` en todos los puntos donde debería, y solo se libera por cierre manual. Estado real hoy:
 
-Hoy la mesa termina con varios pedidos separados ("Pedido #1", "Pedido #2"…) aunque el mesero solo quería sumar productos al pedido que ya estaba en cola:
+| Evento | ¿Marca OCUPADA? |
+|---|---|
+| Cliente toca "Llamar mesero" | Sí (`llamarMesero` ya lo hace) |
+| Cliente toca "Confirmar pedido" | **No** — `solicitar_accion_cliente` solo escribe `solicitud_cliente='TOMAR_PEDIDO'`, no toca `estado` |
+| Mesero acepta el prepedido (`aceptar_prepedido_mesa`) | **No** — la RPC inserta items pero no actualiza `estado` |
+| Confirmación del último pago | **No** — `registrar_pago` / `confirmar_pago` no liberan |
+| Cierre manual (`cerrar_mesa`) | Sí, libera (`estado='LIBRE'`) |
 
-1. El cliente arma su pre-pedido y lo confirma desde el celular.
-2. El mesero acepta el pre-pedido → se crea **Pedido #1** (Abierto) y luego lo confirma → pasa a **En cola**.
-3. Si el cliente sigue agregando al pre-pedido y vuelve a confirmar, el sistema crea **Pedido #2** porque ya no hay un pedido "Abierto" donde meter los items nuevos.
-4. Lo mismo pasa si el mesero quiere agregar más productos: se crea un pedido aparte.
-
-El usuario quiere que mientras la mesa siga abierta, todo lo que provenga del pre-pedido y la primera adición del mesero se acumule en **el mismo pedido**, conservando el botón "Agregar productos (nueva orden)" para los casos en que sí se quiera separar la comanda a propósito.
+Resultado: una mesa puede quedar `LIBRE` aunque el cliente ya tenga pedido confirmado, y nunca se libera sola al terminar de cobrar.
 
 ## Cambios
 
-### 1. Backend — RPC `aceptar_prepedido_mesa`
+Todo se hace en la base de datos (RPCs `SECURITY DEFINER`), una sola migración. Los server-fn / componentes no cambian.
 
-Migración para que la función que pasa los items del pre-pedido al pedido real reutilice el pedido más reciente de la mesa que no esté pagado (esté Abierto o En cola), en vez de crear uno nuevo cuando el último ya está confirmado.
+1. **`solicitar_accion_cliente(p_id_mesa, p_tipo)`** — cuando `p_tipo='TOMAR_PEDIDO'`, además de fijar `solicitud_cliente/at`, marcar `estado='OCUPADA'` y `asignada_at=now()` si la mesa está `LIBRE`. Para `PEDIR_MAS`/`CUENTA` la mesa ya estaba ocupada, no se toca.
 
-- Buscar el pedido vigente: primero un Abierto; si no hay, el último Confirmado (no pagado, no cancelado, no cerrado) de la mesa.
-- Solo crear un pedido nuevo cuando realmente no exista ninguno vigente.
-- Si los items se insertan sobre un pedido En cola, calcular y guardar `destino` y `tiempo_planeado_min` por item (igual que ya hace `agregar_item_pedido` cuando se agrega a un pedido confirmado), para que la cocina los reciba como nuevos items "En cola" del pedido existente.
-- Mantener el conteo de items insertados y el recálculo del total.
+2. **`aceptar_prepedido_mesa(p_id_mesa)`** — al final, si la mesa quedó en `LIBRE`, marcarla `OCUPADA` defensivamente (cubre prepedidos legacy y la ruta del mesero que confirma directamente).
 
-### 2. UI — sin cambios funcionales mayores
+3. **Liberación automática al terminar el pago** — nueva función interna `public.intentar_liberar_mesa_si_pagada(p_id_mesa)` que libera la mesa solo cuando:
+   - no quedan `pedido_items` sin `pagado_at` en pedidos no `PAGADO` de la mesa, y
+   - no hay `pagos` con `estado_confirmacion='PENDIENTE'` para la mesa.
+   
+   Si se cumple, hace lo mismo que `cerrar_mesa` (marcar pedidos `PAGADO`, mesa `LIBRE`, limpiar mesero/solicitud, borrar `prepedido_sesiones`). Se llama desde:
+   - el final de `registrar_pago` (cubre EFECTIVO/QR confirmados al momento),
+   - el final de `confirmar_pago` cuando `p_aprobar=true` (cubre TRANSFERENCIA al aprobarse el último comprobante).
 
-- El botón **"Agregar producto"** dentro de la tarjeta de cada pedido ya apunta al pedido específico (lo añade al mismo pedido); se mantiene.
-- El botón **"Agregar productos (nueva orden)"** se conserva exactamente como está, para los casos en que el mesero quiera abrir un pedido nuevo a propósito.
-- La tarjeta de "Cliente armando pedido" sigue mostrándose en vivo; al pulsar "Aceptar pre-pedido", los items entrarán al pedido vigente.
+4. **`cerrar_mesa`** se mantiene tal cual para cierre manual del mesero/cajero.
 
 ## Resultado esperado
 
-- Cliente confirma → Pedido #1 (En cola con su item).
-- Cliente sigue agregando y vuelve a confirmar → los items nuevos aparecen dentro del **mismo Pedido #1**, marcados "En cola" para cocina.
-- Mesero pulsa "Agregar producto" en la tarjeta del Pedido #1 → también se suman al **mismo Pedido #1**.
-- Solo cuando el mesero pulse "Agregar productos (nueva orden)" se creará un Pedido #2 separado.
+- Cliente toca "Llamar mesero" → mesa `OCUPADA` (sin cambio).
+- Cliente toca "Confirmar pedido" → mesa `OCUPADA` y, si no tiene mesero, se le asigna uno (igual que el llamado).
+- Mesa permanece `OCUPADA` durante todo el ciclo, incluso si hay pagos parciales.
+- Mesa pasa a `LIBRE` solo cuando: (a) se cobra/confirma el último pago y no queda nada pendiente, o (b) el cajero presiona "Cerrar mesa" manualmente.
 
-## Detalle técnico
+## Detalles técnicos
 
-- Migración que reemplaza `public.aceptar_prepedido_mesa(uuid)` con la nueva lógica de búsqueda de pedido vigente (`ORDER BY created_at DESC LIMIT 1` sobre estados `ABIERTO`/`CONFIRMADO`).
-- El INSERT en `pedido_items` toma `destino` desde `categorias.destino` y `tiempo_planeado_min` desde `receta_master.tiempo_preparacion_min` cuando el pedido reutilizado está en `CONFIRMADO`, dejando los demás campos por defecto (`estado_preparacion = EN_COLA`).
-- No se tocan las tablas ni se cambian políticas RLS; solo se actualiza la función.
-- No requiere cambios en server functions ni en tipos generados (la firma de la RPC no cambia).
+- Una sola migración SQL con `CREATE OR REPLACE` de las tres RPCs públicas más la nueva helper interna.
+- `intentar_liberar_mesa_si_pagada` filtra por `current_user_negocio()` y no lanza excepción si aún hay pendientes (no romper el flujo de pagos parciales).
+- Sin cambios en `src/lib/*.ts` ni en componentes — el contrato de las RPCs no cambia.
