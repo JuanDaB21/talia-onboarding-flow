@@ -35,10 +35,12 @@ import { Route as AppServicioIdMesaRouteImport } from './routes/_app.servicio.$i
 import { Route as AppMenuRecetasRouteImport } from './routes/_app.menu.recetas'
 import { Route as AppMenuProductosRouteImport } from './routes/_app.menu.productos'
 import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.categorias'
+import { Route as AppEstacionSlugRouteImport } from './routes/_app.estacion.$slug'
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
 import { Route as AppConfiguracionPropinasRouteImport } from './routes/_app.configuracion.propinas'
 import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
+import { Route as AppConfiguracionEspaciosRouteImport } from './routes/_app.configuracion.espacios'
 import { Route as AppConfiguracionBonosDescuentosRouteImport } from './routes/_app.configuracion.bonos-descuentos'
 import { Route as AppConfiguracionAparienciaRouteImport } from './routes/_app.configuracion.apariencia'
 import { Route as AppCajaCierreRouteImport } from './routes/_app.caja.cierre'
@@ -182,6 +184,11 @@ const AppMenuCategoriasRoute = AppMenuCategoriasRouteImport.update({
   path: '/categorias',
   getParentRoute: () => AppMenuRoute,
 } as any)
+const AppEstacionSlugRoute = AppEstacionSlugRouteImport.update({
+  id: '/estacion/$slug',
+  path: '/estacion/$slug',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConfiguracionUsuariosRoute =
   AppConfiguracionUsuariosRouteImport.update({
     id: '/usuarios',
@@ -205,6 +212,12 @@ const AppConfiguracionMesasRoute = AppConfiguracionMesasRouteImport.update({
   path: '/mesas',
   getParentRoute: () => AppConfiguracionRoute,
 } as any)
+const AppConfiguracionEspaciosRoute =
+  AppConfiguracionEspaciosRouteImport.update({
+    id: '/espacios',
+    path: '/espacios',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionBonosDescuentosRoute =
   AppConfiguracionBonosDescuentosRouteImport.update({
     id: '/bonos-descuentos',
@@ -298,10 +311,12 @@ export interface FileRoutesByFullPath {
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
+  '/estacion/$slug': typeof AppEstacionSlugRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
   '/menu/recetas': typeof AppMenuRecetasRouteWithChildren
@@ -335,10 +350,12 @@ export interface FileRoutesByTo {
   '/caja/cierre': typeof AppCajaCierreRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
+  '/estacion/$slug': typeof AppEstacionSlugRoute
   '/menu/categorias': typeof AppMenuCategoriasRoute
   '/menu/productos': typeof AppMenuProductosRoute
   '/servicio/$idMesa': typeof AppServicioIdMesaRoute
@@ -380,10 +397,12 @@ export interface FileRoutesById {
   '/_app/caja/cierre': typeof AppCajaCierreRoute
   '/_app/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/_app/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/_app/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
   '/_app/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
+  '/_app/estacion/$slug': typeof AppEstacionSlugRoute
   '/_app/menu/categorias': typeof AppMenuCategoriasRoute
   '/_app/menu/productos': typeof AppMenuProductosRoute
   '/_app/menu/recetas': typeof AppMenuRecetasRouteWithChildren
@@ -426,10 +445,12 @@ export interface FileRouteTypes {
     | '/caja/cierre'
     | '/configuracion/apariencia'
     | '/configuracion/bonos-descuentos'
+    | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
     | '/configuracion/propinas'
     | '/configuracion/usuarios'
+    | '/estacion/$slug'
     | '/menu/categorias'
     | '/menu/productos'
     | '/menu/recetas'
@@ -463,10 +484,12 @@ export interface FileRouteTypes {
     | '/caja/cierre'
     | '/configuracion/apariencia'
     | '/configuracion/bonos-descuentos'
+    | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
     | '/configuracion/propinas'
     | '/configuracion/usuarios'
+    | '/estacion/$slug'
     | '/menu/categorias'
     | '/menu/productos'
     | '/servicio/$idMesa'
@@ -507,10 +530,12 @@ export interface FileRouteTypes {
     | '/_app/caja/cierre'
     | '/_app/configuracion/apariencia'
     | '/_app/configuracion/bonos-descuentos'
+    | '/_app/configuracion/espacios'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/metodos-pago'
     | '/_app/configuracion/propinas'
     | '/_app/configuracion/usuarios'
+    | '/_app/estacion/$slug'
     | '/_app/menu/categorias'
     | '/_app/menu/productos'
     | '/_app/menu/recetas'
@@ -724,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMenuCategoriasRouteImport
       parentRoute: typeof AppMenuRoute
     }
+    '/_app/estacion/$slug': {
+      id: '/_app/estacion/$slug'
+      path: '/estacion/$slug'
+      fullPath: '/estacion/$slug'
+      preLoaderRoute: typeof AppEstacionSlugRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/configuracion/usuarios': {
       id: '/_app/configuracion/usuarios'
       path: '/usuarios'
@@ -750,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/mesas'
       fullPath: '/configuracion/mesas'
       preLoaderRoute: typeof AppConfiguracionMesasRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
+    '/_app/configuracion/espacios': {
+      id: '/_app/configuracion/espacios'
+      path: '/espacios'
+      fullPath: '/configuracion/espacios'
+      preLoaderRoute: typeof AppConfiguracionEspaciosRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
     '/_app/configuracion/bonos-descuentos': {
@@ -895,6 +934,7 @@ const AppCajaRouteWithChildren =
 interface AppConfiguracionRouteChildren {
   AppConfiguracionAparienciaRoute: typeof AppConfiguracionAparienciaRoute
   AppConfiguracionBonosDescuentosRoute: typeof AppConfiguracionBonosDescuentosRoute
+  AppConfiguracionEspaciosRoute: typeof AppConfiguracionEspaciosRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
   AppConfiguracionPropinasRoute: typeof AppConfiguracionPropinasRoute
@@ -905,6 +945,7 @@ interface AppConfiguracionRouteChildren {
 const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionAparienciaRoute: AppConfiguracionAparienciaRoute,
   AppConfiguracionBonosDescuentosRoute: AppConfiguracionBonosDescuentosRoute,
+  AppConfiguracionEspaciosRoute: AppConfiguracionEspaciosRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
   AppConfiguracionPropinasRoute: AppConfiguracionPropinasRoute,
@@ -985,6 +1026,7 @@ interface AppRouteChildren {
   AppOperacionRoute: typeof AppOperacionRoute
   AppReservasRoute: typeof AppReservasRouteWithChildren
   AppServicioRoute: typeof AppServicioRouteWithChildren
+  AppEstacionSlugRoute: typeof AppEstacionSlugRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -998,6 +1040,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOperacionRoute: AppOperacionRoute,
   AppReservasRoute: AppReservasRouteWithChildren,
   AppServicioRoute: AppServicioRouteWithChildren,
+  AppEstacionSlugRoute: AppEstacionSlugRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

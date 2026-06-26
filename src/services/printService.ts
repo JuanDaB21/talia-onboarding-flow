@@ -6,7 +6,8 @@
  * stops if the external Printing API is down or not yet configured.
  */
 
-export type PrintZone = "barra" | "cocina";
+/** Zona de impresión. Acepta cualquier slug de espacio de trabajo (en minúsculas). */
+export type PrintZone = string;
 
 const PRINT_API_URL =
   (import.meta.env.VITE_PRINT_API_URL as string | undefined) ||
@@ -93,12 +94,14 @@ export async function dispatchPrintJobsForPedido(input: {
   meseroNombre: string | null;
   items: DispatchItem[];
 }): Promise<void> {
-  const cocinaItems = input.items.filter(
-    (i) => (i.destino ?? "COCINA").toUpperCase() === "COCINA",
-  );
-  const barraItems = input.items.filter(
-    (i) => (i.destino ?? "COCINA").toUpperCase() === "BARRA",
-  );
+  // Agrupar items por destino (cualquier slug de espacio de trabajo)
+  const grupos = new Map<string, DispatchItem[]>();
+  input.items.forEach((i) => {
+    const d = (i.destino ?? "COCINA").toUpperCase();
+    const arr = grupos.get(d) ?? [];
+    arr.push(i);
+    grupos.set(d, arr);
+  });
 
   const timestamp = new Date().toISOString();
   const base = {
@@ -109,16 +112,10 @@ export async function dispatchPrintJobsForPedido(input: {
   };
 
   const jobs: Promise<{ ok: boolean }>[] = [];
-  if (cocinaItems.length > 0) {
-    jobs.push(
-      sendPrintJob({ ...base, items: cocinaItems.map(toPrintItem) }, "cocina"),
-    );
-  }
-  if (barraItems.length > 0) {
-    jobs.push(
-      sendPrintJob({ ...base, items: barraItems.map(toPrintItem) }, "barra"),
-    );
-  }
+  grupos.forEach((items, destino) => {
+    if (items.length === 0) return;
+    jobs.push(sendPrintJob({ ...base, items: items.map(toPrintItem) }, destino.toLowerCase()));
+  });
 
   if (jobs.length === 0) return;
   await Promise.allSettled(jobs);

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, Utensils, QrCode, Palette, Ticket, Coins } from "lucide-react";
+import { Users, Utensils, QrCode, Palette, Ticket, Coins, Boxes } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const SECCIONES = [
@@ -8,6 +8,12 @@ const SECCIONES = [
     label: "Usuarios",
     description: "Gestiona el staff y sus roles.",
     icon: Users,
+  },
+  {
+    to: "/configuracion/espacios",
+    label: "Espacios de trabajo",
+    description: "Cocina, barra y otros espacios donde se preparan los productos.",
+    icon: Boxes,
   },
   {
     to: "/configuracion/mesas",

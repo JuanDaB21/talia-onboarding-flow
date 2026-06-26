@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type ComandaDestino = "COCINA" | "BARRA";
+export type ComandaDestino = string;
 
 export interface ComandaItemPrint {
   cantidad: number;

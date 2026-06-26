@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const ROLES_UI = ["ADMIN", "CAJERO", "MESERO", "COCINA", "BARRA"] as const;
+const ROLES_UI = ["ADMIN", "CAJERO", "MESERO", "COCINA", "BARRA", "ESTACION"] as const;
 const rolEnum = z.enum(ROLES_UI);
 const estadoEnum = z.enum(["ACTIVO", "INACTIVO"]);
 
@@ -50,6 +50,7 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
         correo: z.string().trim().toLowerCase().email().max(255),
         password: passwordRules,
         rol: rolEnum,
+        id_espacio_asignado: z.string().uuid().nullable().optional(),
         estado: z.boolean(),
         recibe_propinas: z.boolean(),
       })
@@ -57,6 +58,12 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const idNegocio = await getCallerNegocio(context.userId);
+
+    const esEstacion =
+      data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
+    if (esEstacion && !data.id_espacio_asignado) {
+      throw new Error("Selecciona el espacio de trabajo");
+    }
 
     const { data: created, error: authErr } =
       await supabaseAdmin.auth.admin.createUser({
@@ -77,6 +84,7 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
         nombre: data.nombre,
         correo: data.correo,
         rol: data.rol,
+        id_espacio_asignado: esEstacion ? data.id_espacio_asignado ?? null : null,
         estado: data.estado ? "ACTIVO" : "INACTIVO",
         recibe_propinas: data.recibe_propinas,
       });
@@ -97,6 +105,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
         id_usuario: z.string().uuid(),
         nombre: z.string().trim().min(2).max(80),
         rol: rolEnum,
+        id_espacio_asignado: z.string().uuid().nullable().optional(),
         estado: z.boolean(),
         recibe_propinas: z.boolean(),
         password: z.string().optional(),
@@ -107,11 +116,18 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
     const idNegocio = await getCallerNegocio(context.userId);
     await assertTargetSameNegocio(data.id_usuario, idNegocio);
 
+    const esEstacion =
+      data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
+    if (esEstacion && !data.id_espacio_asignado) {
+      throw new Error("Selecciona el espacio de trabajo");
+    }
+
     const { error: updErr } = await supabaseAdmin
       .from("usuarios_staff")
       .update({
         nombre: data.nombre,
         rol: data.rol,
+        id_espacio_asignado: esEstacion ? data.id_espacio_asignado ?? null : null,
         estado: data.estado ? "ACTIVO" : "INACTIVO",
         recibe_propinas: data.recibe_propinas,
       })

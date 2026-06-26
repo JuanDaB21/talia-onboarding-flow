@@ -20,7 +20,8 @@ const COLUMNAS: { key: EstadoComanda; label: string }[] = [
 ];
 
 interface Props {
-  destino: "COCINA" | "BARRA";
+  /** Slug del espacio de trabajo (e.g. "COCINA", "BARRA", "PLANCHA"). */
+  destino: string;
   titulo: string;
 }
 

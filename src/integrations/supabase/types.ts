@@ -419,6 +419,50 @@ export type Database = {
           },
         ]
       }
+      espacios_trabajo: {
+        Row: {
+          activo: boolean
+          created_at: string
+          es_sistema: boolean
+          id_espacio: string
+          id_negocio: string
+          nombre: string
+          orden: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          es_sistema?: boolean
+          id_espacio?: string
+          id_negocio: string
+          nombre: string
+          orden?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          es_sistema?: boolean
+          id_espacio?: string
+          id_negocio?: string
+          nombre?: string
+          orden?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "espacios_trabajo_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       extras_permitidos: {
         Row: {
           cantidad_porcion: number
@@ -1658,6 +1702,7 @@ export type Database = {
           created_at: string
           esta_en_turno: boolean
           estado: Database["public"]["Enums"]["estado_staff"]
+          id_espacio_asignado: string | null
           id_negocio: string
           id_usuario: string
           nombre: string
@@ -1670,6 +1715,7 @@ export type Database = {
           created_at?: string
           esta_en_turno?: boolean
           estado?: Database["public"]["Enums"]["estado_staff"]
+          id_espacio_asignado?: string | null
           id_negocio: string
           id_usuario: string
           nombre: string
@@ -1682,6 +1728,7 @@ export type Database = {
           created_at?: string
           esta_en_turno?: boolean
           estado?: Database["public"]["Enums"]["estado_staff"]
+          id_espacio_asignado?: string | null
           id_negocio?: string
           id_usuario?: string
           nombre?: string
@@ -1690,6 +1737,13 @@ export type Database = {
           turno_iniciado_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "usuarios_staff_id_espacio_asignado_fkey"
+            columns: ["id_espacio_asignado"]
+            isOneToOne: false
+            referencedRelation: "espacios_trabajo"
+            referencedColumns: ["id_espacio"]
+          },
           {
             foreignKeyName: "usuarios_staff_id_negocio_fkey"
             columns: ["id_negocio"]
@@ -1850,6 +1904,7 @@ export type Database = {
         Args: { p_id_pedido: string }
         Returns: undefined
       }
+      mi_espacio_slug: { Args: never; Returns: string }
       pagar_con_abono_reserva: {
         Args: { p_id_mesa: string; p_id_reserva: string; p_item_ids: string[] }
         Returns: string
@@ -1920,6 +1975,7 @@ export type Database = {
         | "COCINA"
         | "BARRA"
         | "CAJERO"
+        | "ESTACION"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2058,7 +2114,15 @@ export const Constants = {
       ],
       estado_staff: ["ACTIVO", "INACTIVO", "SUSPENDIDO"],
       metodo_pago: ["EFECTIVO", "TRANSFERENCIA", "DATAFONO", "ABONO_RESERVA"],
-      rol_staff: ["SUPERADMIN", "ADMIN", "MESERO", "COCINA", "BARRA", "CAJERO"],
+      rol_staff: [
+        "SUPERADMIN",
+        "ADMIN",
+        "MESERO",
+        "COCINA",
+        "BARRA",
+        "CAJERO",
+        "ESTACION",
+      ],
     },
   },
 } as const

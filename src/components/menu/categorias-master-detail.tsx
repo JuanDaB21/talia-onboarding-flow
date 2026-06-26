@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEspacios } from "@/hooks/use-espacios";
 import { ChevronLeft, ChevronRight, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -316,9 +317,14 @@ function CategoriaFormInline({
     resolver: zodResolver(categoriaSchema),
     defaultValues: { nombre: initial?.nombre ?? "" },
   });
-  const [destino, setDestino] = useState<"COCINA" | "BARRA">(
-    (initial?.destino as "COCINA" | "BARRA") ?? "COCINA",
-  );
+  const { espacios, loading: loadingEsp } = useEspacios({ soloActivos: true });
+  const initialDestino = (initial?.destino as string | undefined)?.toUpperCase();
+  const [destino, setDestino] = useState<string>(initialDestino ?? "COCINA");
+  useEffect(() => {
+    if (!loadingEsp && espacios.length > 0 && !espacios.find((e) => e.slug === destino)) {
+      setDestino(espacios[0].slug);
+    }
+  }, [loadingEsp, espacios, destino]);
   return (
     <form onSubmit={handleSubmit(async (v) => {
       if (initial) {
@@ -341,25 +347,29 @@ function CategoriaFormInline({
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
       </div>
       <div className="space-y-1.5">
-        <Label>Destino (ruteo de comandas)</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setDestino("COCINA")}
-            className={cn(
-              "rounded-md border px-3 py-2 text-sm transition-colors",
-              destino === "COCINA" ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
-            )}
-          >🍳 Cocina</button>
-          <button
-            type="button"
-            onClick={() => setDestino("BARRA")}
-            className={cn(
-              "rounded-md border px-3 py-2 text-sm transition-colors",
-              destino === "BARRA" ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
-            )}
-          >🍷 Barra</button>
-        </div>
+        <Label>Espacio de trabajo (ruteo de comandas)</Label>
+        {loadingEsp ? (
+          <p className="text-sm text-muted-foreground">Cargando espacios…</p>
+        ) : espacios.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay espacios activos.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {espacios.map((esp) => (
+              <button
+                key={esp.id_espacio}
+                type="button"
+                onClick={() => setDestino(esp.slug)}
+                className={cn(
+                  "rounded-md border px-3 py-2 text-sm transition-colors text-left",
+                  destino === esp.slug ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
+                )}
+              >
+                {esp.slug === "COCINA" ? "🍳 " : esp.slug === "BARRA" ? "🍷 " : "🍽️ "}
+                {esp.nombre}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
