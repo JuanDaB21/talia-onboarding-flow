@@ -14,16 +14,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  listarVariantesProducto,
-  guardarVariantesProducto,
-  listarProductosParaVariantes,
+  listarVariantesReceta,
+  guardarVariantesReceta,
+  listarInsumosParaVariantes,
   type VarianteGrupo,
 } from "@/lib/variantes.functions";
+
+type OpcionEditable = {
+  id_insumo_opcion: string;
+  cantidad_porcion: number;
+  precio_delta: number;
+};
 
 type GrupoEditable = {
   nombre: string;
   seleccion: "UNICA" | "MULTIPLE";
-  opciones: Array<{ id_producto_opcion: string; precio_delta: number }>;
+  opciones: OpcionEditable[];
 };
 
 function fromServer(g: VarianteGrupo): GrupoEditable {
@@ -31,53 +37,55 @@ function fromServer(g: VarianteGrupo): GrupoEditable {
     nombre: g.nombre,
     seleccion: g.seleccion,
     opciones: g.opciones.map((o) => ({
-      id_producto_opcion: o.id_producto_opcion,
+      id_insumo_opcion: o.id_insumo_opcion,
+      cantidad_porcion: o.cantidad_porcion,
       precio_delta: o.precio_delta,
     })),
   };
 }
 
-export function VariantesBuilder({ idProducto }: { idProducto: string }) {
+export function VariantesBuilder({ idReceta }: { idReceta: string }) {
   const qc = useQueryClient();
-  const listFn = useServerFn(listarVariantesProducto);
-  const saveFn = useServerFn(guardarVariantesProducto);
-  const productosFn = useServerFn(listarProductosParaVariantes);
+  const listFn = useServerFn(listarVariantesReceta);
+  const saveFn = useServerFn(guardarVariantesReceta);
+  const insumosFn = useServerFn(listarInsumosParaVariantes);
 
   const variantesQ = useQuery({
-    queryKey: ["variantesProducto", idProducto],
-    queryFn: () => listFn({ data: { idProducto } }),
+    queryKey: ["variantesReceta", idReceta],
+    queryFn: () => listFn({ data: { idReceta } }),
   });
 
-  const productosQ = useQuery({
-    queryKey: ["productosParaVariantes"],
-    queryFn: () => productosFn(),
+  const insumosQ = useQuery({
+    queryKey: ["insumosParaVariantes"],
+    queryFn: () => insumosFn(),
   });
 
   const [grupos, setGrupos] = useState<GrupoEditable[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set([0]));
 
   useEffect(() => {
-    if (variantesQ.data) {
-      setGrupos(variantesQ.data.map(fromServer));
-    }
+    if (variantesQ.data) setGrupos(variantesQ.data.map(fromServer));
   }, [variantesQ.data]);
 
-  const productosDisponibles = useMemo(
-    () => (productosQ.data ?? []).filter((p) => p.id_producto !== idProducto),
-    [productosQ.data, idProducto],
-  );
+  const insumos = useMemo(() => insumosQ.data ?? [], [insumosQ.data]);
+  const insumosById = useMemo(() => {
+    const m = new Map<string, { nombre_insumo: string; unidad_receta: string }>();
+    for (const i of insumos) m.set(i.id_insumo, i);
+    return m;
+  }, [insumos]);
 
   const saveMut = useMutation({
     mutationFn: () =>
       saveFn({
         data: {
-          idProducto,
+          idReceta,
           grupos: grupos.map((g, gi) => ({
             nombre: g.nombre,
             seleccion: g.seleccion,
             orden: gi,
             opciones: g.opciones.map((o, oi) => ({
-              id_producto_opcion: o.id_producto_opcion,
+              id_insumo_opcion: o.id_insumo_opcion,
+              cantidad_porcion: o.cantidad_porcion,
               precio_delta: o.precio_delta,
               orden: oi,
             })),
@@ -86,7 +94,7 @@ export function VariantesBuilder({ idProducto }: { idProducto: string }) {
       }),
     onSuccess: () => {
       toast.success("Variantes guardadas");
-      qc.invalidateQueries({ queryKey: ["variantesProducto", idProducto] });
+      qc.invalidateQueries({ queryKey: ["variantesReceta", idReceta] });
     },
     onError: (e) =>
       toast.error("No se pudo guardar", {
@@ -97,7 +105,11 @@ export function VariantesBuilder({ idProducto }: { idProducto: string }) {
   function addGrupo() {
     setGrupos((gs) => [
       ...gs,
-      { nombre: "", seleccion: "UNICA", opciones: [{ id_producto_opcion: "", precio_delta: 0 }] },
+      {
+        nombre: "",
+        seleccion: "UNICA",
+        opciones: [{ id_insumo_opcion: "", cantidad_porcion: 1, precio_delta: 0 }],
+      },
     ]);
     setExpanded((s) => new Set([...s, grupos.length]));
   }
@@ -114,17 +126,19 @@ export function VariantesBuilder({ idProducto }: { idProducto: string }) {
     setGrupos((gs) =>
       gs.map((g, i) =>
         i === gi
-          ? { ...g, opciones: [...g.opciones, { id_producto_opcion: "", precio_delta: 0 }] }
+          ? {
+              ...g,
+              opciones: [
+                ...g.opciones,
+                { id_insumo_opcion: "", cantidad_porcion: 1, precio_delta: 0 },
+              ],
+            }
           : g,
       ),
     );
   }
 
-  function updateOpcion(
-    gi: number,
-    oi: number,
-    patch: Partial<GrupoEditable["opciones"][number]>,
-  ) {
+  function updateOpcion(gi: number, oi: number, patch: Partial<OpcionEditable>) {
     setGrupos((gs) =>
       gs.map((g, i) =>
         i === gi
@@ -151,8 +165,8 @@ export function VariantesBuilder({ idProducto }: { idProducto: string }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Permite que el cliente elija con qué viene este producto (ej. tipo de papa).
-        Cada opción referencia otro producto del menú y puede sumar un valor extra.
+        Permite que el cliente elija con qué viene este producto (ej. tipo de papa). Cada opción
+        consume un insumo del inventario y puede sumar un valor extra.
       </p>
 
       {grupos.length === 0 && (
@@ -219,52 +233,80 @@ export function VariantesBuilder({ idProducto }: { idProducto: string }) {
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                     Opciones
                   </Label>
-                  {g.opciones.map((o, oi) => (
-                    <div key={oi} className="flex items-center gap-2">
-                      <Select
-                        value={o.id_producto_opcion || undefined}
-                        onValueChange={(v) => updateOpcion(gi, oi, { id_producto_opcion: v })}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Selecciona un producto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {productosDisponibles.map((p) => (
-                            <SelectItem key={p.id_producto} value={p.id_producto}>
-                              {p.nombre_producto}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="relative w-32">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                          +$
-                        </span>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="any"
-                          value={o.precio_delta}
-                          onChange={(e) =>
-                            updateOpcion(gi, oi, {
-                              precio_delta: Number(e.target.value || 0),
-                            })
-                          }
-                          className="pl-8"
-                        />
+                  {g.opciones.map((o, oi) => {
+                    const ins = insumosById.get(o.id_insumo_opcion);
+                    const unidad = ins?.unidad_receta ?? "";
+                    return (
+                      <div key={oi} className="grid grid-cols-[1fr_110px_110px_auto] gap-2 items-end">
+                        <div className="space-y-1">
+                          {oi === 0 && <Label className="text-xs">Insumo</Label>}
+                          <Select
+                            value={o.id_insumo_opcion || undefined}
+                            onValueChange={(v) =>
+                              updateOpcion(gi, oi, { id_insumo_opcion: v })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un insumo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {insumos.map((p) => (
+                                <SelectItem key={p.id_insumo} value={p.id_insumo}>
+                                  {p.nombre_insumo}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          {oi === 0 && (
+                            <Label className="text-xs">Porción {unidad ? `(${unidad})` : ""}</Label>
+                          )}
+                          <Input
+                            type="number"
+                            min={0.0001}
+                            step="any"
+                            value={o.cantidad_porcion}
+                            onChange={(e) =>
+                              updateOpcion(gi, oi, {
+                                cantidad_porcion: Number(e.target.value || 0),
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          {oi === 0 && <Label className="text-xs">Precio extra</Label>}
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              +$
+                            </span>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="any"
+                              value={o.precio_delta}
+                              onChange={(e) =>
+                                updateOpcion(gi, oi, {
+                                  precio_delta: Number(e.target.value || 0),
+                                })
+                              }
+                              className="pl-8"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => removeOpcion(gi, oi)}
+                          aria-label="Eliminar opción"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive"
-                        onClick={() => removeOpcion(gi, oi)}
-                        aria-label="Eliminar opción"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <Button
                     type="button"
                     size="sm"
