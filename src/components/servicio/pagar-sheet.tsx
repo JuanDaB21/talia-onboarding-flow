@@ -1017,7 +1017,9 @@ function PasoMetodo({
   totalConPropina,
   propinaProps,
   descuentoBono,
+  descuentoReserva,
   bonoInfo,
+  reservaInfo,
   onPagar,
   isLoading,
 }: {
@@ -1028,7 +1030,9 @@ function PasoMetodo({
   totalConPropina: number;
   propinaProps: PropinaProps;
   descuentoBono: number;
+  descuentoReserva: number;
   bonoInfo: BonoPreview | null;
+  reservaInfo: ReservaAplicable | null;
   onPagar: (extras: {
     subtipo?: string;
     voucher?: string;
