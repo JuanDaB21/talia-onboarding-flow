@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { IngredienteInput } from "@/lib/menu-schemas";
+import { VariantesBuilder } from "./variantes-builder";
 
 interface Cat { id_categoria: string; nombre: string }
 interface Sub { id_subcategoria: string; nombre: string; id_categoria: string }
@@ -495,6 +496,22 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
             })}
           </div>
         </section>
+
+        <section className={cn("rounded-lg border bg-card p-4 space-y-4 animate-fade-in", ingredientes.length === 0 && "opacity-50 pointer-events-none")}>
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">5</span>
+            <h2 className="text-base font-semibold">Variantes (opciones acompañantes)</h2>
+          </div>
+          {mode === "edit" && idReceta ? (
+            <VariantesBuilder idReceta={idReceta} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Guarda la receta primero para configurar variantes. Cada opción apunta a un insumo
+              y descuenta su porción del inventario al preparar el pedido.
+            </p>
+          )}
+        </section>
+
 
         <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur p-3 z-30">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
