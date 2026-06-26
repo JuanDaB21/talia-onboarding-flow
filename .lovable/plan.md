@@ -1,55 +1,67 @@
 ## Objetivo
 
-Permitir que en el cierre de caja se registren **ajustes adicionales** (ej: "Descuento familia", "Descuadre", "Propina extra", etc.) con un monto cada uno. Los tipos de ajuste se gestionan desde un selector con opción de crear nuevos sobre la marcha, y quedan guardados en la base de datos para reutilizarlos en cierres futuros.
+Cambiar las "Variantes (opciones acompañantes)" de un producto para que cada opción apunte a un **insumo** (con cantidad por porción), igual que los Extras, en lugar de apuntar a otro producto del menú. Al confirmar el pedido, la opción seleccionada descuenta inventario del insumo elegido.
 
-## Cambios en base de datos
+## Esquema de base de datos (migración)
 
-Dos tablas nuevas (vía migración):
+Tabla `producto_variante_opciones`:
 
-1. **`caja_ajuste_tipos`** — catálogo reutilizable de tipos de ajuste por negocio.
-   - Campos de dominio: `nombre`, `signo` (`POSITIVO` suma / `NEGATIVO` resta, default negativo), `activo`.
-   - Único por negocio + nombre (case-insensitive).
-   - RLS: lectura para staff del negocio; crear/editar solo ADMIN/SUPERADMIN/CAJERO.
+- Eliminar columna `id_producto_opcion` (FK a `productos`).
+- Agregar `id_insumo_opcion uuid NOT NULL REFERENCES insumos(id_insumo) ON DELETE RESTRICT`.
+- Agregar `cantidad_porcion numeric NOT NULL CHECK (cantidad_porcion > 0)` (en `unidad_receta` del insumo).
+- Mantener `precio_delta`, `orden`, `id_grupo`.
 
-2. **`caja_ajustes`** — ajustes aplicados a un cierre específico.
-   - Campos de dominio: `id_caja` (FK `caja_dia`), `id_tipo` (FK `caja_ajuste_tipos`), `monto`, `nota` opcional.
-   - RLS: lectura para staff del negocio del cierre; insertar solo al cerrar (ADMIN/SUPERADMIN/CAJERO).
+Tabla `pedido_item_variantes` (snapshot del pedido):
 
-Ambas tablas con `GRANT` a `authenticated` y `service_role`, RLS habilitada y políticas usando `has_role` / pertenencia al negocio (mismo patrón ya usado en `caja_dia`).
+- Eliminar columna `id_producto_opcion`.
+- Agregar `id_insumo_opcion uuid NULL` (snapshot débil, sin FK fuerte para no romper si se borra insumo).
+- Agregar `cantidad_porcion numeric NOT NULL DEFAULT 0`.
+- Mantener `nombre_grupo`, `nombre_opcion`, `precio_delta`, `id_grupo`, `id_opcion`.
 
-El total de ajustes se considerará en la **diferencia de efectivo** del cierre: `diferencia_efectivo = efectivo_fisico − (efectivo_esperado + suma_ajustes_signados)`. Esto evita modificar el esquema de `caja_dia` y mantiene la lógica del RPC `cerrar_caja` intacta — los ajustes se insertan después de cerrar, y la UI los muestra como detalle del cuadre.
+Como ya confirmamos que hay 0 filas en ambas, se hace `DROP COLUMN` + `ADD COLUMN` limpio.
 
-## Cambios en server functions (`src/lib/caja.functions.ts`)
+## RPC de descuento de inventario
 
-- `listarTiposAjuste()` — devuelve los tipos activos del negocio.
-- `crearTipoAjuste({ nombre, signo })` — inserta un nuevo tipo, devuelve el registro. Valida unicidad.
-- `cerrarCaja(...)` extendido con `ajustes: { idTipo, monto, nota? }[]` opcional. Después de llamar al RPC `cerrar_caja`, inserta los ajustes en `caja_ajustes` ligados al `idCaja` devuelto, en una sola operación. Si falla el insert de ajustes, intenta rollback básico o reporta error claro (los ajustes son secundarios al cierre real).
-- `getCierre()` extendido para devolver `ajustes: { id, nombre, signo, monto, nota }[]` y `total_ajustes`.
+Actualizar el/los RPC que confirman un pedido (igual lógica que se usa hoy para `pedido_item_extras` + receta del producto) para que también descuente `pedido_item_variantes.cantidad_porcion` del insumo `id_insumo_opcion` correspondiente, registrando un movimiento de inventario con motivo `VARIANTE`. Si el RPC actual recorre extras por item, se agrega un loop análogo para variantes.
 
-## Cambios en UI (`src/routes/_app.caja.cierre.tsx`)
+## Server functions
 
-En el **Paso 4 — Conciliación**, antes del bloque de nota de cuadre:
+`src/lib/variantes.functions.ts`:
 
-- Nueva sección **"Ajustes"** con:
-  - Un `Combobox` (shadcn: `Popover` + `Command`) que lista tipos existentes y permite filtrar por texto.
-  - Si el texto escrito no coincide con ningún tipo, aparece la opción **"+ Crear '<texto>'"** que abre un mini-diálogo (nombre prellenado + selector signo Positivo/Negativo) y al guardar lo agrega al catálogo y lo selecciona.
-  - Al seleccionar un tipo, se agrega una fila a la lista de ajustes con `Input` numérico para el monto y un botón eliminar.
-- Lista de ajustes agregados (chips/filas): nombre, signo, monto, eliminar.
-- Recalculo del `difEfectivo` mostrado en el componente `Diff`: incluye la suma signada de ajustes.
-- Al pulsar "Cerrar caja", se envían los `ajustes` junto al payload existente.
+- `listarVariantesProducto`: devolver `id_insumo_opcion`, `nombre_insumo`, `unidad_receta`, `cantidad_porcion`, `precio_delta` (join a `insumos` en vez de `productos`).
+- `guardarVariantesProducto`: validar que cada opción tenga `id_insumo_opcion` (uuid) y `cantidad_porcion > 0`.
+- Reemplazar `listarProductosParaVariantes` por `listarInsumosParaVariantes` (lista `id_insumo`, `nombre_insumo`, `unidad_receta`).
 
-En la **vista del cierre** (`src/routes/_app.caja.cierres.$id.tsx`): agregar un bloque "Ajustes" que liste cada ajuste con su monto y signo, y muestre el total de ajustes.
+`src/lib/menu-schemas.ts`:
 
-## Lo que NO se toca
+- `varianteOpcionSchema`: `id_insumo_opcion`, `cantidad_porcion`, `precio_delta`, `orden`.
 
-- RPC `cerrar_caja` y `resumen_caja_dia` (sin cambios).
-- Esquema de `caja_dia`, `pagos`, `pedidos`.
-- Lógica de pasos 1–3 del wizard.
-- Cocina, barra, servicio, impresión.
+`src/lib/servicio.functions.ts`, `prepedido.functions.ts`, `menu-publico.functions.ts`, `preparacion.functions.ts`:
 
-## Detalles técnicos
+- Reemplazar el join `productos:id_producto_opcion(nombre_producto)` por `insumos:id_insumo_opcion(nombre_insumo, unidad_receta)`.
+- Renombrar campo expuesto `nombre_producto_opcion` → `nombre_opcion_insumo` (o reutilizar `nombre_opcion` directamente).
+- En el snapshot al crear `pedido_item_variantes` guardar `id_insumo_opcion`, `cantidad_porcion`, `nombre_opcion` = nombre del insumo al momento.
 
-- Tipos generados (`src/integrations/supabase/types.ts`) se regeneran tras la migración antes de tocar las server functions.
-- Validación Zod en server fns: `nombre` 1–60 chars, `monto > 0`, `signo` enum.
-- El signo se aplica al sumar (no se permiten montos negativos en el input — el signo viene del tipo).
-- Orden en el `Combobox`: tipos más recientes / más usados primero (simple: `order by created_at desc` por ahora).
+## UI
+
+`src/components/menu/variantes-builder.tsx`:
+
+- Reemplazar `Select` de productos por un `Select` de insumos del negocio.
+- Mostrar la unidad de receta junto al input de "Cantidad por porción" (ej. `50 g`).
+- Mantener el input `+$` de `precio_delta`.
+- Actualizar copy: "Cada opción consume un insumo y puede sumar un valor extra."
+
+Vistas que consumen las variantes (`item-editor-sheet.tsx`, `prepedido-item-editor.tsx`, `prepedido-item-editor-staff.tsx`):
+
+- Cambiar la etiqueta mostrada de `o.nombre_producto_opcion` al nuevo campo. Sin cambios funcionales en cómo se seleccionan ni en cómo se calculan los precios delta.
+
+## Fuera de alcance
+
+- Vistas de cocina y barra: ya muestran `nombre_grupo` + `nombre_opcion` (texto), no requieren cambios.
+- Reportes y dashboards: no se tocan.
+- Pagos, bonos, ajustes de caja: sin cambios.
+
+## Cambia la ubicación
+
+- Modifica para que las variantes estén alojadas en recetas, este debe ser el paso 5 de creación. 
+- En la base de datos el dato de variante debe estar alojado en la receta
