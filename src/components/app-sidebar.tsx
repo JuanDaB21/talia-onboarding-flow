@@ -109,12 +109,13 @@ function gruposPorRol(rol: Rol | null) {
       admin: true,
       dashboard: false,
       caja: true,
-      bodega: false,
+      bodega: true,
+      bodegaProveedores: false,
       menu: false,
       operacion: true,
       servicio: true,
-      cocina: false,
-      barra: false,
+      cocina: true,
+      barra: true,
       config: false,
     };
   }
