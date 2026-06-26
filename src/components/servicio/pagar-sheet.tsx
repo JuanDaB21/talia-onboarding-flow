@@ -786,7 +786,8 @@ function PasoItems({
             setIdBono={setIdBono}
             descuento={descuentoBono}
             bonoInfo={bonoInfo}
-            disabled={selected.size === 0 || !!idReservaAbono}
+            disabled={!!idReservaAbono || !hayPendientes}
+            onEnsureSelection={onSelectAll}
           />
           <ReservaAbonoRow
             reservas={reservasAplicables}
