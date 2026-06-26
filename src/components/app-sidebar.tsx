@@ -258,7 +258,13 @@ export function AppSidebar() {
               return false;
             }),
           )}
-        {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
+        {grupos.bodega &&
+          renderGroup(
+            "Bodega",
+            BODEGA_NAV.filter((item) =>
+              item.to === "/bodega/proveedores-insumos" ? grupos.bodegaProveedores : true,
+            ),
+          )}
         {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.config && renderGroup("Configuración", CONFIG_NAV)}
       </SidebarContent>
