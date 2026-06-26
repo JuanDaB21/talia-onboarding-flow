@@ -125,6 +125,7 @@ function gruposPorRol(rol: Rol | null) {
     dashboard: false,
     caja: false,
     bodega: false,
+    bodegaProveedores: false,
     menu: false,
     operacion: false,
     servicio: rol === "MESERO",
