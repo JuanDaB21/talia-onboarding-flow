@@ -99,7 +99,7 @@ export const listarBonos = createServerFn({ method: "GET" })
     const admin = await esAdmin(supabase, userId);
     let q = supabase
       .from("bonos")
-      .select("id_bono, nombre, porcentaje, activo, created_at")
+      .select("id_bono, nombre, tipo, porcentaje, valor, activo, created_at")
       .order("created_at", { ascending: false });
     if (!admin) q = q.eq("activo", true);
     const { data, error } = await q;
@@ -109,7 +109,9 @@ export const listarBonos = createServerFn({ method: "GET" })
       bonos: (data ?? []).map((b) => ({
         id_bono: b.id_bono,
         nombre: b.nombre,
-        porcentaje: Number(b.porcentaje),
+        tipo: (b.tipo ?? "PORCENTAJE") as TipoBono,
+        porcentaje: b.porcentaje == null ? null : Number(b.porcentaje),
+        valor: Number(b.valor ?? 0),
         activo: b.activo,
         created_at: b.created_at,
       })) as Bono[],
@@ -132,7 +134,9 @@ export const crearBono = createServerFn({ method: "POST" })
       .insert({
         id_negocio: staff.id_negocio,
         nombre: data.nombre.trim(),
-        porcentaje: data.porcentaje,
+        tipo: data.tipo,
+        porcentaje: data.tipo === "PORCENTAJE" ? data.porcentaje! : null,
+        valor: data.tipo === "VALOR" ? data.valor! : 0,
       })
       .select("id_bono")
       .single();
@@ -149,13 +153,16 @@ export const actualizarBono = createServerFn({ method: "POST" })
       .from("bonos")
       .update({
         nombre: data.nombre.trim(),
-        porcentaje: data.porcentaje,
+        tipo: data.tipo,
+        porcentaje: data.tipo === "PORCENTAJE" ? data.porcentaje! : null,
+        valor: data.tipo === "VALOR" ? data.valor! : 0,
         activo: data.activo,
       })
       .eq("id_bono", data.idBono);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const eliminarBono = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
