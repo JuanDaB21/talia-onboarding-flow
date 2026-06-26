@@ -100,6 +100,7 @@ function CierreWizard() {
           efectivoFisico: Number(efectivoFisico),
           datafonoFisico: Number(datafonoFisico),
           nota: nota.trim() || null,
+          ajustes: ajustes.map((a) => ({ idTipo: a.idTipo, monto: a.monto })),
         },
       });
       toast.success("Caja cerrada");
