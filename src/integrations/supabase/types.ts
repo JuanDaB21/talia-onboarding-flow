@@ -95,8 +95,10 @@ export type Database = {
           id_bono: string
           id_negocio: string
           nombre: string
-          porcentaje: number
+          porcentaje: number | null
+          tipo: string
           updated_at: string
+          valor: number
         }
         Insert: {
           activo?: boolean
@@ -104,8 +106,10 @@ export type Database = {
           id_bono?: string
           id_negocio: string
           nombre: string
-          porcentaje: number
+          porcentaje?: number | null
+          tipo?: string
           updated_at?: string
+          valor?: number
         }
         Update: {
           activo?: boolean
@@ -113,8 +117,10 @@ export type Database = {
           id_bono?: string
           id_negocio?: string
           nombre?: string
-          porcentaje?: number
+          porcentaje?: number | null
+          tipo?: string
           updated_at?: string
+          valor?: number
         }
         Relationships: [
           {
