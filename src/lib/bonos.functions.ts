@@ -185,7 +185,7 @@ export const previsualizarBono = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: bono, error: bErr } = await supabase
       .from("bonos")
-      .select("nombre, porcentaje, activo")
+      .select("nombre, tipo, porcentaje, valor, activo")
       .eq("id_bono", data.idBono)
       .maybeSingle();
     if (bErr) throw new Error(bErr.message);
@@ -202,18 +202,31 @@ export const previsualizarBono = createServerFn({ method: "POST" })
     const costo = Number(
       (costos as { costo_total?: number } | null)?.costo_total ?? 0,
     );
-    const porcentaje = Number(bono.porcentaje);
-    const descuento = Math.min(precio, Math.round((precio * porcentaje) / 100));
+    const tipo = (bono.tipo ?? "PORCENTAJE") as TipoBono;
+    const porcentaje = bono.porcentaje == null ? 0 : Number(bono.porcentaje);
+    const valor = Number(bono.valor ?? 0);
+    const descuentoBruto =
+      tipo === "PORCENTAJE" ? Math.round((precio * porcentaje) / 100) : valor;
+    const descuento = Math.min(precio, descuentoBruto);
+    const pctAplicado =
+      tipo === "PORCENTAJE"
+        ? porcentaje
+        : precio > 0
+          ? Math.round((descuento * 10000) / precio) / 100
+          : 0;
     const margen = precio > 0 ? Math.max(0, (precio - costo) / precio) : 0;
     const neto = Math.round(descuento * margen);
     return {
       nombre: bono.nombre as string,
-      porcentaje,
+      tipo,
+      porcentaje: pctAplicado,
+      valor,
       descuento,
       descuento_neto: neto,
       subtotal: precio,
     };
   });
+
 
 export const historialBonos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
