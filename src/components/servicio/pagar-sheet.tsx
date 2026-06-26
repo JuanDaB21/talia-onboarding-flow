@@ -833,7 +833,7 @@ function ReservaAbonoRow({
               Aplicar abono de reserva
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 p-0">
+          <PopoverContent align="start" className="w-72 p-0 z-[60]">
             <Command>
               <CommandInput placeholder="Buscar reserva..." />
               <CommandList>
