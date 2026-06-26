@@ -893,7 +893,6 @@ function ReservaAbonoRow({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  if (reservas.length === 0) return null;
   const sel = reservas.find((r) => r.id_reserva === idReserva) ?? null;
   const cubre = sel && sel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const visibles = reservas.filter((r) =>
