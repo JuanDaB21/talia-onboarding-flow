@@ -1,30 +1,35 @@
-Plan de corrección
+## Plan
 
-1. Corregir la causa raíz del error
-- Actualizar las funciones de base de datos que aún usan `estado_mesa`.
-- Cambiar los casts como `'OCUPADA'::estado_mesa` por valores de texto compatibles con la columna actual `mesas.estado`, que hoy es texto/character varying.
-- Funciones afectadas principalmente:
-  - `solicitar_accion_cliente`
-  - `aceptar_prepedido_mesa`
+1. Reconstruir el bloque inferior de pago como un panel mobile-first
+- Mantener la lista de productos arriba y convertir “Agregar bono”, “Propina” y “Abono de reserva” en filas/botones grandes, táctiles y visibles.
+- Evitar popovers pequeños dentro del sheet, porque en mobile quedan debajo, se cierran fácil o no reciben bien el toque.
 
-2. Restaurar la ocupación de mesa en los flujos del cliente
-- Al llamar al mesero, asegurar que la mesa quede en `OCUPADA`, con `solicitud_cliente` y `solicitud_at` actualizados.
-- Al confirmar pedido desde el prepedido, asegurar que la mesa quede en `OCUPADA` y se limpie la solicitud cuando el mesero acepte el pedido.
-- Al iniciar/unirse a la sesión de mesa desde la carta pública, marcar la mesa como `OCUPADA` si estaba `LIBRE`, porque desde ese momento ya hay actividad real en la mesa.
+2. Rehacer “Agregar bono”
+- Reemplazar el selector actual por un diálogo/panel dedicado dentro del flujo de pago.
+- Mostrar bonos activos como opciones grandes con nombre y descuento.
+- Al seleccionar bono: cerrar selector, reflejar descuento inmediatamente y bloquear abono de reserva para evitar mezclas incompatibles.
+- Permitir quitar el bono claramente.
 
-3. Revisar asignación de mesero
-- Mantener el intento actual de asignar mesero automáticamente cuando el cliente llama o confirma pedido.
-- Verificar que si no hay mesero en turno, la mesa igualmente quede ocupada y visible como pendiente de atención.
+3. Rehacer “Propina”
+- Reemplazar el popover de edición por un diálogo/panel táctil.
+- Incluir montos rápidos fijos además de porcentajes: 0%, 5%, 10%, 15% y botones de monto fijo.
+- Incluir campo numérico para monto variable, con aplicación inmediata y botón claro para guardar/cerrar.
+- Asegurar que el monto variable sí actualice el total en items y en método de pago.
 
-4. Validar el flujo completo
-- Probar que ya no aparezca `type "estado_mesa" does not exist`.
-- Probar tres acciones:
-  - Iniciar sesión de mesa desde la carta.
-  - Llamar al mesero.
-  - Completar/confirmar pedido.
-- Confirmar que la mesa pasa a `OCUPADA` y que el aviso llega al panel de servicio.
+4. Rehacer “Abono de reserva”
+- Reemplazar el selector actual por un diálogo/panel dedicado con reservas aplicables del día.
+- Al escoger una reserva, seleccionar automáticamente todos los productos pendientes si no hay selección.
+- Mostrar código, cliente y monto abonado; reflejar descuento inmediatamente.
+- Si el abono cubre todo, mostrar botón directo “Aplicar abono de reserva”; si no cubre todo, permitir continuar al método de pago cobrando el saldo.
+- Mantener la restricción de no combinar bono y abono.
 
-Detalles técnicos
-- Requiere una migración de base de datos para reemplazar las funciones SQL defectuosas.
-- Requiere un ajuste pequeño en el server function público de prepedido para ocupar la mesa al unirse a la sesión.
-- No se tocarán roles, espacios de trabajo, pagos ni inventario.
+5. Priorizar comportamiento mobile
+- Usar controles con altura mínima táctil, texto sin truncamientos críticos y footer estable.
+- Evitar menús superpuestos encima del Sheet; usar Dialog/Drawer interno con z-index correcto.
+- Validar visualmente en viewport mobile el flujo: seleccionar productos, abrir/cerrar bono, elegir propina fija/variable, elegir reserva y confirmar pago/abono.
+
+## Detalles técnicos
+
+- Archivo principal a modificar: `src/components/servicio/pagar-sheet.tsx`.
+- No tocaré la lógica de base de datos salvo que al validar aparezca un error backend distinto.
+- Se mantendrán las funciones existentes: `listarBonos`, `previsualizarBono`, `listarReservasAplicablesHoy`, `aplicarAbonoEnCheckout` y `registrarPago`.
