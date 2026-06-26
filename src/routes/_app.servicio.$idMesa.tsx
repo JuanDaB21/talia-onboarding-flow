@@ -704,12 +704,14 @@ function PedidoConfirmadoCard({
   onPrint: () => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [vista, setVista] = useState<"detallado" | "resumen">("detallado");
   const total = pedido.items.length;
   const listos = pedido.items.filter(
     (i) => i.estado_preparacion === "LISTO" || i.estado_preparacion === "ENTREGADO",
   ).length;
   const pct = total > 0 ? Math.round((listos / total) * 100) : 0;
   const tieneAlgunEnCola = pedido.items.some((i) => i.estado_preparacion === "EN_COLA");
+  const resumen = useMemo(() => agruparItemsResumen(pedido.items), [pedido.items]);
   const estado = ESTADO_LABEL[pedido.estado_global] ?? ESTADO_LABEL.EN_COLA;
   const necesitaEntrega = pedido.estado_global === "LISTO";
 
@@ -760,16 +762,76 @@ function PedidoConfirmadoCard({
 
       {open && (
         <div className="p-4 space-y-3">
-          <ul className="space-y-2 divide-y">
-            {pedido.items.map((it) => (
-              <ItemRow
-                key={it.id_item}
-                item={it}
-                onEdit={onEditItem}
-                onDelete={onDeleteItem}
-              />
-            ))}
-          </ul>
+          <div className="inline-flex rounded-md border p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setVista("detallado")}
+              className={cn(
+                "px-2.5 py-1 rounded-sm transition-colors",
+                vista === "detallado"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Detallado
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista("resumen")}
+              className={cn(
+                "px-2.5 py-1 rounded-sm transition-colors",
+                vista === "resumen"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Resumen
+            </button>
+          </div>
+
+          {vista === "detallado" ? (
+            <ul className="space-y-2 divide-y">
+              {pedido.items.map((it) => (
+                <ItemRow
+                  key={it.id_item}
+                  item={it}
+                  onEdit={onEditItem}
+                  onDelete={onDeleteItem}
+                />
+              ))}
+            </ul>
+          ) : (
+            <ul className="space-y-2 divide-y">
+              {resumen.map((g) => (
+                <li key={g.key} className="pt-2 first:pt-0">
+                  <p className="text-sm font-medium break-words">
+                    {g.nombre}
+                    {g.tieneModificaciones ? " (con nota)" : ""} x{g.cantidad}
+                  </p>
+                  {g.variantes.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {g.variantes.map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`).join(" · ")}
+                    </p>
+                  )}
+                  {g.extras.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      + {g.extras.map((e) => e.nombre).join(", ")}
+                    </p>
+                  )}
+                  {g.exclusiones.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Sin {g.exclusiones.map((x) => x.nombre).join(", ")}
+                    </p>
+                  )}
+                  {g.nota && (
+                    <p className="text-[11px] italic text-muted-foreground mt-0.5">
+                      Nota: {g.nota}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {tieneAlgunEnCola && (
@@ -907,6 +969,68 @@ function ItemRow({
       </div>
     </li>
   );
+}
+
+type ItemResumido = {
+  key: string;
+  nombre: string;
+  cantidad: number;
+  nota: string | null;
+  extras: { nombre: string }[];
+  exclusiones: { nombre: string }[];
+  variantes: { nombre_grupo: string; nombre_opcion: string }[];
+  tieneModificaciones: boolean;
+};
+
+function agruparItemsResumen(items: ItemPedidoSesion[]): ItemResumido[] {
+  const collator = new Intl.Collator("es", { sensitivity: "base" });
+  const map = new Map<string, ItemResumido>();
+  for (const it of items) {
+    const nota = (it.nota ?? "").trim();
+    const extras = [...it.extras]
+      .map((e) => ({ nombre: e.nombre }))
+      .sort((a, b) => collator.compare(a.nombre, b.nombre));
+    const exclusiones = [...it.exclusiones]
+      .map((e) => ({ nombre: e.nombre }))
+      .sort((a, b) => collator.compare(a.nombre, b.nombre));
+    const variantes = [...it.variantes]
+      .map((v) => ({ nombre_grupo: v.nombre_grupo, nombre_opcion: v.nombre_opcion }))
+      .sort(
+        (a, b) =>
+          collator.compare(a.nombre_grupo, b.nombre_grupo) ||
+          collator.compare(a.nombre_opcion, b.nombre_opcion),
+      );
+    const key = [
+      it.id_producto,
+      nota.toLowerCase(),
+      extras.map((e) => e.nombre.toLowerCase()).join("|"),
+      exclusiones.map((e) => e.nombre.toLowerCase()).join("|"),
+      variantes.map((v) => `${v.nombre_grupo}:${v.nombre_opcion}`.toLowerCase()).join("|"),
+    ].join("§");
+    const tieneModificaciones =
+      nota.length > 0 || extras.length > 0 || exclusiones.length > 0 || variantes.length > 0;
+    const existing = map.get(key);
+    if (existing) {
+      existing.cantidad += Number(it.cantidad);
+    } else {
+      map.set(key, {
+        key,
+        nombre: it.nombre_producto,
+        cantidad: Number(it.cantidad),
+        nota: nota.length > 0 ? nota : null,
+        extras,
+        exclusiones,
+        variantes,
+        tieneModificaciones,
+      });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.tieneModificaciones !== b.tieneModificaciones) {
+      return a.tieneModificaciones ? 1 : -1;
+    }
+    return collator.compare(a.nombre, b.nombre);
+  });
 }
 
 function PedidoAbiertoCard({
