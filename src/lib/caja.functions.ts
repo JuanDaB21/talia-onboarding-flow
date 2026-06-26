@@ -59,6 +59,15 @@ export const abrirCaja = createServerFn({ method: "POST" })
     return { idCaja: id as string };
   });
 
+export const reabrirCaja = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: id, error } = await supabase.rpc("reabrir_caja");
+    if (error) throw new Error(error.message);
+    return { idCaja: id as string };
+  });
+
 export const cerrarCaja = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
