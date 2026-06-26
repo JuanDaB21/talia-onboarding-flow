@@ -36,6 +36,7 @@ import {
   crearAjusteCaja,
   eliminarAjusteCaja,
   type AjusteTipo,
+  reabrirCaja,
 } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
