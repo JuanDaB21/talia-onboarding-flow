@@ -254,6 +254,28 @@ export const getCierre = createServerFn({ method: "POST" })
       if (!horaPico || t > horaPico.total) horaPico = { hora: h, total: t };
     }
 
+    // Ajustes del cierre
+    const { data: ajustesRows } = await supabase
+      .from("caja_ajustes")
+      .select("id_ajuste, monto, nota, caja_ajuste_tipos:id_tipo(nombre, signo)")
+      .eq("id_caja", data.idCaja)
+      .order("created_at", { ascending: true });
+    const ajustes = (ajustesRows ?? []).map((a) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const t = (a as any).caja_ajuste_tipos;
+      return {
+        id_ajuste: a.id_ajuste as string,
+        nombre: t?.nombre ?? "—",
+        signo: (t?.signo ?? "NEGATIVO") as "POSITIVO" | "NEGATIVO",
+        monto: Number(a.monto),
+        nota: (a.nota as string | null) ?? null,
+      };
+    });
+    const total_ajustes = ajustes.reduce(
+      (acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto),
+      0,
+    );
+
     return {
       id_caja: caja.id_caja,
       fecha: caja.fecha,
@@ -272,6 +294,8 @@ export const getCierre = createServerFn({ method: "POST" })
       negocio_nombre: neg?.nombre_comercial ?? "Negocio",
       top_productos: topProductos,
       hora_pico: horaPico,
+      ajustes,
+      total_ajustes,
     };
   });
 
