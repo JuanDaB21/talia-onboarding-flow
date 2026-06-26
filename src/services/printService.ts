@@ -6,7 +6,8 @@
  * stops if the external Printing API is down or not yet configured.
  */
 
-export type PrintZone = "barra" | "cocina";
+/** Zona de impresión. Acepta cualquier slug de espacio de trabajo (en minúsculas). */
+export type PrintZone = string;
 
 const PRINT_API_URL =
   (import.meta.env.VITE_PRINT_API_URL as string | undefined) ||
