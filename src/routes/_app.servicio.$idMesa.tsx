@@ -134,29 +134,34 @@ function imprimirComandasDePedido(
   mesero: string | null,
   pedido: PedidoSesion,
 ) {
-  const destinos: Array<"COCINA" | "BARRA"> = ["COCINA", "BARRA"];
-  const comandas: ComandaPrintData[] = destinos
-    .map((destino) => {
-      const items = pedido.items
-        .filter((i) => (i.destino ?? "COCINA").toUpperCase() === destino)
-        .map((it) => ({
-          cantidad: it.cantidad,
-          nombre_producto: it.nombre_producto,
-          tiene_alergia: it.tiene_alergia,
-          nota: it.nota,
-          extras: it.extras.map((e) => ({ nombre: e.nombre })),
-          exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
-          variantes: it.variantes.map((v) => ({ nombre_grupo: v.nombre_grupo, nombre_opcion: v.nombre_opcion })),
-        }));
-      return {
-        destino,
-        mesa_identificador: mesaIdentificador,
-        pedido_id: pedido.id_pedido,
-        pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
-        mesero,
-        items,
-      } satisfies ComandaPrintData;
-    })
+  // Agrupa los items por su destino (cualquier slug de espacio) y crea una comanda por estación.
+  const grupos = new Map<string, PedidoSesion["items"]>();
+  pedido.items.forEach((i) => {
+    const d = (i.destino ?? "COCINA").toUpperCase();
+    const arr = grupos.get(d) ?? [];
+    arr.push(i);
+    grupos.set(d, arr);
+  });
+  const comandas: ComandaPrintData[] = Array.from(grupos.entries())
+    .map(([destino, items]) => ({
+      destino,
+      mesa_identificador: mesaIdentificador,
+      pedido_id: pedido.id_pedido,
+      pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
+      mesero,
+      items: items.map((it) => ({
+        cantidad: it.cantidad,
+        nombre_producto: it.nombre_producto,
+        tiene_alergia: it.tiene_alergia,
+        nota: it.nota,
+        extras: it.extras.map((e) => ({ nombre: e.nombre })),
+        exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+        variantes: it.variantes.map((v) => ({
+          nombre_grupo: v.nombre_grupo,
+          nombre_opcion: v.nombre_opcion,
+        })),
+      })),
+    }))
     .filter((c) => c.items.length > 0);
   if (comandas.length === 0) return;
   void imprimirComandas(comandas);
