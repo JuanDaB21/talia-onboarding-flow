@@ -2,13 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type TipoBono = "PORCENTAJE" | "VALOR";
+
 export interface Bono {
   id_bono: string;
   nombre: string;
-  porcentaje: number;
+  tipo: TipoBono;
+  porcentaje: number | null;
+  valor: number;
   activo: boolean;
   created_at: string;
 }
+
 
 export interface BonoAplicacion {
   id_aplicacion: string;
