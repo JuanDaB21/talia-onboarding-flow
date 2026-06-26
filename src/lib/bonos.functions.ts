@@ -31,17 +31,40 @@ export interface BonoAplicacion {
   created_at: string;
 }
 
-const crearSchema = z.object({
-  nombre: z.string().min(1).max(80),
-  porcentaje: z.number().min(0.01).max(100),
-});
+const tipoSchema = z.enum(["PORCENTAJE", "VALOR"]);
 
-const actualizarSchema = z.object({
-  idBono: z.string().uuid(),
-  nombre: z.string().min(1).max(80),
-  porcentaje: z.number().min(0.01).max(100),
-  activo: z.boolean(),
-});
+const crearSchema = z
+  .object({
+    nombre: z.string().min(1).max(80),
+    tipo: tipoSchema,
+    porcentaje: z.number().min(0.01).max(100).nullable().optional(),
+    valor: z.number().min(1).max(100_000_000).nullable().optional(),
+  })
+  .refine(
+    (v) =>
+      v.tipo === "PORCENTAJE"
+        ? typeof v.porcentaje === "number" && v.porcentaje > 0
+        : typeof v.valor === "number" && v.valor > 0,
+    { message: "Valor o porcentaje requerido según el tipo" },
+  );
+
+const actualizarSchema = z
+  .object({
+    idBono: z.string().uuid(),
+    nombre: z.string().min(1).max(80),
+    tipo: tipoSchema,
+    porcentaje: z.number().min(0.01).max(100).nullable().optional(),
+    valor: z.number().min(1).max(100_000_000).nullable().optional(),
+    activo: z.boolean(),
+  })
+  .refine(
+    (v) =>
+      v.tipo === "PORCENTAJE"
+        ? typeof v.porcentaje === "number" && v.porcentaje > 0
+        : typeof v.valor === "number" && v.valor > 0,
+    { message: "Valor o porcentaje requerido según el tipo" },
+  );
+
 
 const idBonoSchema = z.object({ idBono: z.string().uuid() });
 
