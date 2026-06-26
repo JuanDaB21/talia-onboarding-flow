@@ -928,31 +928,34 @@ export type Database = {
       }
       pedido_item_variantes: {
         Row: {
+          cantidad_porcion: number
           id_grupo: string | null
+          id_insumo_opcion: string | null
           id_item: string
           id_opcion: string | null
           id_piv: string
-          id_producto_opcion: string | null
           nombre_grupo: string
           nombre_opcion: string
           precio_delta: number
         }
         Insert: {
+          cantidad_porcion?: number
           id_grupo?: string | null
+          id_insumo_opcion?: string | null
           id_item: string
           id_opcion?: string | null
           id_piv?: string
-          id_producto_opcion?: string | null
           nombre_grupo: string
           nombre_opcion: string
           precio_delta?: number
         }
         Update: {
+          cantidad_porcion?: number
           id_grupo?: string | null
+          id_insumo_opcion?: string | null
           id_item?: string
           id_opcion?: string | null
           id_piv?: string
-          id_producto_opcion?: string | null
           nombre_grupo?: string
           nombre_opcion?: string
           precio_delta?: number
@@ -978,13 +981,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "producto_variante_opciones"
             referencedColumns: ["id_opcion"]
-          },
-          {
-            foreignKeyName: "pedido_item_variantes_id_producto_opcion_fkey"
-            columns: ["id_producto_opcion"]
-            isOneToOne: false
-            referencedRelation: "productos"
-            referencedColumns: ["id_producto"]
           },
         ]
       }
@@ -1236,7 +1232,7 @@ export type Database = {
         Row: {
           created_at: string
           id_grupo: string
-          id_producto: string
+          id_receta: string
           nombre: string
           orden: number
           seleccion: string
@@ -1245,7 +1241,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id_grupo?: string
-          id_producto: string
+          id_receta: string
           nombre: string
           orden?: number
           seleccion: string
@@ -1254,7 +1250,7 @@ export type Database = {
         Update: {
           created_at?: string
           id_grupo?: string
-          id_producto?: string
+          id_receta?: string
           nombre?: string
           orden?: number
           seleccion?: string
@@ -1262,36 +1258,39 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "producto_variante_grupos_id_producto_fkey"
-            columns: ["id_producto"]
+            foreignKeyName: "producto_variante_grupos_id_receta_fkey"
+            columns: ["id_receta"]
             isOneToOne: false
-            referencedRelation: "productos"
-            referencedColumns: ["id_producto"]
+            referencedRelation: "receta_master"
+            referencedColumns: ["id_receta"]
           },
         ]
       }
       producto_variante_opciones: {
         Row: {
+          cantidad_porcion: number
           created_at: string
           id_grupo: string
+          id_insumo_opcion: string
           id_opcion: string
-          id_producto_opcion: string
           orden: number
           precio_delta: number
         }
         Insert: {
+          cantidad_porcion?: number
           created_at?: string
           id_grupo: string
+          id_insumo_opcion: string
           id_opcion?: string
-          id_producto_opcion: string
           orden?: number
           precio_delta?: number
         }
         Update: {
+          cantidad_porcion?: number
           created_at?: string
           id_grupo?: string
+          id_insumo_opcion?: string
           id_opcion?: string
-          id_producto_opcion?: string
           orden?: number
           precio_delta?: number
         }
@@ -1304,11 +1303,11 @@ export type Database = {
             referencedColumns: ["id_grupo"]
           },
           {
-            foreignKeyName: "producto_variante_opciones_id_producto_opcion_fkey"
-            columns: ["id_producto_opcion"]
+            foreignKeyName: "producto_variante_opciones_id_insumo_opcion_fkey"
+            columns: ["id_insumo_opcion"]
             isOneToOne: false
-            referencedRelation: "productos"
-            referencedColumns: ["id_producto"]
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
           },
         ]
       }
