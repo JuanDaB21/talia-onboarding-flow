@@ -349,8 +349,6 @@ function CajaResumen({
             </Button>
           </>
         )}
-          </>
-        )}
 
         {cerrada && data.caja!.fecha === new Date().toISOString().slice(0, 10) && (
           <>
