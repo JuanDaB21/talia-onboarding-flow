@@ -1,67 +1,43 @@
-## Objetivo
+# Unir pre-pedido + adiciones del mesero en un mismo pedido
 
-Cambiar las "Variantes (opciones acompañantes)" de un producto para que cada opción apunte a un **insumo** (con cantidad por porción), igual que los Extras, en lugar de apuntar a otro producto del menú. Al confirmar el pedido, la opción seleccionada descuenta inventario del insumo elegido.
+## Problema actual
 
-## Esquema de base de datos (migración)
+Hoy la mesa termina con varios pedidos separados ("Pedido #1", "Pedido #2"…) aunque el mesero solo quería sumar productos al pedido que ya estaba en cola:
 
-Tabla `producto_variante_opciones`:
+1. El cliente arma su pre-pedido y lo confirma desde el celular.
+2. El mesero acepta el pre-pedido → se crea **Pedido #1** (Abierto) y luego lo confirma → pasa a **En cola**.
+3. Si el cliente sigue agregando al pre-pedido y vuelve a confirmar, el sistema crea **Pedido #2** porque ya no hay un pedido "Abierto" donde meter los items nuevos.
+4. Lo mismo pasa si el mesero quiere agregar más productos: se crea un pedido aparte.
 
-- Eliminar columna `id_producto_opcion` (FK a `productos`).
-- Agregar `id_insumo_opcion uuid NOT NULL REFERENCES insumos(id_insumo) ON DELETE RESTRICT`.
-- Agregar `cantidad_porcion numeric NOT NULL CHECK (cantidad_porcion > 0)` (en `unidad_receta` del insumo).
-- Mantener `precio_delta`, `orden`, `id_grupo`.
+El usuario quiere que mientras la mesa siga abierta, todo lo que provenga del pre-pedido y la primera adición del mesero se acumule en **el mismo pedido**, conservando el botón "Agregar productos (nueva orden)" para los casos en que sí se quiera separar la comanda a propósito.
 
-Tabla `pedido_item_variantes` (snapshot del pedido):
+## Cambios
 
-- Eliminar columna `id_producto_opcion`.
-- Agregar `id_insumo_opcion uuid NULL` (snapshot débil, sin FK fuerte para no romper si se borra insumo).
-- Agregar `cantidad_porcion numeric NOT NULL DEFAULT 0`.
-- Mantener `nombre_grupo`, `nombre_opcion`, `precio_delta`, `id_grupo`, `id_opcion`.
+### 1. Backend — RPC `aceptar_prepedido_mesa`
 
-Como ya confirmamos que hay 0 filas en ambas, se hace `DROP COLUMN` + `ADD COLUMN` limpio.
+Migración para que la función que pasa los items del pre-pedido al pedido real reutilice el pedido más reciente de la mesa que no esté pagado (esté Abierto o En cola), en vez de crear uno nuevo cuando el último ya está confirmado.
 
-## RPC de descuento de inventario
+- Buscar el pedido vigente: primero un Abierto; si no hay, el último Confirmado (no pagado, no cancelado, no cerrado) de la mesa.
+- Solo crear un pedido nuevo cuando realmente no exista ninguno vigente.
+- Si los items se insertan sobre un pedido En cola, calcular y guardar `destino` y `tiempo_planeado_min` por item (igual que ya hace `agregar_item_pedido` cuando se agrega a un pedido confirmado), para que la cocina los reciba como nuevos items "En cola" del pedido existente.
+- Mantener el conteo de items insertados y el recálculo del total.
 
-Actualizar el/los RPC que confirman un pedido (igual lógica que se usa hoy para `pedido_item_extras` + receta del producto) para que también descuente `pedido_item_variantes.cantidad_porcion` del insumo `id_insumo_opcion` correspondiente, registrando un movimiento de inventario con motivo `VARIANTE`. Si el RPC actual recorre extras por item, se agrega un loop análogo para variantes.
+### 2. UI — sin cambios funcionales mayores
 
-## Server functions
+- El botón **"Agregar producto"** dentro de la tarjeta de cada pedido ya apunta al pedido específico (lo añade al mismo pedido); se mantiene.
+- El botón **"Agregar productos (nueva orden)"** se conserva exactamente como está, para los casos en que el mesero quiera abrir un pedido nuevo a propósito.
+- La tarjeta de "Cliente armando pedido" sigue mostrándose en vivo; al pulsar "Aceptar pre-pedido", los items entrarán al pedido vigente.
 
-`src/lib/variantes.functions.ts`:
+## Resultado esperado
 
-- `listarVariantesProducto`: devolver `id_insumo_opcion`, `nombre_insumo`, `unidad_receta`, `cantidad_porcion`, `precio_delta` (join a `insumos` en vez de `productos`).
-- `guardarVariantesProducto`: validar que cada opción tenga `id_insumo_opcion` (uuid) y `cantidad_porcion > 0`.
-- Reemplazar `listarProductosParaVariantes` por `listarInsumosParaVariantes` (lista `id_insumo`, `nombre_insumo`, `unidad_receta`).
+- Cliente confirma → Pedido #1 (En cola con su item).
+- Cliente sigue agregando y vuelve a confirmar → los items nuevos aparecen dentro del **mismo Pedido #1**, marcados "En cola" para cocina.
+- Mesero pulsa "Agregar producto" en la tarjeta del Pedido #1 → también se suman al **mismo Pedido #1**.
+- Solo cuando el mesero pulse "Agregar productos (nueva orden)" se creará un Pedido #2 separado.
 
-`src/lib/menu-schemas.ts`:
+## Detalle técnico
 
-- `varianteOpcionSchema`: `id_insumo_opcion`, `cantidad_porcion`, `precio_delta`, `orden`.
-
-`src/lib/servicio.functions.ts`, `prepedido.functions.ts`, `menu-publico.functions.ts`, `preparacion.functions.ts`:
-
-- Reemplazar el join `productos:id_producto_opcion(nombre_producto)` por `insumos:id_insumo_opcion(nombre_insumo, unidad_receta)`.
-- Renombrar campo expuesto `nombre_producto_opcion` → `nombre_opcion_insumo` (o reutilizar `nombre_opcion` directamente).
-- En el snapshot al crear `pedido_item_variantes` guardar `id_insumo_opcion`, `cantidad_porcion`, `nombre_opcion` = nombre del insumo al momento.
-
-## UI
-
-`src/components/menu/variantes-builder.tsx`:
-
-- Reemplazar `Select` de productos por un `Select` de insumos del negocio.
-- Mostrar la unidad de receta junto al input de "Cantidad por porción" (ej. `50 g`).
-- Mantener el input `+$` de `precio_delta`.
-- Actualizar copy: "Cada opción consume un insumo y puede sumar un valor extra."
-
-Vistas que consumen las variantes (`item-editor-sheet.tsx`, `prepedido-item-editor.tsx`, `prepedido-item-editor-staff.tsx`):
-
-- Cambiar la etiqueta mostrada de `o.nombre_producto_opcion` al nuevo campo. Sin cambios funcionales en cómo se seleccionan ni en cómo se calculan los precios delta.
-
-## Fuera de alcance
-
-- Vistas de cocina y barra: ya muestran `nombre_grupo` + `nombre_opcion` (texto), no requieren cambios.
-- Reportes y dashboards: no se tocan.
-- Pagos, bonos, ajustes de caja: sin cambios.
-
-## Cambia la ubicación
-
-- Modifica para que las variantes estén alojadas en recetas, este debe ser el paso 5 de creación. 
-- En la base de datos el dato de variante debe estar alojado en la receta
+- Migración que reemplaza `public.aceptar_prepedido_mesa(uuid)` con la nueva lógica de búsqueda de pedido vigente (`ORDER BY created_at DESC LIMIT 1` sobre estados `ABIERTO`/`CONFIRMADO`).
+- El INSERT en `pedido_items` toma `destino` desde `categorias.destino` y `tiempo_planeado_min` desde `receta_master.tiempo_preparacion_min` cuando el pedido reutilizado está en `CONFIRMADO`, dejando los demás campos por defecto (`estado_preparacion = EN_COLA`).
+- No se tocan las tablas ni se cambian políticas RLS; solo se actualiza la función.
+- No requiere cambios en server functions ni en tipos generados (la firma de la RPC no cambia).
