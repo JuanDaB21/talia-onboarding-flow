@@ -96,6 +96,7 @@ function gruposPorRol(rol: Rol | null) {
       dashboard: true,
       caja: true,
       bodega: true,
+      bodegaProveedores: true,
       menu: true,
       operacion: true,
       servicio: true,
@@ -109,12 +110,13 @@ function gruposPorRol(rol: Rol | null) {
       admin: true,
       dashboard: false,
       caja: true,
-      bodega: false,
+      bodega: true,
+      bodegaProveedores: false,
       menu: false,
       operacion: true,
       servicio: true,
-      cocina: false,
-      barra: false,
+      cocina: true,
+      barra: true,
       config: false,
     };
   }
@@ -123,6 +125,7 @@ function gruposPorRol(rol: Rol | null) {
     dashboard: false,
     caja: false,
     bodega: false,
+    bodegaProveedores: false,
     menu: false,
     operacion: false,
     servicio: rol === "MESERO",
@@ -255,7 +258,13 @@ export function AppSidebar() {
               return false;
             }),
           )}
-        {grupos.bodega && renderGroup("Bodega", BODEGA_NAV)}
+        {grupos.bodega &&
+          renderGroup(
+            "Bodega",
+            BODEGA_NAV.filter((item) =>
+              item.to === "/bodega/proveedores-insumos" ? grupos.bodegaProveedores : true,
+            ),
+          )}
         {grupos.menu && renderGroup("Menú", MENU_NAV)}
         {grupos.config && renderGroup("Configuración", CONFIG_NAV)}
       </SidebarContent>
