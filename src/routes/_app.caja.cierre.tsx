@@ -93,13 +93,24 @@ function CierreWizard() {
       toast.error("Ingresa una nota de cuadre");
       return;
     }
+    // Si hay ajustes, el RPC valida diferencia sin considerarlos, así que
+    // construimos una nota automática para que la validación del servidor pase.
+    let notaFinal = nota.trim();
+    if (ajustes.length > 0) {
+      const detalle = ajustes
+        .map((a) => `${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`)
+        .join("; ");
+      notaFinal = notaFinal
+        ? `${notaFinal} | Ajustes: ${detalle}`
+        : `Ajustes registrados: ${detalle}`;
+    }
     setBusy(true);
     try {
       const { idCaja } = await cerrar({
         data: {
           efectivoFisico: Number(efectivoFisico),
           datafonoFisico: Number(datafonoFisico),
-          nota: nota.trim() || null,
+          nota: notaFinal || null,
           ajustes: ajustes.map((a) => ({ idTipo: a.idTipo, monto: a.monto })),
         },
       });
