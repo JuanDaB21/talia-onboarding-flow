@@ -21,9 +21,10 @@ interface Usuario {
   id_usuario: string;
   nombre: string;
   correo: string;
-  rol: "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA" | "SUPERADMIN";
+  rol: "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA" | "ESTACION" | "SUPERADMIN";
   estado: "ACTIVO" | "INACTIVO" | "SUSPENDIDO";
   recibe_propinas: boolean;
+  id_espacio_asignado: string | null;
 }
 
 export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
@@ -37,7 +38,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
     setLoading(true);
     const { data } = await supabase
       .from("usuarios_staff")
-      .select("id_usuario, nombre, correo, rol, estado, recibe_propinas")
+      .select("id_usuario, nombre, correo, rol, estado, recibe_propinas, id_espacio_asignado")
       .neq("rol", "SUPERADMIN")
       .order("created_at", { ascending: false });
     setItems((data as Usuario[]) ?? []);
@@ -147,6 +148,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
                   nombre: selected.nombre,
                   correo: selected.correo,
                   rol: selected.rol === "SUPERADMIN" ? "ADMIN" : selected.rol,
+                  id_espacio_asignado: selected.id_espacio_asignado,
                   estado: selected.estado === "ACTIVO",
                   recibe_propinas: selected.recibe_propinas,
                 }
