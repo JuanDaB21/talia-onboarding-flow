@@ -36,6 +36,7 @@ import {
   crearAjusteCaja,
   eliminarAjusteCaja,
   type AjusteTipo,
+  reabrirCaja,
 } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
@@ -348,8 +349,66 @@ function CajaResumen({
             </Button>
           </>
         )}
+
+        {cerrada && data.caja!.fecha === new Date().toISOString().slice(0, 10) && (
+          <>
+            <Separator />
+            <ReabrirCajaButton />
+          </>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function ReabrirCajaButton() {
+  const fn = useServerFn(reabrirCaja);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const handle = async () => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success("Caja reabierta");
+      qc.invalidateQueries({ queryKey: ["estado-caja"] });
+      qc.invalidateQueries({ queryKey: ["cierres"] });
+      setConfirmOpen(false);
+    } catch (e) {
+      toast.error("No se pudo reabrir", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Si cerraste la caja por error, puedes reabrirla. Los valores de cuadre quedarán en cero y deberás volver a registrarlos al cerrar.
+        </p>
+        <Button variant="outline" onClick={() => setConfirmOpen(true)}>
+          <Unlock className="mr-2 h-4 w-4" /> Reabrir caja
+        </Button>
+      </div>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Reabrir la caja del día?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se borrarán los valores de cuadre del cierre anterior y la caja volverá al estado ABIERTA. Esta acción quedará anotada en la nota de cuadre.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button onClick={handle} disabled={busy}>
+              {busy ? "Reabriendo…" : "Reabrir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
