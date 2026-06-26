@@ -182,7 +182,9 @@ export const listarReservasAplicablesHoy = createServerFn({ method: "GET" })
       .from("reservas")
       .select("id_reserva, codigo_reserva, customer_name, monto_abonado")
       .eq("fecha_reserva", hoy)
-      .eq("estado", "abonado")
+      .in("estado", ["abonado", "asistida"])
+      .is("id_pedido_aplicado", null)
+      .gt("monto_abonado", 0)
       .order("hora_reserva", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []).map((r) => ({
