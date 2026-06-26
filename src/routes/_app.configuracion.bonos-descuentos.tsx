@@ -129,8 +129,12 @@ function BonosTab() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["bonos"] });
 
   const crearMut = useMutation({
-    mutationFn: (input: { nombre: string; porcentaje: number }) =>
-      crear({ data: input }),
+    mutationFn: (input: {
+      nombre: string;
+      tipo: "PORCENTAJE" | "VALOR";
+      porcentaje: number | null;
+      valor: number | null;
+    }) => crear({ data: input }),
     onSuccess: () => {
       toast.success("Bono creado");
       setOpenCrear(false);
@@ -146,7 +150,9 @@ function BonosTab() {
     mutationFn: (input: {
       idBono: string;
       nombre: string;
-      porcentaje: number;
+      tipo: "PORCENTAJE" | "VALOR";
+      porcentaje: number | null;
+      valor: number | null;
       activo: boolean;
     }) => actualizar({ data: input }),
     onSuccess: () => {
@@ -204,8 +210,13 @@ function BonosTab() {
                   {!b.activo && <Badge variant="secondary">Inactivo</Badge>}
                 </div>
                 <CardDescription className="text-2xl font-bold text-primary">
-                  {b.porcentaje}%
+                  {b.tipo === "PORCENTAJE"
+                    ? `${b.porcentaje ?? 0}%`
+                    : fmt.format(b.valor)}
                 </CardDescription>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {b.tipo === "PORCENTAJE" ? "Porcentaje" : "Valor fijo"}
+                </p>
               </CardHeader>
               <CardContent className="flex gap-2 pt-0">
                 <Button
@@ -236,7 +247,14 @@ function BonosTab() {
       <BonoDialog
         open={openCrear}
         onOpenChange={setOpenCrear}
-        onSubmit={(v) => crearMut.mutate(v)}
+        onSubmit={(v) =>
+          crearMut.mutate({
+            nombre: v.nombre,
+            tipo: v.tipo,
+            porcentaje: v.tipo === "PORCENTAJE" ? v.porcentaje : null,
+            valor: v.tipo === "VALOR" ? v.valor : null,
+          })
+        }
         loading={crearMut.isPending}
         title="Crear bono"
       />
@@ -249,7 +267,9 @@ function BonosTab() {
           actualizarMut.mutate({
             idBono: editar.id_bono,
             nombre: v.nombre,
-            porcentaje: v.porcentaje,
+            tipo: v.tipo,
+            porcentaje: v.tipo === "PORCENTAJE" ? v.porcentaje : null,
+            valor: v.tipo === "VALOR" ? v.valor : null,
             activo: v.activo ?? editar.activo,
           })
         }
@@ -260,6 +280,7 @@ function BonosTab() {
     </div>
   );
 }
+
 
 function BonoDialog({
   open,
