@@ -67,6 +67,16 @@ export const cerrarCaja = createServerFn({ method: "POST" })
         efectivoFisico: z.number().min(0).max(1000000000),
         datafonoFisico: z.number().min(0).max(1000000000),
         nota: z.string().max(1000).optional().nullable(),
+        ajustes: z
+          .array(
+            z.object({
+              idTipo: z.string().uuid(),
+              monto: z.number().positive().max(1000000000),
+              nota: z.string().max(500).optional().nullable(),
+            }),
+          )
+          .max(50)
+          .optional(),
       })
       .parse(input),
   )
@@ -78,7 +88,84 @@ export const cerrarCaja = createServerFn({ method: "POST" })
       p_nota: data.nota ?? "",
     });
     if (error) throw new Error(error.message);
-    return { idCaja: id as string };
+    const idCaja = id as string;
+
+    if (data.ajustes && data.ajustes.length > 0) {
+      // Obtener id_negocio del cierre
+      const { data: cajaRow } = await supabase
+        .from("caja_dia")
+        .select("id_negocio")
+        .eq("id_caja", idCaja)
+        .maybeSingle();
+      const idNegocio = cajaRow?.id_negocio;
+      if (idNegocio) {
+        const rows = data.ajustes.map((a) => ({
+          id_caja: idCaja,
+          id_negocio: idNegocio,
+          id_tipo: a.idTipo,
+          monto: a.monto,
+          nota: a.nota ?? null,
+        }));
+        const { error: errIns } = await supabase.from("caja_ajustes").insert(rows);
+        if (errIns) throw new Error(`Caja cerrada pero falló registrar ajustes: ${errIns.message}`);
+      }
+    }
+    return { idCaja };
+  });
+
+export interface AjusteTipo {
+  id_tipo: string;
+  nombre: string;
+  signo: "POSITIVO" | "NEGATIVO";
+  activo: boolean;
+}
+
+export const listarTiposAjuste = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AjusteTipo[]> => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("caja_ajuste_tipos")
+      .select("id_tipo, nombre, signo, activo")
+      .eq("activo", true)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AjusteTipo[];
+  });
+
+export const crearTipoAjuste = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        nombre: z.string().trim().min(1).max(60),
+        signo: z.enum(["POSITIVO", "NEGATIVO"]).default("NEGATIVO"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<AjusteTipo> => {
+    const { supabase } = context;
+    // Resolver id_negocio del usuario
+    const { data: staff } = await supabase
+      .from("usuarios_staff")
+      .select("id_negocio")
+      .eq("id_usuario", context.userId)
+      .maybeSingle();
+    if (!staff?.id_negocio) throw new Error("No autorizado");
+    const { data: row, error } = await supabase
+      .from("caja_ajuste_tipos")
+      .insert({
+        id_negocio: staff.id_negocio,
+        nombre: data.nombre,
+        signo: data.signo,
+      })
+      .select("id_tipo, nombre, signo, activo")
+      .single();
+    if (error) {
+      if (error.code === "23505") throw new Error("Ya existe un tipo con ese nombre");
+      throw new Error(error.message);
+    }
+    return row as AjusteTipo;
   });
 
 export interface CierreDetalle {
@@ -99,6 +186,8 @@ export interface CierreDetalle {
   negocio_nombre: string;
   top_productos: Array<{ nombre: string; cantidad: number; total: number }>;
   hora_pico: { hora: number; total: number } | null;
+  ajustes: Array<{ id_ajuste: string; nombre: string; signo: "POSITIVO" | "NEGATIVO"; monto: number; nota: string | null }>;
+  total_ajustes: number;
 }
 
 export const getCierre = createServerFn({ method: "POST" })
@@ -165,6 +254,28 @@ export const getCierre = createServerFn({ method: "POST" })
       if (!horaPico || t > horaPico.total) horaPico = { hora: h, total: t };
     }
 
+    // Ajustes del cierre
+    const { data: ajustesRows } = await supabase
+      .from("caja_ajustes")
+      .select("id_ajuste, monto, nota, caja_ajuste_tipos:id_tipo(nombre, signo)")
+      .eq("id_caja", data.idCaja)
+      .order("created_at", { ascending: true });
+    const ajustes = (ajustesRows ?? []).map((a) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const t = (a as any).caja_ajuste_tipos;
+      return {
+        id_ajuste: a.id_ajuste as string,
+        nombre: t?.nombre ?? "—",
+        signo: (t?.signo ?? "NEGATIVO") as "POSITIVO" | "NEGATIVO",
+        monto: Number(a.monto),
+        nota: (a.nota as string | null) ?? null,
+      };
+    });
+    const total_ajustes = ajustes.reduce(
+      (acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto),
+      0,
+    );
+
     return {
       id_caja: caja.id_caja,
       fecha: caja.fecha,
@@ -183,6 +294,8 @@ export const getCierre = createServerFn({ method: "POST" })
       negocio_nombre: neg?.nombre_comercial ?? "Negocio",
       top_productos: topProductos,
       hora_pico: horaPico,
+      ajustes,
+      total_ajustes,
     };
   });
 
