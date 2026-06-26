@@ -96,6 +96,7 @@ function gruposPorRol(rol: Rol | null) {
       dashboard: true,
       caja: true,
       bodega: true,
+      bodegaProveedores: true,
       menu: true,
       operacion: true,
       servicio: true,
