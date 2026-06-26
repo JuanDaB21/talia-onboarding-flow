@@ -290,9 +290,9 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
       supabase
         .from("producto_variante_grupos")
         .select(
-          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_producto_opcion, precio_delta, orden, productos:id_producto_opcion(nombre_producto))",
+          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_insumo_opcion, cantidad_porcion, precio_delta, orden, insumos:id_insumo_opcion(nombre_insumo, unidad_receta))",
         )
-        .eq("id_producto", data.idProducto)
+        .eq("id_receta", prod.id_receta)
         .order("orden", { ascending: true }),
     ]);
 
@@ -306,8 +306,10 @@ export const getOpcionesProducto = createServerFn({ method: "POST" })
         .sort((a, b) => Number(a.orden ?? 0) - Number(b.orden ?? 0))
         .map((o) => ({
           id_opcion: o.id_opcion as string,
-          id_producto_opcion: o.id_producto_opcion as string,
-          nombre_producto_opcion: (o.productos?.nombre_producto as string) ?? "—",
+          id_insumo_opcion: o.id_insumo_opcion as string,
+          nombre_opcion: (o.insumos?.nombre_insumo as string) ?? "—",
+          unidad_receta: (o.insumos?.unidad_receta as string) ?? "",
+          cantidad_porcion: Number(o.cantidad_porcion ?? 0),
           precio_delta: Number(o.precio_delta ?? 0),
         })),
     }));

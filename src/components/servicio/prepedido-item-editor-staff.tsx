@@ -228,7 +228,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
                                 : "border-border bg-card hover:bg-muted"
                             }`}
                           >
-                            <span className="font-medium">{o.nombre_producto_opcion}</span>
+                            <span className="font-medium">{o.nombre_opcion}</span>
                             {o.precio_delta > 0 && (
                               <span className="font-semibold tabular-nums text-primary">
                                 +{fmt.format(o.precio_delta)}

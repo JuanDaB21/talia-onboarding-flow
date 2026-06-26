@@ -298,24 +298,34 @@ async function validarExtrasYExclusiones(
   }
 }
 
-// Resuelve snapshots de variantes (nombre y precio) validando contra el producto
+// Resuelve snapshots de variantes (nombre y precio) validando contra la receta del producto
 async function resolverVariantes(
   idProducto: string,
   variantes: Array<{ id_opcion: string }>,
 ): Promise<Array<{
   id_opcion: string;
   id_grupo: string;
-  id_producto_opcion: string;
+  id_insumo_opcion: string;
   nombre_grupo: string;
   nombre_opcion: string;
   precio_delta: number;
+  cantidad_porcion: number;
 }>> {
   if (variantes.length === 0) return [];
+
+  const { data: prod } = await supabaseAdmin
+    .from("productos")
+    .select("id_receta")
+    .eq("id_producto", idProducto)
+    .maybeSingle();
+  if (!prod) throw new Error("Producto inválido");
+  const idReceta = prod.id_receta as string;
+
   const ids = variantes.map((v) => v.id_opcion);
   const { data, error } = await supabaseAdmin
     .from("producto_variante_opciones")
     .select(
-      "id_opcion, id_grupo, id_producto_opcion, precio_delta, producto_variante_grupos:id_grupo(id_producto, nombre), productos:id_producto_opcion(nombre_producto)",
+      "id_opcion, id_grupo, id_insumo_opcion, precio_delta, cantidad_porcion, producto_variante_grupos:id_grupo(id_receta, nombre), insumos:id_insumo_opcion(nombre_insumo)",
     )
     .in("id_opcion", ids);
   if (error) throw new Error(error.message);
@@ -323,32 +333,35 @@ async function resolverVariantes(
   const map = new Map<string, {
     id_opcion: string;
     id_grupo: string;
-    id_producto_opcion: string;
+    id_insumo_opcion: string;
     nombre_grupo: string;
     nombre_opcion: string;
     precio_delta: number;
+    cantidad_porcion: number;
   }>();
-  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+  for (const raw of (data ?? []) as unknown as Array<Record<string, unknown>>) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const g = (raw as any).producto_variante_grupos;
-    if (!g || g.id_producto !== idProducto) continue;
+    if (!g || g.id_receta !== idReceta) continue;
     map.set(raw.id_opcion as string, {
       id_opcion: raw.id_opcion as string,
       id_grupo: raw.id_grupo as string,
-      id_producto_opcion: raw.id_producto_opcion as string,
+      id_insumo_opcion: raw.id_insumo_opcion as string,
       nombre_grupo: (g.nombre as string) ?? "",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nombre_opcion: ((raw as any).productos?.nombre_producto as string) ?? "—",
+      nombre_opcion: ((raw as any).insumos?.nombre_insumo as string) ?? "—",
       precio_delta: Number(raw.precio_delta ?? 0),
+      cantidad_porcion: Number(raw.cantidad_porcion ?? 0),
     });
   }
   const out: Array<{
     id_opcion: string;
     id_grupo: string;
-    id_producto_opcion: string;
+    id_insumo_opcion: string;
     nombre_grupo: string;
     nombre_opcion: string;
     precio_delta: number;
+    cantidad_porcion: number;
   }> = [];
   for (const v of variantes) {
     const snap = map.get(v.id_opcion);
@@ -357,6 +370,8 @@ async function resolverVariantes(
   }
   return out;
 }
+
+
 
 
 
@@ -503,9 +518,9 @@ export const getOpcionesProductoPublico = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("producto_variante_grupos")
         .select(
-          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_producto_opcion, precio_delta, orden, productos:id_producto_opcion(nombre_producto))",
+          "id_grupo, nombre, seleccion, orden, producto_variante_opciones(id_opcion, id_insumo_opcion, cantidad_porcion, precio_delta, orden, insumos:id_insumo_opcion(nombre_insumo, unidad_receta))",
         )
-        .eq("id_producto", data.idProducto)
+        .eq("id_receta", prod.id_receta as string)
         .order("orden", { ascending: true }),
     ]);
 
@@ -519,8 +534,10 @@ export const getOpcionesProductoPublico = createServerFn({ method: "POST" })
         .sort((a, b) => Number(a.orden ?? 0) - Number(b.orden ?? 0))
         .map((o) => ({
           id_opcion: o.id_opcion as string,
-          id_producto_opcion: o.id_producto_opcion as string,
-          nombre_producto_opcion: (o.productos?.nombre_producto as string) ?? "—",
+          id_insumo_opcion: o.id_insumo_opcion as string,
+          nombre_opcion: (o.insumos?.nombre_insumo as string) ?? "—",
+          unidad_receta: (o.insumos?.unidad_receta as string) ?? "",
+          cantidad_porcion: Number(o.cantidad_porcion ?? 0),
           precio_delta: Number(o.precio_delta ?? 0),
         })),
     }));
