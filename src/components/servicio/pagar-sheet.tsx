@@ -494,83 +494,120 @@ function BonoRow({
   descuento,
   bonoInfo,
   disabled,
+  onEnsureSelection,
 }: {
   idBono: string | null;
   setIdBono: (v: string | null) => void;
   descuento: number;
   bonoInfo: BonoPreview | null;
   disabled?: boolean;
+  onEnsureSelection: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const listFn = useServerFn(listarBonos);
   const bonosQ = useQuery({
     queryKey: ["bonos", "activos"],
     queryFn: () => listFn({}),
   });
   const bonos = (bonosQ.data?.bonos ?? []).filter((b: Bono) => b.activo);
+  const visibles = bonos.filter((b) =>
+    b.nombre.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   if (!idBono) {
     return (
-      <div className="flex items-center justify-between text-sm">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted"
-            >
-              <Ticket className="h-3.5 w-3.5 mr-1" />
-              Agregar bono
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-0 z-[60]">
-            <Command>
-              <CommandInput placeholder="Buscar bono..." />
-              <CommandList>
-                <CommandEmpty>Sin bonos activos</CommandEmpty>
-                <CommandGroup>
-                  {bonos.map((b) => (
-                    <CommandItem
-                      key={b.id_bono}
-                      value={b.nombre}
-                      onSelect={() => {
-                        setIdBono(b.id_bono);
-                        setOpen(false);
-                      }}
-                    >
-                      <span className="flex-1">{b.nombre}</span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {b.tipo === "VALOR"
-                          ? `-${fmt.format(b.valor)}`
-                          : `-${b.porcentaje ?? 0}%`}
-                      </span>
+      <>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="flex min-h-12 w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Ticket className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">Agregar bono</span>
+              <span className="block text-xs text-muted-foreground">
+                {disabled ? "No disponible" : "Seleccionar descuento"}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">—</span>
+        </button>
 
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <span className="tabular-nums text-muted-foreground">—</span>
-      </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-md sm:translate-y-[-50%] sm:rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Agregar bono</DialogTitle>
+              <DialogDescription>
+                Selecciona el bono que se aplicará a los productos marcados.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 overflow-y-auto">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar bono"
+                className="h-12"
+              />
+              <div className="space-y-2">
+                {bonosQ.isLoading && (
+                  <div className="flex h-20 items-center justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+                {!bonosQ.isLoading && visibles.length === 0 && (
+                  <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    Sin bonos activos
+                  </p>
+                )}
+                {visibles.map((b) => (
+                  <button
+                    key={b.id_bono}
+                    type="button"
+                    onClick={() => {
+                      onEnsureSelection();
+                      setIdBono(b.id_bono);
+                      setOpen(false);
+                    }}
+                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        {b.nombre}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {b.tipo === "VALOR" ? "Valor fijo" : "Porcentaje"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
+                      {b.tipo === "VALOR"
+                        ? `-${fmt.format(b.valor)}`
+                        : `-${b.porcentaje ?? 0}%`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-        <Ticket className="h-3.5 w-3.5" />
-        <span>
-          Bono {bonoInfo ? `· ${bonoInfo.nombre} (${bonoInfo.tipo === "VALOR" ? fmt.format(bonoInfo.valor) : `${bonoInfo.porcentaje}%`})` : ""}
+    <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+      <div className="flex min-w-0 items-center gap-2 text-emerald-700 dark:text-emerald-400">
+        <Ticket className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 truncate">
+          Bono {bonoInfo ? `· ${bonoInfo.nombre}` : "aplicado"}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 px-1 text-[11px] text-muted-foreground hover:text-destructive"
+          className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-destructive"
           onClick={() => setIdBono(null)}
         >
           Quitar
