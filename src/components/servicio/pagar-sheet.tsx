@@ -1107,6 +1107,26 @@ function PasoMetodo({
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums font-medium">{fmt.format(total)}</span>
           </div>
+          {descuentoBono > 0 && (
+            <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
+              <span className="truncate">
+                Bono{bonoInfo ? ` · ${bonoInfo.nombre}` : ""}
+              </span>
+              <span className="shrink-0 tabular-nums font-medium">
+                -{fmt.format(descuentoBono)}
+              </span>
+            </div>
+          )}
+          {descuentoReserva > 0 && (
+            <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
+              <span className="truncate">
+                Abono{reservaInfo ? ` · ${reservaInfo.codigo_reserva}` : ""}
+              </span>
+              <span className="shrink-0 tabular-nums font-medium">
+                -{fmt.format(descuentoReserva)}
+              </span>
+            </div>
+          )}
           <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
           <div className="h-px bg-border my-1" />
           <div className="flex items-end justify-between">
