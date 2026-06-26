@@ -48,6 +48,11 @@ function CierreWizard() {
     queryKey: ["caja-ajuste-tipos"],
     queryFn: () => tiposFn(),
   });
+  const ajustesPreviosFn = useServerFn(listarAjustesCajaActual);
+  const { data: ajustesPrevios } = useQuery({
+    queryKey: ["caja-ajustes-actual"],
+    queryFn: () => ajustesPreviosFn(),
+  });
   const [step, setStep] = useState(1);
   const [efectivoFisico, setEfectivoFisico] = useState("0");
   const [datafonoFisico, setDatafonoFisico] = useState("0");
@@ -57,12 +62,21 @@ function CierreWizard() {
     Array<{ idTipo: string; nombre: string; signo: "POSITIVO" | "NEGATIVO"; monto: number }>
   >([]);
 
+  const sumAjustesPrevios = useMemo(
+    () =>
+      (ajustesPrevios ?? []).reduce(
+        (acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto),
+        0,
+      ),
+    [ajustesPrevios],
+  );
   const sumAjustes = useMemo(
     () => ajustes.reduce((acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto), 0),
     [ajustes],
   );
   const base = data?.caja?.base_inicial ?? 0;
-  const efectivoEsperado = base + (data?.efectivo ?? 0) + sumAjustes;
+  const efectivoEsperado = base + (data?.efectivo ?? 0) + sumAjustesPrevios + sumAjustes;
+
   const datafonoEsperado = data?.datafono ?? 0;
   const difEfectivo = useMemo(
     () => Number(efectivoFisico || 0) - efectivoEsperado,
