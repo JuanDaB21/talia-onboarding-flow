@@ -1833,6 +1833,10 @@ export type Database = {
         Returns: number
       }
       iniciar_turno: { Args: never; Returns: undefined }
+      intentar_liberar_mesa_si_pagada: {
+        Args: { p_id_mesa: string }
+        Returns: boolean
+      }
       is_admin_actual: { Args: never; Returns: boolean }
       limpiar_solicitud_cliente: {
         Args: { p_id_mesa: string }
