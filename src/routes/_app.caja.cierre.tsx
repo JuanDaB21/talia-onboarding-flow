@@ -241,6 +241,12 @@ function CierreWizard() {
           <CardContent className="space-y-3">
             <Diff label="Efectivo" sistema={efectivoEsperado} fisico={Number(efectivoFisico)} dif={difEfectivo} />
             <Diff label="Datáfono" sistema={datafonoEsperado} fisico={Number(datafonoFisico)} dif={difDatafono} />
+            <AjustesEditor
+              tipos={tipos ?? []}
+              ajustes={ajustes}
+              onChange={setAjustes}
+              onTipoCreated={() => queryClient.invalidateQueries({ queryKey: ["caja-ajuste-tipos"] })}
+            />
             {hayDiferencia && (
               <div className="grid gap-2">
                 <Label htmlFor="nota">
