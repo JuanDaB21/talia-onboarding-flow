@@ -1,18 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { KanbanBoard } from "@/components/preparacion/kanban-board";
-import { TurnoGate } from "@/components/turno/turno-gate";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/cocina")({
-  component: CocinaPage,
-  head: () => ({
-    meta: [{ title: "Cocina · Talia" }],
-  }),
+  component: () => <Navigate to="/estacion/$slug" params={{ slug: "COCINA" }} replace />,
 });
-
-function CocinaPage() {
-  return (
-    <TurnoGate rolesRequeridos={["COCINA"]}>
-      <KanbanBoard destino="COCINA" titulo="Cocina" />
-    </TurnoGate>
-  );
-}
