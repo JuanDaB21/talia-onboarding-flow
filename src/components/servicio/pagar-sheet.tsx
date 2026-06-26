@@ -501,8 +501,11 @@ function BonoRow({
                     >
                       <span className="flex-1">{b.nombre}</span>
                       <span className="text-xs text-muted-foreground tabular-nums">
-                        -{b.porcentaje}%
+                        {b.tipo === "VALOR"
+                          ? `-${fmt.format(b.valor)}`
+                          : `-${b.porcentaje ?? 0}%`}
                       </span>
+
                     </CommandItem>
                   ))}
                 </CommandGroup>
