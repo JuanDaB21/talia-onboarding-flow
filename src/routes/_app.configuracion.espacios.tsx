@@ -162,39 +162,62 @@ function EspaciosPage() {
       ) : (
         <div className="space-y-2">
           {espacios.map((e) => (
-            <Card key={e.id_espacio} className="flex items-center gap-3 p-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">
-                  {e.nombre}
-                  {e.es_sistema && (
-                    <span className="ml-2 text-xs text-muted-foreground">(sistema)</span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">{e.slug}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor={`toggle-${e.id_espacio}`} className="text-xs">
-                  {e.activo ? "Activo" : "Inactivo"}
-                </Label>
-                <Switch
-                  id={`toggle-${e.id_espacio}`}
-                  checked={e.activo}
-                  onCheckedChange={(v) => handleToggle(e, v)}
-                />
-              </div>
-              <Button size="icon" variant="ghost" onClick={() => openEdit(e)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              {!e.es_sistema && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-destructive"
-                  onClick={() => setDelTarget(e)}
-                >
-                  <Trash2 className="h-4 w-4" />
+            <Card key={e.id_espacio} className="p-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">
+                    {e.nombre}
+                    {e.es_sistema && (
+                      <span className="ml-2 text-xs text-muted-foreground">(sistema)</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">{e.slug}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor={`toggle-${e.id_espacio}`} className="text-xs">
+                    {e.activo ? "Activo" : "Inactivo"}
+                  </Label>
+                  <Switch
+                    id={`toggle-${e.id_espacio}`}
+                    checked={e.activo}
+                    onCheckedChange={(v) => handleToggle(e, v)}
+                  />
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => openEdit(e)}>
+                  <Pencil className="h-4 w-4" />
                 </Button>
-              )}
+                {!e.es_sistema && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setDelTarget(e)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <Star className="h-4 w-4 text-amber-500 fill-amber-400 shrink-0" />
+                <Label className="text-xs text-muted-foreground shrink-0">Bodega principal</Label>
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={bodegaPorEspacio[e.id_espacio] ?? ""}
+                    onValueChange={(v) => handleSetBodega(e.id_espacio, v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bodegas.map((b) => (
+                        <SelectItem key={b.id_bodega} value={b.id_bodega}>
+                          {b.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </Card>
           ))}
         </div>
