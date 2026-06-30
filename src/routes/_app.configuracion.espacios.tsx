@@ -45,10 +45,40 @@ export const Route = createFileRoute("/_app/configuracion/espacios")({
 
 function EspaciosPage() {
   const { espacios, loading, invalidate } = useEspacios();
+  const { bodegas, invalidate: invalidateBodegas } = useBodegas({ soloActivas: true });
   const crear = useServerFn(crearEspacio);
   const renombrar = useServerFn(renombrarEspacio);
   const toggle = useServerFn(toggleEspacio);
   const eliminar = useServerFn(eliminarEspacio);
+  const setPrincipal = useServerFn(setBodegaPrincipalEspacio);
+
+  const [bodegaPorEspacio, setBodegaPorEspacio] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("espacio_bodega_principal")
+        .select("id_espacio, id_bodega");
+      const m: Record<string, string> = {};
+      for (const r of (data ?? []) as { id_espacio: string; id_bodega: string }[]) {
+        m[r.id_espacio] = r.id_bodega;
+      }
+      setBodegaPorEspacio(m);
+    })();
+  }, [espacios.length]);
+
+  const handleSetBodega = async (id_espacio: string, id_bodega: string) => {
+    try {
+      await setPrincipal({ data: { id_espacio, id_bodega } });
+      setBodegaPorEspacio((prev) => ({ ...prev, [id_espacio]: id_bodega }));
+      await invalidateBodegas();
+      toast.success("Bodega principal actualizada");
+    } catch (e) {
+      toast.error("No se pudo asignar bodega", {
+        description: e instanceof Error ? e.message : "Error",
+      });
+    }
+  };
 
   const [sheet, setSheet] = useState<{ open: boolean; editing?: EspacioTrabajo }>({ open: false });
   const [delTarget, setDelTarget] = useState<EspacioTrabajo | null>(null);
