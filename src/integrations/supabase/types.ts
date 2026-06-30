@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bodegas: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id_bodega: string
+          id_negocio: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id_bodega?: string
+          id_negocio: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id_bodega?: string
+          id_negocio?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bodegas_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
       bono_aplicaciones: {
         Row: {
           created_at: string
@@ -378,6 +416,7 @@ export type Database = {
         Row: {
           cantidad: number
           created_at: string
+          id_bodega_destino: string | null
           id_compra: string
           id_detalle: string
           id_insumo: string
@@ -387,6 +426,7 @@ export type Database = {
         Insert: {
           cantidad: number
           created_at?: string
+          id_bodega_destino?: string | null
           id_compra: string
           id_detalle?: string
           id_insumo: string
@@ -396,6 +436,7 @@ export type Database = {
         Update: {
           cantidad?: number
           created_at?: string
+          id_bodega_destino?: string | null
           id_compra?: string
           id_detalle?: string
           id_insumo?: string
@@ -403,6 +444,13 @@ export type Database = {
           subtotal?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "detalle_compra_id_bodega_destino_fkey"
+            columns: ["id_bodega_destino"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id_bodega"]
+          },
           {
             foreignKeyName: "detalle_compra_id_compra_fkey"
             columns: ["id_compra"]
@@ -416,6 +464,52 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "insumos"
             referencedColumns: ["id_insumo"]
+          },
+        ]
+      }
+      espacio_bodega_principal: {
+        Row: {
+          created_at: string
+          id_bodega: string
+          id_espacio: string
+          id_negocio: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id_bodega: string
+          id_espacio: string
+          id_negocio: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id_bodega?: string
+          id_espacio?: string
+          id_negocio?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "espacio_bodega_principal_id_bodega_fkey"
+            columns: ["id_bodega"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id_bodega"]
+          },
+          {
+            foreignKeyName: "espacio_bodega_principal_id_espacio_fkey"
+            columns: ["id_espacio"]
+            isOneToOne: true
+            referencedRelation: "espacios_trabajo"
+            referencedColumns: ["id_espacio"]
+          },
+          {
+            foreignKeyName: "espacio_bodega_principal_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
           },
         ]
       }
@@ -549,28 +643,31 @@ export type Database = {
           },
         ]
       }
-      inventario_actual: {
+      inventario_bodega: {
         Row: {
           cantidad_actual: number
           created_at: string
+          id_bodega: string
           id_insumo: string
-          id_inventario: string
+          id_inv_bodega: string
           id_negocio: string
           updated_at: string
         }
         Insert: {
           cantidad_actual?: number
           created_at?: string
+          id_bodega: string
           id_insumo: string
-          id_inventario?: string
+          id_inv_bodega?: string
           id_negocio: string
           updated_at?: string
         }
         Update: {
           cantidad_actual?: number
           created_at?: string
+          id_bodega?: string
           id_insumo?: string
-          id_inventario?: string
+          id_inv_bodega?: string
           id_negocio?: string
           updated_at?: string
         }
@@ -578,7 +675,7 @@ export type Database = {
           {
             foreignKeyName: "inventario_actual_id_insumo_fkey"
             columns: ["id_insumo"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "insumos"
             referencedColumns: ["id_insumo"]
           },
@@ -588,6 +685,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "negocio"
             referencedColumns: ["id_negocio"]
+          },
+          {
+            foreignKeyName: "inventario_bodega_id_bodega_fkey"
+            columns: ["id_bodega"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id_bodega"]
           },
         ]
       }
@@ -695,6 +799,8 @@ export type Database = {
           cantidad_anterior: number
           cantidad_nueva: number
           created_at: string
+          id_bodega_destino: string | null
+          id_bodega_origen: string | null
           id_insumo: string
           id_movimiento: string
           id_negocio: string
@@ -708,6 +814,8 @@ export type Database = {
           cantidad_anterior: number
           cantidad_nueva: number
           created_at?: string
+          id_bodega_destino?: string | null
+          id_bodega_origen?: string | null
           id_insumo: string
           id_movimiento?: string
           id_negocio: string
@@ -721,6 +829,8 @@ export type Database = {
           cantidad_anterior?: number
           cantidad_nueva?: number
           created_at?: string
+          id_bodega_destino?: string | null
+          id_bodega_origen?: string | null
           id_insumo?: string
           id_movimiento?: string
           id_negocio?: string
@@ -730,6 +840,20 @@ export type Database = {
           tipo_movimiento?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "movimientos_inventario_id_bodega_destino_fkey"
+            columns: ["id_bodega_destino"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id_bodega"]
+          },
+          {
+            foreignKeyName: "movimientos_inventario_id_bodega_origen_fkey"
+            columns: ["id_bodega_origen"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id_bodega"]
+          },
           {
             foreignKeyName: "movimientos_inventario_id_insumo_fkey"
             columns: ["id_insumo"]
@@ -1755,7 +1879,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      inventario_actual: {
+        Row: {
+          cantidad_actual: number | null
+          id_insumo: string | null
+          id_negocio: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_actual_id_insumo_fkey"
+            columns: ["id_insumo"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id_insumo"]
+          },
+          {
+            foreignKeyName: "inventario_actual_id_negocio_fkey"
+            columns: ["id_negocio"]
+            isOneToOne: false
+            referencedRelation: "negocio"
+            referencedColumns: ["id_negocio"]
+          },
+        ]
+      }
     }
     Functions: {
       abrir_caja: { Args: { p_base: number }; Returns: string }
@@ -1799,6 +1946,7 @@ export type Database = {
       }
       ajustar_stock_manual: {
         Args: {
+          p_id_bodega?: string
           p_id_insumo: string
           p_motivo: string
           p_nueva_cantidad: number
@@ -1875,6 +2023,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      eliminar_bodega: { Args: { p_id_bodega: string }; Returns: undefined }
       eliminar_item_pedido: { Args: { p_id_item: string }; Returns: undefined }
       eliminar_receta: { Args: { p_id_receta: string }; Returns: undefined }
       finalizar_turno: { Args: never; Returns: undefined }
@@ -1918,6 +2067,7 @@ export type Database = {
       registrar_compra: {
         Args: {
           p_fecha_compra: string
+          p_id_bodega_default?: string
           p_id_proveedor: string
           p_items: Json
           p_numero_factura: string
@@ -1953,8 +2103,22 @@ export type Database = {
         Returns: string
       }
       resumen_caja_dia: { Args: never; Returns: Json }
+      set_bodega_principal_espacio: {
+        Args: { p_id_bodega: string; p_id_espacio: string }
+        Returns: undefined
+      }
       solicitar_accion_cliente: {
         Args: { p_id_mesa: string; p_tipo: string }
+        Returns: undefined
+      }
+      trasladar_inventario: {
+        Args: {
+          p_cantidad: number
+          p_id_bodega_destino: string
+          p_id_bodega_origen: string
+          p_id_insumo: string
+          p_motivo: string
+        }
         Returns: undefined
       }
     }

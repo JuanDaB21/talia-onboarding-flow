@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useBodegas } from "@/hooks/use-bodegas";
 
 interface Props {
   idInsumo: string;
@@ -13,6 +21,7 @@ interface Props {
   unidadMedida: string;
   onSuccess: () => void;
   onCancel: () => void;
+  idBodegaInicial?: string;
 }
 
 type Modo = "nueva" | "diff";
@@ -23,19 +32,49 @@ export function AjustarStockForm({
   unidadMedida,
   onSuccess,
   onCancel,
+  idBodegaInicial,
 }: Props) {
+  const { bodegas, loading: loadingBodegas } = useBodegas({ soloActivas: true });
+  const [idBodega, setIdBodega] = useState<string>(idBodegaInicial ?? "");
   const [modo, setModo] = useState<Modo>("nueva");
   const [valor, setValor] = useState<string>("");
   const [motivo, setMotivo] = useState("");
   const [saving, setSaving] = useState(false);
+  const [stockBodega, setStockBodega] = useState<number>(Number(cantidadActual) || 0);
+
+  useEffect(() => {
+    if (!idBodega && bodegas.length > 0) {
+      setIdBodega(idBodegaInicial ?? bodegas[0].id_bodega);
+    }
+  }, [bodegas, idBodega, idBodegaInicial]);
+
+  useEffect(() => {
+    if (!idBodega) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("inventario_bodega")
+        .select("cantidad_actual")
+        .eq("id_insumo", idInsumo)
+        .eq("id_bodega", idBodega)
+        .maybeSingle();
+      if (!cancelled) setStockBodega(Number(data?.cantidad_actual ?? 0));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [idBodega, idInsumo]);
 
   const parsed = Number(valor);
   const valido = valor !== "" && !Number.isNaN(parsed);
-  const nuevaCantidad =
-    modo === "nueva" ? parsed : Number(cantidadActual) + parsed;
+  const nuevaCantidad = modo === "nueva" ? parsed : stockBodega + parsed;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!idBodega) {
+      toast.error("Selecciona una bodega");
+      return;
+    }
     if (!valido) {
       toast.error("Ingresa un número válido");
       return;
@@ -53,7 +92,8 @@ export function AjustarStockForm({
       p_id_insumo: idInsumo,
       p_nueva_cantidad: nuevaCantidad,
       p_motivo: motivo.trim(),
-    });
+      p_id_bodega: idBodega,
+    } as never);
     setSaving(false);
     if (error) {
       toast.error("No se pudo ajustar el stock", { description: error.message });
@@ -65,10 +105,26 @@ export function AjustarStockForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label>Bodega</Label>
+        <Select value={idBodega} onValueChange={setIdBodega} disabled={loadingBodegas}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona bodega" />
+          </SelectTrigger>
+          <SelectContent>
+            {bodegas.map((b) => (
+              <SelectItem key={b.id_bodega} value={b.id_bodega}>
+                {b.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-        Stock actual:{" "}
+        Stock en esta bodega:{" "}
         <span className="font-semibold tabular-nums">
-          {Number(cantidadActual).toLocaleString()} {unidadMedida}
+          {stockBodega.toLocaleString()} {unidadMedida}
         </span>
       </div>
 

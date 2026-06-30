@@ -47,6 +47,7 @@ import { Route as AppCajaCierreRouteImport } from './routes/_app.caja.cierre'
 import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.bodega.proveedores-insumos'
 import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.inventario'
 import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
+import { Route as AppBodegaBodegasRouteImport } from './routes/_app.bodega.bodegas'
 import { Route as AppMenuRecetasIndexRouteImport } from './routes/_app.menu.recetas.index'
 import { Route as AppBodegaInventarioIndexRouteImport } from './routes/_app.bodega.inventario.index'
 import { Route as ApiPublicHooksCerrarTurnosRouteImport } from './routes/api/public/hooks/cerrar-turnos'
@@ -251,6 +252,11 @@ const AppBodegaComprasRoute = AppBodegaComprasRouteImport.update({
   path: '/compras',
   getParentRoute: () => AppBodegaRoute,
 } as any)
+const AppBodegaBodegasRoute = AppBodegaBodegasRouteImport.update({
+  id: '/bodegas',
+  path: '/bodegas',
+  getParentRoute: () => AppBodegaRoute,
+} as any)
 const AppMenuRecetasIndexRoute = AppMenuRecetasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/operacion': typeof AppOperacionRoute
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
   '/caja/cierre': typeof AppCajaCierreRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/_app/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
   '/_app/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -439,6 +448,7 @@ export interface FileRouteTypes {
     | '/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/inventario'
     | '/bodega/proveedores-insumos'
@@ -479,6 +489,7 @@ export interface FileRouteTypes {
     | '/operacion'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
     | '/caja/cierre'
@@ -524,6 +535,7 @@ export interface FileRouteTypes {
     | '/_app/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/_app/bodega/bodegas'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
     | '/_app/bodega/proveedores-insumos'
@@ -833,6 +845,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBodegaComprasRouteImport
       parentRoute: typeof AppBodegaRoute
     }
+    '/_app/bodega/bodegas': {
+      id: '/_app/bodega/bodegas'
+      path: '/bodegas'
+      fullPath: '/bodega/bodegas'
+      preLoaderRoute: typeof AppBodegaBodegasRouteImport
+      parentRoute: typeof AppBodegaRoute
+    }
     '/_app/menu/recetas/': {
       id: '/_app/menu/recetas/'
       path: '/'
@@ -899,6 +918,7 @@ const AppBodegaInventarioRouteWithChildren =
   AppBodegaInventarioRoute._addFileChildren(AppBodegaInventarioRouteChildren)
 
 interface AppBodegaRouteChildren {
+  AppBodegaBodegasRoute: typeof AppBodegaBodegasRoute
   AppBodegaComprasRoute: typeof AppBodegaComprasRoute
   AppBodegaInventarioRoute: typeof AppBodegaInventarioRouteWithChildren
   AppBodegaProveedoresInsumosRoute: typeof AppBodegaProveedoresInsumosRoute
@@ -906,6 +926,7 @@ interface AppBodegaRouteChildren {
 }
 
 const AppBodegaRouteChildren: AppBodegaRouteChildren = {
+  AppBodegaBodegasRoute: AppBodegaBodegasRoute,
   AppBodegaComprasRoute: AppBodegaComprasRoute,
   AppBodegaInventarioRoute: AppBodegaInventarioRouteWithChildren,
   AppBodegaProveedoresInsumosRoute: AppBodegaProveedoresInsumosRoute,
@@ -1057,13 +1078,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

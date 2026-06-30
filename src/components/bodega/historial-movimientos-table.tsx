@@ -20,6 +20,10 @@ export interface MovimientoRow {
   motivo: string | null;
   referencia_id: string | null;
   usuarios_staff: { nombre: string } | null;
+  id_bodega_origen?: string | null;
+  id_bodega_destino?: string | null;
+  bodega_origen?: { nombre: string } | null;
+  bodega_destino?: { nombre: string } | null;
 }
 
 interface Props {
@@ -40,9 +44,22 @@ function tipoBadge(tipo: string, cantidad: number) {
           {isEntrada ? "Ajuste +" : "Ajuste −"}
         </Badge>
       );
+    case "TRASLADO_ENTRADA":
+      return (
+        <Badge variant="secondary" className="bg-sky-100 text-sky-900 hover:bg-sky-100">
+          Traslado +
+        </Badge>
+      );
+    case "TRASLADO_SALIDA":
+      return (
+        <Badge variant="secondary" className="bg-sky-100 text-sky-900 hover:bg-sky-100">
+          Traslado −
+        </Badge>
+      );
     case "VENTA":
       return <Badge variant="destructive">Venta</Badge>;
     case "CONSUMO":
+    case "CONSUMO_PREPARACION":
       return <Badge variant="destructive">Consumo</Badge>;
     case "MERMA":
       return <Badge variant="destructive">Merma</Badge>;
@@ -62,6 +79,15 @@ function formatFecha(iso: string) {
   });
 }
 
+function bodegaLabel(r: MovimientoRow): string | null {
+  const origen = r.bodega_origen?.nombre;
+  const destino = r.bodega_destino?.nombre;
+  if (origen && destino) return `${origen} → ${destino}`;
+  if (destino) return destino;
+  if (origen) return origen;
+  return null;
+}
+
 export function HistorialMovimientosTable({ rows, loading, unidad, onSelectCompra }: Props) {
   return (
     <div className="rounded-md border bg-card">
@@ -71,6 +97,7 @@ export function HistorialMovimientosTable({ rows, loading, unidad, onSelectCompr
             <TableHead>Fecha</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead className="text-right">Cantidad</TableHead>
+            <TableHead className="hidden md:table-cell">Bodega</TableHead>
             <TableHead className="hidden md:table-cell text-right">Anterior → Nuevo</TableHead>
             <TableHead className="hidden sm:table-cell">Motivo</TableHead>
             <TableHead className="hidden md:table-cell">Usuario</TableHead>
@@ -79,13 +106,13 @@ export function HistorialMovimientosTable({ rows, loading, unidad, onSelectCompr
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+              <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                 Cargando…
               </TableCell>
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+              <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                 Aún no hay movimientos para este insumo.
               </TableCell>
             </TableRow>
@@ -94,6 +121,7 @@ export function HistorialMovimientosTable({ rows, loading, unidad, onSelectCompr
               const cantidad = Number(r.cantidad);
               const isEntrada = cantidad >= 0;
               const clickable = r.tipo_movimiento === "COMPRA" && r.referencia_id;
+              const label = bodegaLabel(r);
               return (
                 <TableRow
                   key={r.id_movimiento}
@@ -109,11 +137,14 @@ export function HistorialMovimientosTable({ rows, loading, unidad, onSelectCompr
                   <TableCell
                     className={cn(
                       "text-right tabular-nums font-medium",
-                      isEntrada ? "text-emerald-600" : "text-destructive"
+                      isEntrada ? "text-emerald-600" : "text-destructive",
                     )}
                   >
                     {isEntrada ? "+" : ""}
                     {cantidad.toLocaleString()} {unidad}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-sm">
+                    {label ?? "—"}
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-right tabular-nums text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">

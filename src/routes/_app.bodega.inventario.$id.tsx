@@ -96,7 +96,7 @@ function InventarioDetailPage() {
     const { data } = await supabase
       .from("movimientos_inventario")
       .select(
-        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, usuarios_staff:id_usuario(nombre)"
+        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, id_bodega_origen, id_bodega_destino, usuarios_staff:id_usuario(nombre), bodega_origen:id_bodega_origen(nombre), bodega_destino:id_bodega_destino(nombre)"
       )
       .eq("id_insumo", id)
       .order("created_at", { ascending: false });

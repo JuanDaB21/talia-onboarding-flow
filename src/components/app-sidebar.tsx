@@ -66,6 +66,7 @@ const BODEGA_NAV = [
   { to: "/bodega/proveedores-insumos", label: "Proveedores e Insumos", icon: Boxes },
   { to: "/bodega/compras", label: "Compras", icon: ShoppingCart },
   { to: "/bodega/inventario", label: "Inventario", icon: Warehouse },
+  { to: "/bodega/bodegas", label: "Bodegas", icon: Warehouse },
 ] as const;
 
 const MENU_NAV = [
