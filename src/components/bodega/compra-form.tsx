@@ -7,17 +7,26 @@ import { Plus, Trash2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
+import { useBodegas } from "@/hooks/use-bodegas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const itemSchema = z.object({
   id_insumo: z.string().uuid("Selecciona insumo"),
   cantidad: z.coerce.number().gt(0, "> 0"),
   precio_unitario_compra: z.coerce.number().min(0, "≥ 0"),
+  id_bodega_destino: z.string().uuid().optional().or(z.literal("")),
 });
 
 const compraSchema = z.object({
@@ -25,6 +34,7 @@ const compraSchema = z.object({
   numero_factura: z.string().trim().max(50).optional().or(z.literal("")),
   fecha_compra: z.string().min(1, "Requerido"),
   observaciones: z.string().trim().max(500).optional().or(z.literal("")),
+  id_bodega_default: z.string().uuid("Selecciona bodega destino"),
   items: z.array(itemSchema).min(1, "Agrega al menos un insumo"),
 });
 
@@ -49,6 +59,7 @@ interface CompraFormProps {
 
 export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
   const { idNegocio, loading: negocioLoading } = useCurrentNegocio();
+  const { bodegas, loading: loadingBodegas } = useBodegas({ soloActivas: true });
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
@@ -69,11 +80,20 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
       numero_factura: "",
       fecha_compra: today,
       observaciones: "",
-      items: [{ id_insumo: "", cantidad: 1, precio_unitario_compra: 0 }],
+      id_bodega_default: "",
+      items: [{ id_insumo: "", cantidad: 1, precio_unitario_compra: 0, id_bodega_destino: "" }],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+
+  // Selecciona bodega por defecto cuando carguen
+  const bodegaDefault = watch("id_bodega_default");
+  useEffect(() => {
+    if (!bodegaDefault && bodegas.length > 0) {
+      setValue("id_bodega_default", bodegas[0].id_bodega);
+    }
+  }, [bodegas, bodegaDefault, setValue]);
 
   useEffect(() => {
     if (!idNegocio) return;
@@ -105,7 +125,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
         label: p.razon_social,
         hint: p.documento_tributario,
       })),
-    [proveedores]
+    [proveedores],
   );
 
   const insumoOpts: ComboboxOption[] = useMemo(
@@ -115,7 +135,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
         label: i.nombre_insumo,
         hint: `Compra: ${i.unidad_compra}`,
       })),
-    [insumos]
+    [insumos],
   );
 
   const items = watch("items");
@@ -126,25 +146,22 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
         const p = Number(it.precio_unitario_compra) || 0;
         return acc + c * p;
       }, 0),
-    [items]
+    [items],
   );
 
   const onSubmit = async (values: CompraInput) => {
-    const ids = values.items.map((i) => i.id_insumo);
-    if (new Set(ids).size !== ids.length) {
-      toast.error("No repitas el mismo insumo en líneas distintas");
-      return;
-    }
-
+    // No bloqueamos duplicados de insumo: ahora pueden repetirse por bodega distinta
     const { data, error } = await supabase.rpc("registrar_compra" as never, {
       p_id_proveedor: values.id_proveedor,
       p_numero_factura: values.numero_factura || "",
       p_observaciones: values.observaciones || "",
       p_fecha_compra: values.fecha_compra,
+      p_id_bodega_default: values.id_bodega_default,
       p_items: values.items.map((i) => ({
         id_insumo: i.id_insumo,
         cantidad: Number(i.cantidad),
         precio_unitario_compra: Number(i.precio_unitario_compra),
+        id_bodega_destino: i.id_bodega_destino || null,
       })),
     } as never);
 
@@ -159,8 +176,21 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
     onSuccess?.();
   };
 
-  if (negocioLoading || loadingCatalogos) {
+  if (negocioLoading || loadingCatalogos || loadingBodegas) {
     return <p className="text-sm text-muted-foreground">Cargando catálogos…</p>;
+  }
+
+  if (bodegas.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Necesitas al menos una bodega activa para registrar compras.
+        </p>
+        <Button asChild size="sm">
+          <Link to="/bodega/bodegas">Ir a Bodegas</Link>
+        </Button>
+      </div>
+    );
   }
 
   if (proveedores.length === 0) {
@@ -224,6 +254,33 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
           )}
         </div>
         <div className="space-y-1.5 sm:col-span-2">
+          <Label>Bodega destino (por defecto)</Label>
+          <Controller
+            control={control}
+            name="id_bodega_default"
+            render={({ field }) => (
+              <Select value={field.value || ""} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona bodega" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bodegas.map((b) => (
+                    <SelectItem key={b.id_bodega} value={b.id_bodega}>
+                      {b.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            Cada línea puede tener una bodega distinta si lo necesitas.
+          </p>
+          {errors.id_bodega_default && (
+            <p className="text-xs text-destructive">{errors.id_bodega_default.message}</p>
+          )}
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="observaciones">Observaciones</Label>
           <Textarea id="observaciones" rows={2} {...register("observaciones")} />
         </div>
@@ -238,7 +295,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ id_insumo: "", cantidad: 1, precio_unitario_compra: 0 })
+              append({ id_insumo: "", cantidad: 1, precio_unitario_compra: 0, id_bodega_destino: "" })
             }
           >
             <Plus className="h-4 w-4 mr-1" /> Agregar
@@ -251,7 +308,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
 
         <div className="space-y-2">
           {fields.map((field, index) => {
-            const row = items[index] ?? { cantidad: 0, precio_unitario_compra: 0 };
+            const row = items[index] ?? { cantidad: 0, precio_unitario_compra: 0, id_bodega_destino: "" };
             const subtotal =
               (Number(row.cantidad) || 0) * (Number(row.precio_unitario_compra) || 0);
             const insumoSel = insumos.find((i) => i.id_insumo === row.id_insumo);
@@ -278,7 +335,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
                               setValue(
                                 `items.${index}.precio_unitario_compra`,
                                 Number(ins.costo_promedio) || 0,
-                                { shouldDirty: true }
+                                { shouldDirty: true },
                               );
                             }
                           }}
@@ -325,6 +382,32 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
                         </p>
                       )}
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Bodega destino</Label>
+                    <Controller
+                      control={control}
+                      name={`items.${index}.id_bodega_destino` as const}
+                      render={({ field: f }) => (
+                        <Select
+                          value={f.value || "__default"}
+                          onValueChange={(v) => f.onChange(v === "__default" ? "" : v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__default">Usar bodega por defecto</SelectItem>
+                            {bodegas.map((b) => (
+                              <SelectItem key={b.id_bodega} value={b.id_bodega}>
+                                {b.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
