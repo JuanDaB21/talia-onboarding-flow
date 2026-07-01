@@ -325,22 +325,55 @@ function CategoriaFormInline({
       setDestino(espacios[0].slug);
     }
   }, [loadingEsp, espacios, destino]);
-  return (
-    <form onSubmit={handleSubmit(async (v) => {
-      if (initial) {
-        const { error } = await supabase.from("categorias").update({ nombre: v.nombre, destino }).eq("id_categoria", initial.id_categoria);
+  const [confirmMove, setConfirmMove] = useState<null | { nombreEspacio: string }>(null);
+
+  const doSave = async (v: CategoriaInput) => {
+    if (initial) {
+      const nombreChanged = v.nombre !== initial.nombre;
+      const destinoChanged = destino !== (initial.destino ?? "").toUpperCase();
+      if (nombreChanged) {
+        const { error } = await supabase.from("categorias").update({ nombre: v.nombre }).eq("id_categoria", initial.id_categoria);
         if (error) return toast.error("No se pudo actualizar", { description: error.message });
+      }
+      if (destinoChanged) {
+        const { data, error } = await supabase.rpc("set_categoria_destino", {
+          p_id_categoria: initial.id_categoria,
+          p_destino: destino,
+        });
+        if (error) return toast.error("No se pudo mover la categoría", { description: error.message });
+        const updated = (data as { updated_items?: number } | null)?.updated_items ?? 0;
+        toast.success("Categoría movida", {
+          description: updated > 0 ? `Se actualizaron ${updated} pedido(s) pendiente(s).` : undefined,
+        });
+      } else if (nombreChanged) {
         toast.success("Categoría actualizada");
       } else {
-        const { data: maxRow } = await supabase.from("categorias").select("orden").eq("id_negocio", idNegocio).order("orden", { ascending: false }).limit(1).maybeSingle();
-        const nextOrden = (maxRow?.orden ?? -1) + 1;
-        const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino, orden: nextOrden });
-
-        if (error) return toast.error("No se pudo crear", { description: error.message });
-        toast.success("Categoría creada");
+        toast.info("Sin cambios");
       }
-      onDone();
+    } else {
+      const { data: maxRow } = await supabase.from("categorias").select("orden").eq("id_negocio", idNegocio).order("orden", { ascending: false }).limit(1).maybeSingle();
+      const nextOrden = (maxRow?.orden ?? -1) + 1;
+      const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino, orden: nextOrden });
+      if (error) return toast.error("No se pudo crear", { description: error.message });
+      toast.success("Categoría creada");
+    }
+    onDone();
+  };
+
+  return (
+    <>
+    <form onSubmit={handleSubmit(async (v) => {
+      const destinoChanged = !!initial && destino !== (initial.destino ?? "").toUpperCase();
+      if (destinoChanged) {
+        const esp = espacios.find((e) => e.slug === destino);
+        setConfirmMove({ nombreEspacio: esp?.nombre ?? destino });
+        // guardar pendiente hasta confirmar
+        (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = () => doSave(v);
+        return;
+      }
+      await doSave(v);
     })} className="space-y-4">
+
       <div className="space-y-1.5">
         <Label htmlFor="nombre">Nombre</Label>
         <Input id="nombre" {...register("nombre")} placeholder="Ej. Bebidas" autoFocus />
@@ -376,8 +409,33 @@ function CategoriaFormInline({
         <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
       </div>
     </form>
+    <AlertDialog open={!!confirmMove} onOpenChange={(o) => !o && setConfirmMove(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Mover categoría a {confirmMove?.nombreEspacio}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Todos los productos y recetas de esta categoría, y los pedidos aún no iniciados,
+            pasarán a la estación <strong>{confirmMove?.nombreEspacio}</strong>. Los pedidos ya
+            en preparación no se modifican.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
+          }}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            const fn = (window as unknown as { __pendingCatSave?: () => Promise<void> | void }).__pendingCatSave;
+            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
+            setConfirmMove(null);
+            if (fn) await fn();
+          }}>Confirmar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
 
 function SubcategoriaFormInline({
   idNegocio, idCategoria, initial, onDone, onCancel,
