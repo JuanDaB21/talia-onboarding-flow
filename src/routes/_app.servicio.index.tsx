@@ -188,11 +188,44 @@ function ServicioIndex() {
 function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
   const ocupada = m.estado === "OCUPADA";
   const [reasignarOpen, setReasignarOpen] = useState(false);
+  const [abrirOpen, setAbrirOpen] = useState(false);
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const abrirFn = useServerFn(abrirMesa);
+
+  const abrirMut = useMutation({
+    mutationFn: () => abrirFn({ data: { idMesa: m.id_mesa } }),
+    onSuccess: () => {
+      toast.success(`Mesa ${m.identificador} abierta`, {
+        description: "Quedaste asignado como mesero.",
+      });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+      qc.invalidateQueries({ queryKey: ["mesaSesion", m.id_mesa] });
+      navigate({ to: "/servicio/$idMesa", params: { idMesa: m.id_mesa } });
+    },
+    onError: (e) =>
+      toast.error("No se pudo abrir la mesa", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (ocupada) return; // navegar normal
+    e.preventDefault();
+    e.stopPropagation();
+    if (esAdmin) {
+      setAbrirOpen(true);
+    } else {
+      abrirMut.mutate();
+    }
+  };
+
   return (
     <div className="relative">
     <Link
       to="/servicio/$idMesa"
       params={{ idMesa: m.id_mesa }}
+      onClick={handleCardClick}
       className={`block rounded-xl border bg-card p-4 hover:shadow-md transition-shadow ${
         m.alerta_listo ? "ring-2 ring-emerald-500" : ""
       } ${m.solicitud_cliente ? "ring-2 ring-primary" : ""} ${
@@ -267,7 +300,37 @@ function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
           </div>
         )}
       </div>
-      {esAdmin && (
+
+      {!ocupada && (
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="mt-3"
+        >
+          <Button
+            size="sm"
+            className="w-full gap-1.5"
+            disabled={abrirMut.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (esAdmin) setAbrirOpen(true);
+              else abrirMut.mutate();
+            }}
+          >
+            {abrirMut.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <DoorOpen className="h-3.5 w-3.5" />
+            )}
+            {esAdmin ? "Abrir mesa…" : "Abrir mesa (yo)"}
+          </Button>
+        </div>
+      )}
+
+      {esAdmin && ocupada && (
         <div
           onClick={(e) => {
             e.preventDefault();
@@ -299,7 +362,15 @@ function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
         meseroActualId={m.id_mesero_asignado}
       />
     )}
+    {esAdmin && (
+      <AbrirMesaDialog
+        open={abrirOpen}
+        onOpenChange={setAbrirOpen}
+        idMesa={m.id_mesa}
+      />
+    )}
     </div>
   );
 }
+
 
