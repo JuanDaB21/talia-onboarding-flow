@@ -12,6 +12,7 @@ import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
 import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
+import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 
 
 export const Route = createFileRoute("/_app/servicio/")({
@@ -173,7 +174,7 @@ function ServicioIndex() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.mesas.map((m) => (
-            <MesaCard key={m.id_mesa} m={m} />
+            <MesaCard key={m.id_mesa} m={m} esAdmin={!!data.esAdmin} />
           ))}
         </div>
       )}
@@ -183,9 +184,11 @@ function ServicioIndex() {
   );
 }
 
-function MesaCard({ m }: { m: MesaServicio }) {
+function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
   const ocupada = m.estado === "OCUPADA";
+  const [reasignarOpen, setReasignarOpen] = useState(false);
   return (
+    <div className="relative">
     <Link
       to="/servicio/$idMesa"
       params={{ idMesa: m.id_mesa }}
@@ -263,6 +266,39 @@ function MesaCard({ m }: { m: MesaServicio }) {
           </div>
         )}
       </div>
+      {esAdmin && (
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="mt-3"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setReasignarOpen(true);
+            }}
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            {m.id_mesero_asignado ? "Reasignar mesero" : "Asignar mesero"}
+          </Button>
+        </div>
+      )}
     </Link>
+    {esAdmin && (
+      <ReasignarMeseroDialog
+        open={reasignarOpen}
+        onOpenChange={setReasignarOpen}
+        idMesa={m.id_mesa}
+        meseroActualId={m.id_mesero_asignado}
+      />
+    )}
+    </div>
   );
 }
+

@@ -1,28 +1,46 @@
 ## Objetivo
 
-Al crear/editar una reserva permitir seleccionar la **cuenta (método de pago QR)** a la que se depositó el abono. El listado se alimenta desde "Configuración > Métodos de pago" (Nequi, Daviplata, Bancolombia y las creadas como "Otra").
+Desde la vista admin de "Mesas en servicio" (`/servicio`), permitir asignar o reasignar el mesero de cualquier mesa sin tener que entrar al detalle de la mesa.
+
+## Alcance
+
+- Solo UI. El backend ya existe:
+  - `listarMeserosNegocio` — lista meseros activos.
+  - `reasignarMeseroMesa` — cambia el mesero (ya permite ADMIN/SUPERADMIN/CAJERO/MESERO).
+- No se cambian permisos, esquema ni políticas.
 
 ## Cambios
 
-### 1. Base de datos
-Migración que agrega a `reservas`:
-- `id_metodo_pago_qr uuid null` con FK a `metodos_pago_qr(id_qr)` `on delete set null`.
+### 1. Extraer diálogo reutilizable
+Mover el componente `ReasignarMeseroDialog` (hoy dentro de `src/routes/_app.servicio.$idMesa.tsx`, líneas ~1361-1457) a un archivo compartido:
 
-### 2. Backend
-- `src/lib/reservas.schemas.ts`: agregar `id_metodo_pago_qr: z.string().uuid().nullable().optional()` al schema. Regla: cuando `monto_abonado > 0` y `estado = 'abonado'`, `id_metodo_pago_qr` es obligatorio.
-- `src/lib/reservas.functions.ts`:
-  - `crearReserva` y `actualizarReserva`: persistir el nuevo campo.
-  - `listarReservas` / interfaz `Reserva`: incluir `id_metodo_pago_qr` y un join ligero para mostrar la etiqueta (`plataforma` + `etiqueta` cuando sea "Otra") en las cards.
+- Nuevo: `src/components/servicio/reasignar-mesero-dialog.tsx`
+- Exportarlo y reemplazar la copia local en `_app.servicio.$idMesa.tsx` por el import compartido (comportamiento idéntico).
+- Ajustar invalidaciones para refrescar tanto la vista de detalle (`mesaSesion`) como la grilla (`servicio`, `mesas` — clave que usa el index).
 
-### 3. UI
-- `src/components/reservas/reserva-form-sheet.tsx`:
-  - Nuevo selector "Cuenta donde se recibió el abono" debajo de "Monto abonado".
-  - Carga las cuentas con `useServerFn(listarMetodosPagoQr)` (ya existe) vía `useQuery`.
-  - Solo se muestra cuando `monto_abonado > 0`.
-  - Opciones: `Plataforma` + (para "Otra") `etiqueta`, subtítulo con `titular` si existe.
-  - Estado vacío: "No hay cuentas configuradas" con link a `/configuracion/metodos-pago`.
-- `src/components/reservas/reserva-card.tsx`: mostrar en la card el nombre de la cuenta cuando haya abono.
+### 2. Botón en cada tarjeta de mesa (solo admin)
+En `src/routes/_app.servicio.index.tsx`, dentro de `MesaCard`:
 
-## Notas
-- No se toca "Configuración > Métodos de pago" — solo se consume el listado existente.
-- El QR/imagen no se guarda en la reserva; se referencia por id (así se mantiene sincronizado si el admin cambia la imagen).
+- Recibir `esAdmin: boolean` como prop desde `ServicioIndex`.
+- Añadir un botón discreto en la tarjeta ("Asignar mesero" si no hay mesero asignado, "Reasignar" si ya hay uno) visible solo cuando `esAdmin === true`.
+- El botón NO debe navegar al detalle: usar `stopPropagation` + `preventDefault` para no disparar el `<Link>` que envuelve la tarjeta.
+- Al hacer clic, abrir `ReasignarMeseroDialog` con `idMesa` y `meseroActualId={m.id_mesero_asignado}`.
+- Tras éxito, invalidar la query `["servicio", "mesas"]` (ya lo hará el diálogo) y mostrar toast (ya lo maneja el diálogo).
+
+### 3. UX
+- Ubicación del botón: junto al nombre del mesero (o en el lugar donde hoy dice "Asignada …"), usando `<UserCheck />` como icono.
+- Texto:
+  - Sin mesero: "Asignar mesero"
+  - Con mesero: "Reasignar"
+- Tamaño `sm`, `variant="outline"`.
+
+## Notas técnicas
+
+- El `MesaCard` actualmente es un `<Link>` completo. Para evitar que el clic en el botón navegue, envolver el botón en un `<div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>` y el `Dialog` fuera del `<Link>` (renderizar el `Dialog` como hermano en un fragmento, o convertir la tarjeta en un contenedor con navegación programática al hacer clic en el área principal). Enfoque más seguro: mantener el `<Link>`, pero el botón + Dialog se renderizan como hijos con handlers que detienen la propagación.
+
+## Verificación
+
+- Como admin: aparece el botón en cada tarjeta; abrir diálogo, seleccionar mesero, guardar → toast "Mesero reasignado", la tarjeta actualiza el nombre.
+- Como mesero (no admin): no aparece el botón (comportamiento actual intacto).
+- Entrar al detalle sigue funcionando: el diálogo del detalle sigue existiendo (misma implementación compartida).
+- `bunx tsgo --noEmit` sin errores.

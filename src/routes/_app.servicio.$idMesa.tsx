@@ -45,8 +45,6 @@ import {
   iniciarNuevoPedido,
   marcarPedidoEntregado,
   marcarSeguimientoVisto,
-  listarMeserosNegocio,
-  reasignarMeseroMesa,
   getPrepedidoMesa,
   type PedidoSesion,
   type ItemPedidoSesion,
@@ -55,6 +53,7 @@ import {
 import { PrepedidoEnVivoCard } from "@/components/servicio/prepedido-en-vivo-card";
 import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
+import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 import {
   EditarItemDialog,
   type EditarItemDialogItem,
@@ -1358,100 +1357,4 @@ function PillBtn({
   );
 }
 
-function ReasignarMeseroDialog({
-  open,
-  onOpenChange,
-  idMesa,
-  meseroActualId,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  idMesa: string;
-  meseroActualId: string | null;
-}) {
-  const qc = useQueryClient();
-  const listFn = useServerFn(listarMeserosNegocio);
-  const reasFn = useServerFn(reasignarMeseroMesa);
-  const [sel, setSel] = useState<string>("");
-
-  const meserosQ = useQuery({
-    queryKey: ["meseros-negocio"],
-    queryFn: () => listFn(),
-    enabled: open,
-    staleTime: 30_000,
-  });
-
-  useEffect(() => {
-    if (open) setSel(meseroActualId ?? "");
-  }, [open, meseroActualId]);
-
-  const mut = useMutation({
-    mutationFn: (idMesero: string) => reasFn({ data: { idMesa, idMesero } }),
-    onSuccess: () => {
-      toast.success("Mesero reasignado");
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["mesasServicio"] });
-      onOpenChange(false);
-    },
-    onError: (e) =>
-      toast.error("No se pudo reasignar", {
-        description: e instanceof Error ? e.message : undefined,
-      }),
-  });
-
-  const meseros = meserosQ.data ?? [];
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reasignar mesero</DialogTitle>
-          <DialogDescription>
-            Selecciona el mesero que tomará esta mesa.
-          </DialogDescription>
-        </DialogHeader>
-        {meserosQ.isLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : meseros.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">
-            No hay meseros activos disponibles.
-          </p>
-        ) : (
-          <Select value={sel} onValueChange={setSel}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un mesero" />
-            </SelectTrigger>
-            <SelectContent>
-              {meseros.map((m) => (
-                <SelectItem key={m.id_usuario} value={m.id_usuario}>
-                  {m.nombre}
-                  {m.esta_en_turno ? "" : " (fuera de turno)"}
-                  {m.id_usuario === meseroActualId ? " · actual" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={mut.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => sel && mut.mutate(sel)}
-            disabled={!sel || sel === meseroActualId || mut.isPending}
-          >
-            {mut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Reasignar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
