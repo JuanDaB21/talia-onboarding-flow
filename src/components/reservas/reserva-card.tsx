@@ -148,6 +148,7 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                     codigo={reserva.codigo_reserva}
                     monto={reserva.monto_abonado}
                     telefono={reserva.customer_phone}
+                    negocio={negocioQ.data?.nombre_comercial ?? null}
                   />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
