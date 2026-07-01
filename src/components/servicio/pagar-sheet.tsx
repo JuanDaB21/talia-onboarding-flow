@@ -1566,3 +1566,329 @@ function PlataformaBtn({
     </button>
   );
 }
+
+type ParteState = {
+  key: string;
+  metodo: Metodo;
+  subtipo: string;
+  voucher: string;
+  urlComprobante: string | null;
+  monto: string; // string para input controlado
+};
+
+function nuevaParte(monto = ""): ParteState {
+  return {
+    key: Math.random().toString(36).slice(2, 9),
+    metodo: "EFECTIVO",
+    subtipo: "",
+    voucher: "",
+    urlComprobante: null,
+    monto,
+  };
+}
+
+function PartesEditor({
+  totalRequerido,
+  onSubmit,
+  isLoading,
+}: {
+  totalRequerido: number;
+  onSubmit: (
+    partes: Array<{
+      metodo: Metodo;
+      subtipo: string | null;
+      voucher: string | null;
+      urlComprobante: string | null;
+      monto: number;
+    }>,
+  ) => void;
+  isLoading: boolean;
+}) {
+  const [partes, setPartes] = useState<ParteState[]>(() => [
+    nuevaParte(String(Math.floor(totalRequerido / 2))),
+    nuevaParte(String(totalRequerido - Math.floor(totalRequerido / 2))),
+  ]);
+  const { idNegocio } = useCurrentNegocio();
+
+  const updateParte = (key: string, patch: Partial<ParteState>) =>
+    setPartes((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+  const removeParte = (key: string) =>
+    setPartes((ps) => (ps.length <= 2 ? ps : ps.filter((p) => p.key !== key)));
+  const addParte = () =>
+    setPartes((ps) => (ps.length >= 10 ? ps : [...ps, nuevaParte()]));
+
+  const sumaPartes = useMemo(
+    () => partes.reduce((a, b) => a + (Number(b.monto) || 0), 0),
+    [partes],
+  );
+  const saldo = totalRequerido - sumaPartes;
+
+  const autocompletarSaldo = () => {
+    if (partes.length === 0) return;
+    const ultima = partes[partes.length - 1];
+    const nuevoMonto = Math.max(0, (Number(ultima.monto) || 0) + saldo);
+    updateParte(ultima.key, { monto: String(nuevoMonto) });
+  };
+
+  const parteValida = (p: ParteState) => {
+    const n = Number(p.monto);
+    if (!Number.isFinite(n) || n <= 0) return false;
+    if (p.metodo === "TRANSFERENCIA") return !!p.subtipo && !!p.urlComprobante;
+    if (p.metodo === "DATAFONO") return !!p.subtipo;
+    return true;
+  };
+  const todasValidas = partes.every(parteValida);
+  const cuadra = Math.abs(saldo) <= 1;
+  const puedePagar =
+    !isLoading && partes.length >= 2 && todasValidas && cuadra;
+
+  const handleSubmit = () => {
+    if (!puedePagar) return;
+    onSubmit(
+      partes.map((p) => ({
+        metodo: p.metodo,
+        subtipo: p.subtipo || null,
+        voucher: p.voucher || null,
+        urlComprobante: p.urlComprobante,
+        monto: Math.max(1, Math.floor(Number(p.monto) || 0)),
+      })),
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {partes.map((p, i) => (
+        <ParteCard
+          key={p.key}
+          index={i}
+          parte={p}
+          onChange={(patch) => updateParte(p.key, patch)}
+          onRemove={partes.length > 2 ? () => removeParte(p.key) : null}
+          idNegocio={idNegocio ?? null}
+        />
+      ))}
+
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addParte}
+          disabled={partes.length >= 10}
+        >
+          + Agregar parte
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={autocompletarSaldo}
+          disabled={saldo === 0}
+        >
+          Autocompletar saldo
+        </Button>
+      </div>
+
+      <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Total requerido</span>
+          <span className="tabular-nums font-medium">
+            {fmt.format(totalRequerido)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Suma de partes</span>
+          <span className="tabular-nums font-medium">
+            {fmt.format(sumaPartes)}
+          </span>
+        </div>
+        <div
+          className={`flex items-center justify-between font-semibold ${
+            cuadra
+              ? "text-emerald-700 dark:text-emerald-400"
+              : "text-red-600 dark:text-red-400"
+          }`}
+        >
+          <span>Saldo por asignar</span>
+          <span className="tabular-nums">{fmt.format(Math.abs(saldo))}</span>
+        </div>
+      </div>
+
+      <Button
+        size="lg"
+        className="w-full"
+        disabled={!puedePagar}
+        onClick={handleSubmit}
+      >
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4 mr-2" />
+        )}
+        Confirmar pago dividido de {fmt.format(totalRequerido)}
+      </Button>
+    </div>
+  );
+}
+
+function ParteCard({
+  index,
+  parte,
+  onChange,
+  onRemove,
+  idNegocio,
+}: {
+  index: number;
+  parte: ParteState;
+  onChange: (patch: Partial<ParteState>) => void;
+  onRemove: (() => void) | null;
+  idNegocio: string | null;
+}) {
+  const [subiendo, setSubiendo] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!idNegocio) {
+      toast.error("No se pudo identificar el negocio");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Máximo 8MB");
+      return;
+    }
+    setSubiendo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `${idNegocio}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("comprobantes-pago")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      onChange({ urlComprobante: path });
+      toast.success("Comprobante subido");
+    } catch (err) {
+      toast.error("No se pudo subir el comprobante", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSubiendo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">Parte {index + 1}</p>
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onRemove}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <MetodoBtn
+          active={parte.metodo === "EFECTIVO"}
+          onClick={() =>
+            onChange({
+              metodo: "EFECTIVO",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<Banknote className="h-4 w-4" />}
+          label="Efectivo"
+        />
+        <MetodoBtn
+          active={parte.metodo === "TRANSFERENCIA"}
+          onClick={() =>
+            onChange({
+              metodo: "TRANSFERENCIA",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<Smartphone className="h-4 w-4" />}
+          label="Transf."
+        />
+        <MetodoBtn
+          active={parte.metodo === "DATAFONO"}
+          onClick={() =>
+            onChange({
+              metodo: "DATAFONO",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<CreditCard className="h-4 w-4" />}
+          label="Datáfono"
+        />
+      </div>
+
+      <div>
+        <Label>Monto</Label>
+        <Input
+          inputMode="numeric"
+          value={parte.monto}
+          onChange={(e) =>
+            onChange({ monto: e.target.value.replace(/[^\d]/g, "") })
+          }
+          placeholder="0"
+          className="h-11 text-base"
+        />
+      </div>
+
+      {parte.metodo === "TRANSFERENCIA" && (
+        <TransferenciaSection
+          subtipo={parte.subtipo}
+          setSubtipo={(s) => onChange({ subtipo: s })}
+          urlComprobante={parte.urlComprobante}
+          subiendo={subiendo}
+          fileRef={fileRef}
+          handleFile={handleFile}
+        />
+      )}
+
+      {parte.metodo === "DATAFONO" && (
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {["Débito", "Crédito"].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onChange({ subtipo: s })}
+                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  parte.subtipo === s
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card hover:bg-muted"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <Input
+            value={parte.voucher}
+            onChange={(e) =>
+              onChange({ voucher: e.target.value.slice(0, 50) })
+            }
+            placeholder="N° voucher (opcional)"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
