@@ -133,7 +133,7 @@ export function ComandaSheet({
               size="sm"
               className={hayEnCola ? "sm:w-auto" : "w-full"}
               onClick={() =>
-                imprimirComandas([
+                dispatchComandas([
                   {
                     destino,
                     mesa_identificador: comanda.mesa_identificador,
