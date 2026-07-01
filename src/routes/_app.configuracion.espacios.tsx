@@ -219,6 +219,7 @@ function EspaciosPage() {
                   </Select>
                 </div>
               </div>
+              <EspacioImpresoraRow id_espacio={e.id_espacio} slug={e.slug} nombre={e.nombre} />
             </Card>
           ))}
         </div>
