@@ -16,6 +16,26 @@ const registrarPagoSchema = z.object({
   idReserva: z.string().uuid().optional().nullable(),
 });
 
+const registrarPagoDivididoSchema = z.object({
+  idMesa: z.string().uuid(),
+  itemIds: z.array(z.string().uuid()).min(1).max(200),
+  propina: z.number().min(0).max(10_000_000).optional().default(0),
+  idBono: z.string().uuid().optional().nullable(),
+  idReserva: z.string().uuid().optional().nullable(),
+  partes: z
+    .array(
+      z.object({
+        metodo: z.enum(["EFECTIVO", "TRANSFERENCIA", "DATAFONO"]),
+        subtipo: z.string().max(50).optional().nullable(),
+        voucher: z.string().max(50).optional().nullable(),
+        urlComprobante: z.string().max(500).optional().nullable(),
+        monto: z.number().int().positive(),
+      }),
+    )
+    .min(2)
+    .max(10),
+});
+
 const confirmarPagoSchema = z.object({
   idPago: z.string().uuid(),
   aprobar: z.boolean(),
