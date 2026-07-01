@@ -228,7 +228,7 @@ export const getCatalogoServicio = createServerFn({ method: "GET" })
       .select(
         "id_producto, nombre_producto, descripcion_producto, precio_venta, url_imagen, id_receta, receta_master:id_receta(id_categoria, categorias:id_categoria(id_categoria, nombre, destino))",
       )
-      .eq("activo", true)
+      .eq("facturable", true)
       .order("nombre_producto");
     if (error) throw new Error(error.message);
 

@@ -29,10 +29,12 @@ export function ProductoForm({
         descripcion_producto: producto.descripcion_producto ?? "",
         precio_venta: Number(producto.precio_venta),
         activo: producto.activo,
+        facturable: producto.facturable ?? true,
       },
     });
 
   const activo = watch("activo");
+  const facturable = watch("facturable");
 
   const onPickFile = (f: File | null) => {
     if (!f) return;
@@ -70,6 +72,7 @@ export function ProductoForm({
       precio_venta: v.precio_venta,
       url_imagen: finalUrl,
       activo: v.activo,
+      facturable: v.facturable,
     }).eq("id_producto", producto.id_producto);
     if (error) return toast.error("No se pudo guardar", { description: error.message });
 
@@ -135,9 +138,19 @@ export function ProductoForm({
       <div className="flex items-center justify-between rounded-md border p-3">
         <div>
           <Label htmlFor="act">Producto activo</Label>
-          <p className="text-xs text-muted-foreground">Disponible para venta en el menú.</p>
+          <p className="text-xs text-muted-foreground">Visible en el menú público para los clientes.</p>
         </div>
         <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <Label htmlFor="fac">Disponible para facturar</Label>
+          <p className="text-xs text-muted-foreground">
+            El mesero o administrador puede agregarlo y facturarlo aunque no aparezca en el menú público.
+          </p>
+        </div>
+        <Switch id="fac" checked={facturable} onCheckedChange={(v) => setValue("facturable", v, { shouldDirty: true })} />
       </div>
 
       {/* Las variantes se editan desde la receta asociada. */}

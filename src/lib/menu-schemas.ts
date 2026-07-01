@@ -32,6 +32,7 @@ export const productoSchema = z.object({
   descripcion_producto: z.string().trim().max(1000).optional(),
   precio_venta: z.coerce.number().min(0, "Debe ser ≥ 0"),
   activo: z.boolean(),
+  facturable: z.boolean(),
 });
 export type ProductoInput = z.infer<typeof productoSchema>;
 
