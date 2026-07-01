@@ -165,7 +165,7 @@ function imprimirComandasDePedido(
     }))
     .filter((c) => c.items.length > 0);
   if (comandas.length === 0) return;
-  void imprimirComandas(comandas);
+  void dispatchComandas(comandas);
 }
 
 function MesaEnServicio() {
