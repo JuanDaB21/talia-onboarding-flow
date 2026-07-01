@@ -265,6 +265,39 @@ function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
           </div>
         )}
       </div>
+      {esAdmin && (
+        <div
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="mt-3"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setReasignarOpen(true);
+            }}
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            {m.id_mesero_asignado ? "Reasignar mesero" : "Asignar mesero"}
+          </Button>
+        </div>
+      )}
     </Link>
+    {esAdmin && (
+      <ReasignarMeseroDialog
+        open={reasignarOpen}
+        onOpenChange={setReasignarOpen}
+        idMesa={m.id_mesa}
+        meseroActualId={m.id_mesero_asignado}
+      />
+    )}
+    </div>
   );
 }
+
