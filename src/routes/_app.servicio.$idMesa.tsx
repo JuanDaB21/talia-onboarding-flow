@@ -76,7 +76,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMiStaff } from "@/hooks/use-mi-staff";
-import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
+import { type ComandaPrintData } from "@/components/preparacion/comanda-print";
+import { dispatchComandas } from "@/services/printDispatch";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
@@ -164,7 +165,7 @@ function imprimirComandasDePedido(
     }))
     .filter((c) => c.items.length > 0);
   if (comandas.length === 0) return;
-  void imprimirComandas(comandas);
+  void dispatchComandas(comandas);
 }
 
 function MesaEnServicio() {

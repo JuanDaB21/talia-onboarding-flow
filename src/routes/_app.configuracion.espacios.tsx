@@ -29,6 +29,7 @@ import {
 import { useEspacios } from "@/hooks/use-espacios";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { setBodegaPrincipalEspacio } from "@/lib/bodegas.functions";
+import { EspacioImpresoraRow } from "@/components/configuracion/espacio-impresora-row";
 import { supabase } from "@/integrations/supabase/client";
 import {
   crearEspacio,
@@ -218,6 +219,7 @@ function EspaciosPage() {
                   </Select>
                 </div>
               </div>
+              <EspacioImpresoraRow id_espacio={e.id_espacio} slug={e.slug} nombre={e.nombre} />
             </Card>
           ))}
         </div>

@@ -1,59 +1,89 @@
+# Impresoras por espacio de trabajo (WebUSB, ESC/POS)
 
-## Objetivo
-Cuando cambies el espacio de trabajo (`destino`) de una categoría, todos sus productos y recetas deben quedar consistentes de inmediato, y la edición de esos productos/recetas debe seguir funcionando sin errores.
+## Qué se va a construir
 
-## Diagnóstico
-- Hoy `productos` y `receta_master` **no** guardan `destino`: lo heredan por `id_categoria → categorias.destino`. Por eso al cambiar la categoría de espacio, "en teoría" todo debería reflejarse. En la práctica hay tres puntos frágiles:
-  1. `categorias.destino` es texto libre. Nada valida que el nuevo valor exista en `espacios_trabajo` del negocio. Si queda un slug huérfano (ej. renombraste un espacio) → RPCs que buscan `espacios_trabajo.slug = upper(destino)` fallan (`descontar_inventario_item`, `iniciar_comanda_estacion`, `agregar_item_pedido`).
-  2. `pedido_items.destino` es un **snapshot** al momento de crear el item. Los items ya creados siguen apuntando al espacio anterior y aparecen en la estación equivocada / no descuentan de la bodega correcta.
-  3. RPCs históricos (`iniciar_comanda_estacion` viejo, ver `20260523005334_…`) tienen hardcoded `IN ('COCINA','BARRA')`. Si un item queda con destino personalizado sale error al iniciar la comanda; y al re-editar receta se dispara la validación de espacio.
+1. **En "Configuración > Espacios de trabajo"**: cada espacio muestra una nueva sección "Impresora local" con un botón **"Vincular impresora"**. Al pulsarlo, el navegador abre el diálogo nativo de USB, el usuario elige la térmica y queda guardada localmente para ese espacio.
+2. **Al confirmar un pedido o marcar item para preparación**, el sistema arma la comanda de cada espacio (ya existe) y la envía **directo por USB** a la impresora vinculada en formato ESC/POS. No abre ventana de impresión.
+3. **Si la impresión falla** (impresora desenchufada, apagada, sin papel), aparece una alerta en **Operación en vivo** con el espacio afectado, hora, y botón "Reintentar" / "Vincular otra".
+4. **Fallback**: si un espacio no tiene impresora vinculada en ese equipo, la comanda cae al comportamiento actual (abrir ventana de impresión del navegador) para no bloquear al restaurante.
 
-## Cambios
+## Cómo funcionará para el usuario
 
-### 1. Migración: validar y propagar destino de categoría
-- Función `public.set_categoria_destino(p_id_categoria uuid, p_destino text)`:
-  - Verifica que el usuario sea admin/superadmin del negocio de la categoría.
-  - Normaliza `p_destino` a UPPER y valida que exista en `espacios_trabajo` (mismo `id_negocio`, `activo = true`). Si no existe: `RAISE EXCEPTION 'Espacio de trabajo inválido'`.
-  - `UPDATE categorias SET destino = … WHERE id_categoria = p_id_categoria`.
-  - Propaga a `pedido_items` **pendientes** (aún no iniciados) de productos cuya receta pertenece a esa categoría:
-    ```sql
-    UPDATE pedido_items pi
-       SET destino = new_destino
-      FROM productos p JOIN receta_master rm ON rm.id_receta = p.id_receta
-     WHERE pi.id_producto = p.id_producto
-       AND rm.id_categoria = p_id_categoria
-       AND pi.estado_preparacion IN ('PENDIENTE');
-    ```
-    Los items ya en `EN_PREPARACION` / `LISTO` / `ENTREGADO` se dejan como estaban (histórico).
-- `GRANT EXECUTE … TO authenticated;`
+- **Configuración inicial** (una vez por equipo/tablet):
+  - Va a Configuración > Espacios de trabajo.
+  - En "Cocina" pulsa "Vincular impresora" → aparece el diálogo del navegador con las impresoras USB conectadas → selecciona la Epson TM-T20 → toast "Impresora vinculada a Cocina".
+  - Repite en "Barra" con otra térmica.
+- **Operación normal**: el mesero confirma un pedido, el sistema imprime automáticamente la comanda de Cocina en la impresora de Cocina y la de Barra en la de Barra. Sin diálogos.
+- **Si falla**: banner rojo en Operación en vivo → "Impresora de Barra no responde (comanda #A3F2, hace 12 s)" con acciones **Reintentar** y **Reimprimir manual**.
 
-### 2. Migración: reparar destinos huérfanos existentes
-Detectar categorías cuyo `destino` no matchea ningún `espacios_trabajo.slug` activo del mismo negocio y reasignarlas al primer espacio activo del negocio (`ORDER BY orden, nombre`). Loguear con `RAISE NOTICE` cuáles se movieron.
-Igual barrido sobre `pedido_items` pendientes con destino huérfano.
+## Limitaciones importantes (a comunicar al usuario)
 
-### 3. Migración: quitar CHECK legacy de `iniciar_comanda_estacion`
-Revisar la versión vigente de `iniciar_comanda_estacion`. La versión de `20260626201219_…` ya valida contra `espacios_trabajo` (correcto). Confirmar que no queden overloads viejos con `IN ('COCINA','BARRA')` y hacer `DROP FUNCTION` de esa firma si aparece.
+- **Solo Chrome, Edge u Opera de escritorio.** WebUSB **no funciona** en Safari, Firefox, iPad ni iPhone. Si el mesero usa iPad para tomar el pedido, la impresión debe dispararse desde un equipo con Chrome/Edge (por ejemplo el PC de caja o de la estación).
+- **La vinculación es por equipo.** Cada tablet/PC que quiera imprimir debe vincular sus impresoras una sola vez (el permiso queda guardado por el navegador).
+- **Requiere HTTPS** (ya lo tenemos en producción).
+- **En Windows** algunas impresoras requieren desinstalar el driver del sistema o usar Zadig para exponerlas como dispositivo USB genérico — documentaremos el paso a paso.
+- Compatible con impresoras **ESC/POS 58 mm y 80 mm** de marcas Epson, Xprinter, Bixolon, Star, 3nStar, Rongta, etc.
 
-### 4. UI: usar el RPC nuevo al guardar categoría
-En `src/components/menu/categorias-master-detail.tsx` (`CategoriaFormInline`, ~línea 331) reemplazar
-`supabase.from("categorias").update({ nombre, destino })`
-por dos pasos:
-- `update` sólo con `nombre` (que es texto libre).
-- Si cambió `destino`, llamar `supabase.rpc("set_categoria_destino", { p_id_categoria, p_destino })`.
-Al terminar, además de `load()`, invalidar la lista de recetas/productos que estén cacheadas y mostrar un toast: `"Categoría movida a <espacio>. Se actualizaron N pedidos pendientes."` (usar `data.updated_items` que devolveremos como json del RPC).
+## Detalles técnicos
 
-### 5. UI: aviso al cambiar destino desde el sheet
-Antes de confirmar, mostrar un `AlertDialog` de confirmación cuando `destino !== initial.destino`:
-> "Vas a mover todos los productos y recetas de esta categoría a **<Nuevo espacio>**. Los pedidos ya en preparación no se cambian. ¿Continuar?"
+### Nueva tabla `espacio_impresora` (opcional, solo para saber "qué espacios deberían tener impresora")
 
-## Fuera de alcance
-- Cambiar el modelo para que `productos`/`receta_master` guarden su propio destino (hoy no hace falta; heredan de categoría).
-- Reasignar destinos de items ya en preparación (se mantiene como historial).
+```
+id_espacio  uuid PK FK → espacios_trabajo
+requiere_impresora  boolean default true
+ancho_papel_mm  smallint default 80  -- 58 o 80
+codepage  text default 'CP437'
+```
 
-## Verificación
-1. Crear categoría en espacio "Cocina", crear producto con receta.
-2. Crear un pedido con ese producto (queda `PENDIENTE`).
-3. Mover la categoría a espacio "Barra" desde el sheet → confirma diálogo → toast muestra N=1 items actualizados.
-4. Abrir producto y receta desde el menú y editarlos: guardar sin errores.
-5. La comanda pendiente aparece ahora en la estación "Barra".
-6. Renombrar el espacio "Barra" a "Bar" (nuevo slug `BAR`). Verificar que el trigger de `espacios_trabajo` (o un chequeo previo) actualiza `categorias.destino` — si no existe hoy ese trigger, la reparación de la migración 2 dejó los datos consistentes y el flujo sigue funcionando.
+Se usa para: (a) marcar el espacio como "necesita impresora", (b) que Operación en vivo sepa cuándo alertar (si `requiere_impresora=true` y no hay ninguna vinculada, muestra aviso suave). **La vinculación real vive en el navegador**, no en la BD, porque WebUSB no permite compartir permisos entre equipos.
+
+### Servicio nuevo `src/services/usbPrinter.ts`
+
+- `requestPrinter(idEspacio)` → `navigator.usb.requestDevice({ filters: [{ classCode: 7 }] })` + guarda `{ vendorId, productId, serialNumber }` en `localStorage` bajo la llave `talia.printer.<idEspacio>`.
+- `getPrinter(idEspacio)` → recupera el device desde `navigator.usb.getDevices()` matcheando por vendor/product/serial. Devuelve `null` si no está conectada o el permiso se revocó.
+- `printEscPos(device, bytes)` → `open` → `claimInterface` → `transferOut` al endpoint OUT → `releaseInterface`. Timeout 5 s.
+- `renderComandaEscPos(comanda, anchoMm)` → convierte `ComandaPrintData` a bytes ESC/POS (init, encabezado grande, items, corte de papel). Formato equivalente al HTML actual.
+- Emite eventos `usb.connect` / `usb.disconnect` que la UI escucha para las alertas.
+
+### Cambios en la UI
+
+**`src/routes/_app.configuracion.espacios.tsx`**
+- Nueva fila por espacio con: estado (Vinculada / No vinculada), nombre del device, botones **Vincular**, **Cambiar**, **Probar impresión**, **Quitar**.
+- Selector de ancho de papel (58/80 mm).
+
+**`src/services/printService.ts` → integración**
+- Nuevo `dispatchLocalPrintForComanda(idEspacio, comanda)` que reemplaza la ruta HTTP placeholder cuando hay device vinculado; si falla o no hay device, emite `printFailure` que Operación en vivo escuchará.
+
+**`src/routes/_app.operacion.tsx`**
+- Nuevo card **"Alertas de impresión"** (encima o al lado de "Alertas") que se llena desde un store en memoria (`usePrinterAlerts` hook) alimentado por los fallos que emite `printService`. Cada alerta: espacio, comanda, hora, botones Reintentar / Reimprimir manual (fallback a ventana). Auto-limpia al reintentar con éxito.
+
+**`_app.servicio.$idMesa.tsx` y `comanda-sheet.tsx`**
+- Antes de llamar `imprimirComandas` (ventana), intenta `dispatchLocalPrintForComanda`. Si retorna `ok`, no abre ventana. Si falla, abre ventana + registra alerta.
+
+### Migración
+
+```
+create table public.espacio_impresora (
+  id_espacio uuid primary key references espacios_trabajo(id_espacio) on delete cascade,
+  requiere_impresora boolean not null default true,
+  ancho_papel_mm smallint not null default 80 check (ancho_papel_mm in (58, 80)),
+  codepage text not null default 'CP437',
+  updated_at timestamptz not null default now()
+);
+-- GRANT + RLS scoped al negocio del espacio, ADMIN/SUPERADMIN editan, cualquier staff lee.
+```
+
+## Cómo lo verificaremos
+
+1. Conectar una térmica USB, ir a Configuración > Espacios, vincular a Cocina → toast OK.
+2. Pulsar "Probar impresión" → sale un ticket de prueba con "Talia — prueba".
+3. Confirmar un pedido con items de Cocina y Barra → cada impresora imprime su comanda automáticamente sin diálogo.
+4. Desenchufar la impresora de Barra, confirmar otro pedido → aparece alerta roja en Operación en vivo con botón Reintentar.
+5. Volver a enchufar, pulsar Reintentar → imprime y la alerta desaparece.
+6. Probar el fallback en Safari/iPad: al confirmar pedido se abre la ventana de impresión del navegador (comportamiento actual).
+
+## Fuera de alcance de este plan
+
+- Impresoras de red (IP) → futuro plan, requiere agente local.
+- Impresión desde iPad/Safari sin ventana → no es posible sin agente nativo.
+- Cola persistente de reintentos entre recargas → por ahora las alertas viven en memoria y en el listado de comandas del espacio (siempre se puede reimprimir manualmente).
