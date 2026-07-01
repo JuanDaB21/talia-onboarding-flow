@@ -1214,114 +1214,146 @@ function PasoMetodo({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <MetodoBtn
-            active={metodo === "EFECTIVO"}
-            onClick={() => setMetodo("EFECTIVO")}
-            icon={<Banknote className="h-5 w-5" />}
-            label="Efectivo"
-          />
-          <MetodoBtn
-            active={metodo === "TRANSFERENCIA"}
-            onClick={() => setMetodo("TRANSFERENCIA")}
-            icon={<Smartphone className="h-5 w-5" />}
-            label="Transferencia"
-          />
-          <MetodoBtn
-            active={metodo === "DATAFONO"}
-            onClick={() => setMetodo("DATAFONO")}
-            icon={<CreditCard className="h-5 w-5" />}
-            label="Datáfono"
+        <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
+          <div className="min-w-0 pr-3">
+            <p className="text-sm font-medium">Dividir pago</p>
+            <p className="text-[11px] text-muted-foreground">
+              Cobra el total en varias partes con métodos distintos.
+            </p>
+          </div>
+          <Switch
+            checked={dividir}
+            disabled={reservaCubreTodo}
+            onCheckedChange={(v) => setDividir(!!v)}
           />
         </div>
 
-        {metodo === "EFECTIVO" && (
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="recibido">Monto recibido (opcional)</Label>
-              <Input
-                id="recibido"
-                inputMode="numeric"
-                value={recibido}
-                onChange={(e) => setRecibido(e.target.value.replace(/[^\d]/g, ""))}
-                placeholder="0"
+        {!dividir && (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <MetodoBtn
+                active={metodo === "EFECTIVO"}
+                onClick={() => setMetodo("EFECTIVO")}
+                icon={<Banknote className="h-5 w-5" />}
+                label="Efectivo"
+              />
+              <MetodoBtn
+                active={metodo === "TRANSFERENCIA"}
+                onClick={() => setMetodo("TRANSFERENCIA")}
+                icon={<Smartphone className="h-5 w-5" />}
+                label="Transferencia"
+              />
+              <MetodoBtn
+                active={metodo === "DATAFONO"}
+                onClick={() => setMetodo("DATAFONO")}
+                icon={<CreditCard className="h-5 w-5" />}
+                label="Datáfono"
               />
             </div>
-            {cambio !== null && (
-              <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Cambio</span>
-                <span className="text-lg font-bold tabular-nums">{fmt.format(cambio)}</span>
+
+            {metodo === "EFECTIVO" && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="recibido">Monto recibido (opcional)</Label>
+                  <Input
+                    id="recibido"
+                    inputMode="numeric"
+                    value={recibido}
+                    onChange={(e) =>
+                      setRecibido(e.target.value.replace(/[^\d]/g, ""))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+                {cambio !== null && (
+                  <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Cambio</span>
+                    <span className="text-lg font-bold tabular-nums">
+                      {fmt.format(cambio)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+
+            {metodo === "TRANSFERENCIA" && (
+              <TransferenciaSection
+                subtipo={subtipo}
+                setSubtipo={setSubtipo}
+                urlComprobante={urlComprobante}
+                subiendo={subiendo}
+                fileRef={fileRef}
+                handleFile={handleFile}
+              />
+            )}
+
+            {metodo === "DATAFONO" && (
+              <div className="space-y-3">
+                <div>
+                  <Label>Tipo</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {["Débito", "Crédito"].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSubtipo(s)}
+                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          subtipo === s
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card hover:bg-muted"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="voucher">N° voucher (opcional)</Label>
+                  <Input
+                    id="voucher"
+                    value={voucher}
+                    onChange={(e) => setVoucher(e.target.value.slice(0, 50))}
+                    placeholder="Ej: 123456"
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {metodo === "TRANSFERENCIA" && (
-          <TransferenciaSection
-            subtipo={subtipo}
-            setSubtipo={setSubtipo}
-            urlComprobante={urlComprobante}
-            subiendo={subiendo}
-            fileRef={fileRef}
-            handleFile={handleFile}
+        {dividir && (
+          <PartesEditor
+            totalRequerido={totalConPropina}
+            onSubmit={onPagarDividido}
+            isLoading={isLoadingDividido}
           />
         )}
-
-        {metodo === "DATAFONO" && (
-          <div className="space-y-3">
-            <div>
-              <Label>Tipo</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {["Débito", "Crédito"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubtipo(s)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      subtipo === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card hover:bg-muted"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="voucher">N° voucher (opcional)</Label>
-              <Input
-                id="voucher"
-                value={voucher}
-                onChange={(e) => setVoucher(e.target.value.slice(0, 50))}
-                placeholder="Ej: 123456"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="border-t bg-card px-5 py-4">
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!puedePagar}
-          onClick={() =>
-            onPagar({
-              subtipo: subtipo || undefined,
-              voucher: voucher || undefined,
-              urlComprobante: urlComprobante ?? undefined,
-            })
-          }
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-          )}
-          Confirmar pago de {fmt.format(totalConPropina)}
-        </Button>
-      </div>
+      {!dividir && (
+        <div className="border-t bg-card px-5 py-4">
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!puedePagar}
+            onClick={() =>
+              onPagar({
+                subtipo: subtipo || undefined,
+                voucher: voucher || undefined,
+                urlComprobante: urlComprobante ?? undefined,
+              })
+            }
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            Confirmar pago de {fmt.format(totalConPropina)}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
