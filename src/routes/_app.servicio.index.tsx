@@ -12,6 +12,7 @@ import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
 import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
+import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 
 
 export const Route = createFileRoute("/_app/servicio/")({
