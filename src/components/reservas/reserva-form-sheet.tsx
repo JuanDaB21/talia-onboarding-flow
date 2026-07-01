@@ -89,6 +89,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         tipo_reserva: reserva.tipo_reserva ?? "",
         estado: reserva.estado,
         monto_abonado: String(reserva.monto_abonado),
+        id_metodo_pago_qr: reserva.id_metodo_pago_qr ?? "",
       });
     } else {
       setForm(empty());
@@ -98,6 +99,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
 
   const mut = useMutation({
     mutationFn: async () => {
+      const monto = Number(form.monto_abonado) || 0;
       const parsed = reservaCrearSchema.safeParse({
         customer_name: form.customer_name,
         customer_phone: form.customer_phone || null,
@@ -106,7 +108,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         cantidad_personas: Number(form.cantidad_personas) || 0,
         tipo_reserva: form.tipo_reserva || null,
         estado: form.estado,
-        monto_abonado: Number(form.monto_abonado) || 0,
+        monto_abonado: monto,
+        id_metodo_pago_qr: monto > 0 ? form.id_metodo_pago_qr || null : null,
       });
       if (!parsed.success) {
         const e: Record<string, string> = {};
