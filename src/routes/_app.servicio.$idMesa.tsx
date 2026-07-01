@@ -333,6 +333,7 @@ function MesaEnServicio() {
     mutationFn: (idPedido: string) => entregaFn({ data: { idPedido } }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      bus.ack(`listo:${idMesa}`);
       toast.success(`Entregados ${r.entregados} items`);
     },
     onError: (e) =>
