@@ -2107,6 +2107,10 @@ export type Database = {
         Args: { p_id_bodega: string; p_id_espacio: string }
         Returns: undefined
       }
+      set_categoria_destino: {
+        Args: { p_destino: string; p_id_categoria: string }
+        Returns: Json
+      }
       solicitar_accion_cliente: {
         Args: { p_id_mesa: string; p_tipo: string }
         Returns: undefined
