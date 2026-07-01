@@ -397,6 +397,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
               })
             }
             isLoading={pagarMut.isPending}
+            onPagarDividido={(partes) => pagarDivididoMut.mutate(partes)}
+            isLoadingDividido={pagarDivididoMut.isPending}
+            reservaCubreTodo={reservaCubreTodo}
           />
         )}
       </SheetContent>
