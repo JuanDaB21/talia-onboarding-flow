@@ -108,6 +108,7 @@ export const crearReserva = createServerFn({ method: "POST" })
         tipo_reserva: data.tipo_reserva || null,
         estado: data.estado,
         monto_abonado: data.monto_abonado,
+        id_metodo_pago_qr: data.id_metodo_pago_qr ?? null,
         created_by: userId,
       } as any)
       .select("id_reserva, codigo_reserva")
@@ -116,7 +117,7 @@ export const crearReserva = createServerFn({ method: "POST" })
     return row;
   });
 
-const actualizarSchema = reservaCrearSchema.innerType().partial().extend({
+const actualizarSchema = reservaBaseSchema.partial().extend({
   id_reserva: z.string().uuid(),
 });
 
