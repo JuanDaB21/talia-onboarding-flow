@@ -1964,6 +1964,10 @@ export type Database = {
     }
     Functions: {
       abrir_caja: { Args: { p_base: number }; Returns: string }
+      abrir_mesa: {
+        Args: { p_id_mesa: string; p_id_mesero?: string }
+        Returns: string
+      }
       aceptar_prepedido_mesa: { Args: { p_id_mesa: string }; Returns: number }
       actualizar_receta:
         | {
