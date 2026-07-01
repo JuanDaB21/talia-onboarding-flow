@@ -150,8 +150,9 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
 
   const stepCantidad = (id: string, delta: number) =>
     setIngredientes((prev) => prev.map((x) =>
-      x.id_insumo === id ? { ...x, cantidad: Math.max(0.01, Number((x.cantidad + delta).toFixed(2))) } : x
+      x.id_insumo === id ? { ...x, cantidad: Math.max(0.01, Number((x.cantidad + delta).toFixed(3))) } : x
     ));
+
 
   const toggleExtra = (i: Insumo, checked: boolean) => {
     setExtras((prev) => {
