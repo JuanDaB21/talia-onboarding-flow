@@ -1002,6 +1002,7 @@ export type Database = {
           id_mesero: string | null
           id_negocio: string
           id_pago: string
+          id_pago_padre: string | null
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
           propina: number
@@ -1021,6 +1022,7 @@ export type Database = {
           id_mesero?: string | null
           id_negocio: string
           id_pago?: string
+          id_pago_padre?: string | null
           metodo: Database["public"]["Enums"]["metodo_pago"]
           monto: number
           propina?: number
@@ -1040,6 +1042,7 @@ export type Database = {
           id_mesero?: string | null
           id_negocio?: string
           id_pago?: string
+          id_pago_padre?: string | null
           metodo?: Database["public"]["Enums"]["metodo_pago"]
           monto?: number
           propina?: number
@@ -1054,6 +1057,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bonos"
             referencedColumns: ["id_bono"]
+          },
+          {
+            foreignKeyName: "pagos_id_pago_padre_fkey"
+            columns: ["id_pago_padre"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id_pago"]
           },
         ]
       }
@@ -2148,6 +2158,17 @@ export type Database = {
           p_subtipo: string
           p_url_comprobante: string
           p_voucher: string
+        }
+        Returns: string
+      }
+      registrar_pago_dividido: {
+        Args: {
+          p_id_bono?: string
+          p_id_mesa: string
+          p_id_reserva?: string
+          p_item_ids: string[]
+          p_partes: Json
+          p_propina?: number
         }
         Returns: string
       }
