@@ -140,6 +140,15 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
+  const listarQr = useServerFn(listarMetodosPagoQr);
+  const cuentasQ = useQuery({
+    queryKey: ["metodosPagoQr"],
+    queryFn: () => listarQr(),
+    enabled: open,
+  });
+  const cuentas = cuentasQ.data ?? [];
+  const montoNum = Number(form.monto_abonado) || 0;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
