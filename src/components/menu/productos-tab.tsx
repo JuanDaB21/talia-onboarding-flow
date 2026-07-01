@@ -33,7 +33,7 @@ export function ProductosTab({ idNegocio, autoEditId }: { idNegocio: string; aut
     setLoading(true);
     const { data, error } = await supabase
       .from("productos")
-      .select("id_producto, id_receta, nombre_producto, descripcion_producto, precio_venta, url_imagen, activo")
+      .select("id_producto, id_receta, nombre_producto, descripcion_producto, precio_venta, url_imagen, activo, facturable")
       .order("nombre_producto");
     if (error) toast.error("Error al cargar", { description: error.message });
     setItems((data as Producto[]) ?? []);
