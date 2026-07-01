@@ -72,6 +72,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const navigate = useNavigate();
   const getItems = useServerFn(listarItemsCobrables);
   const pagarFn = useServerFn(registrarPago);
+  const pagarDivididoFn = useServerFn(registrarPagoDividido);
   const reservasFn = useServerFn(listarReservasAplicablesHoy);
   const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
 
