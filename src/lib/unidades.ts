@@ -189,14 +189,14 @@ export function formatStockInteligente(
     }
     const factor = mayor.base / ur.base; // cuántas unidades de receta en 1 mayor
     if (abs < factor) {
-      return `${signo}${trimNum(abs, 0)} ${shortLabel(ur.code)}`;
+      return `${signo}${trimNum(abs, 2)} ${shortLabel(ur.code)}`;
     }
     const enteras = Math.floor(abs / factor);
     const resto = abs - enteras * factor;
-    if (resto < 0.5) {
+    if (resto === 0) {
       return `${signo}${enteras.toLocaleString()} ${shortLabel(mayor.code)}`;
     }
-    return `${signo}${enteras.toLocaleString()} ${shortLabel(mayor.code)} ${trimNum(resto, 0)} ${shortLabel(ur.code)}`;
+    return `${signo}${enteras.toLocaleString()} ${shortLabel(mayor.code)} ${trimNum(resto, 2)} ${shortLabel(ur.code)}`;
   }
 
   // UNIDAD
@@ -206,16 +206,18 @@ export function formatStockInteligente(
 
   if (usaCompra) {
     const enteras = Math.floor(abs / factor);
-    const sueltas = Math.round(abs - enteras * factor);
+    const sueltas = abs - enteras * factor;
+    const sueltasLabel = trimNum(sueltas, 2);
+    const sueltasPlural = sueltas === 1 ? 1 : 2;
     if (enteras === 0) {
-      return `${signo}${sueltas.toLocaleString()} ${pluralizar("Unidad", sueltas)}`;
+      return `${signo}${sueltasLabel} ${pluralizar("Unidad", sueltasPlural)}`;
     }
     if (sueltas === 0) {
       return `${signo}${enteras.toLocaleString()} ${pluralizar(uc!.code, enteras)}`;
     }
-    return `${signo}${enteras.toLocaleString()} ${pluralizar(uc!.code, enteras)} y ${sueltas.toLocaleString()} ${pluralizar("Unidad", sueltas)}`;
+    return `${signo}${enteras.toLocaleString()} ${pluralizar(uc!.code, enteras)} y ${sueltasLabel} ${pluralizar("Unidad", sueltasPlural)}`;
   }
 
-  const redondeada = Math.round(abs);
-  return `${signo}${redondeada.toLocaleString()} ${pluralizar("Unidad", redondeada)}`;
+  const plural = abs === 1 ? 1 : 2;
+  return `${signo}${trimNum(abs, 2)} ${pluralizar("Unidad", plural)}`;
 }
