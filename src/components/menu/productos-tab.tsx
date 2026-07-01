@@ -20,6 +20,7 @@ export interface Producto {
   precio_venta: number;
   url_imagen: string | null;
   activo: boolean;
+  facturable: boolean;
 }
 
 export function ProductosTab({ idNegocio, autoEditId }: { idNegocio: string; autoEditId?: string }) {
