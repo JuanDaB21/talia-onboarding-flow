@@ -249,6 +249,13 @@ function MesaEnServicio() {
     }
   }, [mesaQ.data, prevListos]);
 
+  // Al entrar al detalle, reconocer la alerta de asignación de esta mesa
+  useEffect(() => {
+    const asig = mesaQ.data?.asignada_at;
+    if (asig) bus.ack(`asig:${idMesa}:${asig}`);
+  }, [mesaQ.data?.asignada_at, idMesa, bus]);
+
+
   // Tick visual del tiempo de servicio
   const [, setTick] = useState(0);
   useEffect(() => {
