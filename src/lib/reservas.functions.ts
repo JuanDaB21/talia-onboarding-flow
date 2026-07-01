@@ -19,6 +19,8 @@ export interface Reserva {
   monto_abonado: number;
   estado: EstadoReserva;
   id_pedido_aplicado: string | null;
+  id_metodo_pago_qr: string | null;
+  metodo_pago_label: string | null;
   created_at: string;
 }
 

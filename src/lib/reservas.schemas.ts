@@ -28,10 +28,15 @@ export const reservaCrearSchema = z
     tipo_reserva: z.string().trim().max(50).optional().nullable(),
     estado: z.enum(ESTADOS_RESERVA).default("intencion"),
     monto_abonado: z.number().min(0).max(100_000_000).default(0),
+    id_metodo_pago_qr: z.string().uuid().optional().nullable(),
   })
   .refine((v) => v.estado !== "abonado" || v.monto_abonado > 0, {
     message: "Si el estado es 'Abonado', el monto debe ser mayor a 0",
     path: ["monto_abonado"],
+  })
+  .refine((v) => v.monto_abonado <= 0 || !!v.id_metodo_pago_qr, {
+    message: "Selecciona la cuenta donde se recibió el abono",
+    path: ["id_metodo_pago_qr"],
   });
 
 export type ReservaCrearInput = z.input<typeof reservaCrearSchema>;
