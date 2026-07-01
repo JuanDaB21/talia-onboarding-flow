@@ -1,46 +1,55 @@
 ## Objetivo
 
-Desde la vista admin de "Mesas en servicio" (`/servicio`), permitir asignar o reasignar el mesero de cualquier mesa sin tener que entrar al detalle de la mesa.
+Cuando un mesero se inhabilita (por sí mismo o por admin), redistribuir automáticamente sus mesas a los demás meseros en turno usando el mismo algoritmo de carga que ya usa `asignar_mesero_a_mesa` (menor cantidad de mesas OCUPADA, empate por antigüedad).
 
-## Alcance
+## Comportamiento actual
 
-- Solo UI. El backend ya existe:
-  - `listarMeserosNegocio` — lista meseros activos.
-  - `reasignarMeseroMesa` — cambia el mesero (ya permite ADMIN/SUPERADMIN/CAJERO/MESERO).
-- No se cambian permisos, esquema ni políticas.
+- `inhabilitarStaff` bloquea con error si el mesero tiene mesas con cuenta abierta (`estado != 'LIBRE'`).
+- El RPC `asignar_mesero_a_mesa` se ejecuta solo al llamar al mesero desde el menú público, no al inhabilitar.
 
 ## Cambios
 
-### 1. Extraer diálogo reutilizable
-Mover el componente `ReasignarMeseroDialog` (hoy dentro de `src/routes/_app.servicio.$idMesa.tsx`, líneas ~1361-1457) a un archivo compartido:
+### 1. Nuevo RPC `reasignar_mesas_de_mesero(p_mesero uuid)`
 
-- Nuevo: `src/components/servicio/reasignar-mesero-dialog.tsx`
-- Exportarlo y reemplazar la copia local en `_app.servicio.$idMesa.tsx` por el import compartido (comportamiento idéntico).
-- Ajustar invalidaciones para refrescar tanto la vista de detalle (`mesaSesion`) como la grilla (`servicio`, `mesas` — clave que usa el index).
+Migración SQL (`security definer`, `search_path = public`). Para cada mesa `id_mesero_asignado = p_mesero`:
 
-### 2. Botón en cada tarjeta de mesa (solo admin)
-En `src/routes/_app.servicio.index.tsx`, dentro de `MesaCard`:
+- Buscar el mejor mesero candidato usando el mismo criterio de `asignar_mesero_a_mesa`, EXCLUYENDO a `p_mesero`:
+  - Mismo `id_negocio`.
+  - `rol = 'MESERO'`, `estado = 'ACTIVO'`, `esta_en_turno = true`.
+  - Orden: `COALESCE(carga, 0) ASC, created_at ASC` — donde `carga` = mesas OCUPADA asignadas ya (contando la asignación que se acaba de hacer en el loop para que se distribuya round-robin).
+- `UPDATE mesas SET id_mesero_asignado = <nuevo o NULL>, asignada_at = now() WHERE id_mesa = ...`.
+- Para pedidos ABIERTO de esa mesa cuyo `id_mesero = p_mesero`, actualizar `id_mesero` al nuevo (o NULL si no hay), para que el nuevo mesero vea la mesa en su vista y reciba el crédito. Pedidos ya cerrados/pagados no se tocan (histórico).
+- Devuelve `int` = cantidad de mesas reasignadas.
 
-- Recibir `esAdmin: boolean` como prop desde `ServicioIndex`.
-- Añadir un botón discreto en la tarjeta ("Asignar mesero" si no hay mesero asignado, "Reasignar" si ya hay uno) visible solo cuando `esAdmin === true`.
-- El botón NO debe navegar al detalle: usar `stopPropagation` + `preventDefault` para no disparar el `<Link>` que envuelve la tarjeta.
-- Al hacer clic, abrir `ReasignarMeseroDialog` con `idMesa` y `meseroActualId={m.id_mesero_asignado}`.
-- Tras éxito, invalidar la query `["servicio", "mesas"]` (ya lo hará el diálogo) y mostrar toast (ya lo maneja el diálogo).
+Notas:
+- Se procesa dentro de un cursor / loop `FOR mesa_row IN SELECT ...` para que cada asignación cuente en la carga de la siguiente iteración.
+- Si no hay ningún mesero disponible, todas las mesas quedan con `id_mesero_asignado = NULL` (comportamiento actual del algoritmo cuando no hay meseros en turno).
 
-### 3. UX
-- Ubicación del botón: junto al nombre del mesero (o en el lugar donde hoy dice "Asignada …"), usando `<UserCheck />` como icono.
-- Texto:
-  - Sin mesero: "Asignar mesero"
-  - Con mesero: "Reasignar"
-- Tamaño `sm`, `variant="outline"`.
+Permisos: `REVOKE EXECUTE ... FROM PUBLIC, anon`. `GRANT EXECUTE ... TO service_role` (se invoca desde `supabaseAdmin`).
 
-## Notas técnicas
+### 2. `src/lib/usuarios.functions.ts` — `inhabilitarStaff`
 
-- El `MesaCard` actualmente es un `<Link>` completo. Para evitar que el clic en el botón navegue, envolver el botón en un `<div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>` y el `Dialog` fuera del `<Link>` (renderizar el `Dialog` como hermano en un fragmento, o convertir la tarjeta en un contenedor con navegación programática al hacer clic en el área principal). Enfoque más seguro: mantener el `<Link>`, pero el botón + Dialog se renderizan como hijos con handlers que detienen la propagación.
+- Eliminar la validación que impide inhabilitar a un mesero con mesas no-LIBRE.
+- Justo antes de marcar `estado='INACTIVO'`, si el target es MESERO llamar:
+  ```ts
+  await supabaseAdmin.rpc("reasignar_mesas_de_mesero", { p_mesero: targetId });
+  ```
+- El resto del handler queda igual.
+
+### 3. UI (mensajes)
+
+- `src/components/app-sidebar.tsx` (línea 412): cambiar el copy que dice "Si tienes mesas con cuenta abierta no podrás salir…" por algo como: "Al salir, tus mesas se reasignarán automáticamente a otros meseros en turno".
+- `src/components/servicio/caja-turno-card.tsx`: si muestra confirmación al inhabilitarse, ajustar copy en la misma línea.
+- No se cambia el flujo de admin (`_app.operacion.tsx`), solo el mensaje si aplica.
 
 ## Verificación
 
-- Como admin: aparece el botón en cada tarjeta; abrir diálogo, seleccionar mesero, guardar → toast "Mesero reasignado", la tarjeta actualiza el nombre.
-- Como mesero (no admin): no aparece el botón (comportamiento actual intacto).
-- Entrar al detalle sigue funcionando: el diálogo del detalle sigue existiendo (misma implementación compartida).
+- Como mesero con 2 mesas OCUPADA: al inhabilitarme, las mesas quedan asignadas a otros meseros en turno con menor carga; los pedidos ABIERTO de esas mesas ahora aparecen con el nuevo mesero.
+- Si no hay meseros en turno, las mesas quedan con `id_mesero_asignado = NULL` (admin puede reasignar manualmente desde la vista de servicio, que ya implementamos).
+- Como admin inhabilitando a un mesero: mismo comportamiento.
 - `bunx tsgo --noEmit` sin errores.
+
+## Fuera de alcance
+
+- No cambia el algoritmo de `asignar_mesero_a_mesa` para nuevas llamadas.
+- No modifica reportes históricos: `pedidos.id_mesero` de pedidos ya `PAGADO/CERRADO` no se toca; solo pedidos ABIERTO se transfieren.
