@@ -18,18 +18,19 @@ export const ESTADO_LABEL: Record<EstadoReserva, string> = {
   asistida: "Asistida",
 };
 
-export const reservaCrearSchema = z
-  .object({
-    customer_name: z.string().trim().min(1, "Nombre requerido").max(100),
-    customer_phone: z.string().trim().max(30).optional().nullable(),
-    fecha_reserva: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-    hora_reserva: z.string().trim().min(1, "Hora requerida").max(20),
-    cantidad_personas: z.number().int().min(1).max(500),
-    tipo_reserva: z.string().trim().max(50).optional().nullable(),
-    estado: z.enum(ESTADOS_RESERVA).default("intencion"),
-    monto_abonado: z.number().min(0).max(100_000_000).default(0),
-    id_metodo_pago_qr: z.string().uuid().optional().nullable(),
-  })
+export const reservaBaseSchema = z.object({
+  customer_name: z.string().trim().min(1, "Nombre requerido").max(100),
+  customer_phone: z.string().trim().max(30).optional().nullable(),
+  fecha_reserva: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+  hora_reserva: z.string().trim().min(1, "Hora requerida").max(20),
+  cantidad_personas: z.number().int().min(1).max(500),
+  tipo_reserva: z.string().trim().max(50).optional().nullable(),
+  estado: z.enum(ESTADOS_RESERVA).default("intencion"),
+  monto_abonado: z.number().min(0).max(100_000_000).default(0),
+  id_metodo_pago_qr: z.string().uuid().optional().nullable(),
+});
+
+export const reservaCrearSchema = reservaBaseSchema
   .refine((v) => v.estado !== "abonado" || v.monto_abonado > 0, {
     message: "Si el estado es 'Abonado', el monto debe ser mayor a 0",
     path: ["monto_abonado"],

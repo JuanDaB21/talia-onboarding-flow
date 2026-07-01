@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ESTADOS_RESERVA,
+  reservaBaseSchema,
   reservaCrearSchema,
   type EstadoReserva,
 } from "./reservas.schemas";
