@@ -1,21 +1,22 @@
-Limpiar movimientos y stock del inventario del negocio **DINASTIA ROOFTOP** (`id_negocio = 7323d4f0-8b20-432b-abb4-a6ad3e7382a4`) en producción, sin tocar catálogo (insumos, proveedores, bodegas, compras).
+## Problema
 
-## Alcance
+Al pagar sin usar reserva, la base de datos lanza:
+> `record "v_reserva" is not assigned yet`
 
-- Negocio: solo `DINASTIA ROOFTOP`.
-- Datos actuales: 49 filas en `inventario_bodega`, 53 filas en `movimientos_inventario`.
+Ocurre en las funciones `registrar_pago` y `registrar_pago_dividido`. Ambas usan `v_reserva.codigo_reserva` dentro de un `CASE WHEN p_id_reserva IS NOT NULL THEN ... v_reserva.codigo_reserva ...`. Aunque la rama solo se toma cuando hay reserva, PL/pgSQL necesita resolver el campo del record y falla porque `v_reserva` no fue asignado (el `SELECT ... INTO v_reserva` solo corre si `p_id_reserva IS NOT NULL`).
 
-## Cambios a ejecutar (una sola transacción)
+## Solución
 
-1. `DELETE FROM movimientos_inventario WHERE id_negocio = '7323d4f0-8b20-432b-abb4-a6ad3e7382a4';`
-2. `UPDATE inventario_bodega SET cantidad_actual = 0, updated_at = now() WHERE id_negocio = '7323d4f0-8b20-432b-abb4-a6ad3e7382a4';`
+Migración que reemplaza ambas funciones para:
 
-Nada más se toca: `insumos`, `proveedores`, `bodegas`, `compras`, `detalle_compra`, `recetas`, `productos`, `pedidos`, etc. quedan intactos. El otro negocio `Dinastia` no se toca.
+1. Declarar una variable `v_codigo_reserva text := NULL`.
+2. Asignarla dentro del bloque `IF p_id_reserva IS NOT NULL` justo después del `SELECT ... INTO v_reserva`:
+   `v_codigo_reserva := v_reserva.codigo_reserva;`
+3. Reemplazar `v_reserva.codigo_reserva` en el `CASE` del `subtipo` por `v_codigo_reserva`.
 
-## Verificación posterior
+Sin más cambios de lógica: mismas validaciones, mismos parámetros, mismo comportamiento cuando sí hay reserva.
 
-- `SELECT COUNT(*) FROM movimientos_inventario WHERE id_negocio = '7323d4f0...'` → 0
-- `SELECT COUNT(*) FILTER (WHERE cantidad_actual <> 0) FROM inventario_bodega WHERE id_negocio = '7323d4f0...'` → 0
-- Confirmar que `Dinastia` (`fefe6ffe...`) mantiene sus contadores (1 mov, 1 inv).
+## Verificación
 
-Se ejecuta con la herramienta de escritura de datos (no es cambio de esquema).
+- Probar checkout normal (sin reserva) → debe registrar el pago sin error.
+- Probar checkout aplicando reserva → subtipo sigue incluyendo `Reserva <código>`.
