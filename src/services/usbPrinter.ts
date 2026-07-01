@@ -47,7 +47,7 @@ export interface USBDevice {
   selectConfiguration(v: number): Promise<void>;
   claimInterface(n: number): Promise<void>;
   releaseInterface(n: number): Promise<void>;
-  transferOut(endpointNumber: number, data: BufferSource): Promise<{ status: string; bytesWritten: number }>;
+  transferOut(endpointNumber: number, data: ArrayBuffer): Promise<{ status: string; bytesWritten: number }>;
 }
 interface USB extends EventTarget {
   getDevices(): Promise<USBDevice[]>;
