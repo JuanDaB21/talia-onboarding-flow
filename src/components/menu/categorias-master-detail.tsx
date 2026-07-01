@@ -409,8 +409,33 @@ function CategoriaFormInline({
         <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
       </div>
     </form>
+    <AlertDialog open={!!confirmMove} onOpenChange={(o) => !o && setConfirmMove(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Mover categoría a {confirmMove?.nombreEspacio}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Todos los productos y recetas de esta categoría, y los pedidos aún no iniciados,
+            pasarán a la estación <strong>{confirmMove?.nombreEspacio}</strong>. Los pedidos ya
+            en preparación no se modifican.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
+          }}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            const fn = (window as unknown as { __pendingCatSave?: () => Promise<void> | void }).__pendingCatSave;
+            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
+            setConfirmMove(null);
+            if (fn) await fn();
+          }}>Confirmar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
 
 function SubcategoriaFormInline({
   idNegocio, idCategoria, initial, onDone, onCancel,
