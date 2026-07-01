@@ -78,6 +78,7 @@ import { useMiStaff } from "@/hooks/use-mi-staff";
 import { type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { dispatchComandas } from "@/services/printDispatch";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
@@ -170,6 +171,8 @@ function imprimirComandasDePedido(
 function MesaEnServicio() {
   const { idMesa } = Route.useParams();
   const qc = useQueryClient();
+  const bus = useAlertaBus();
+
   
 
   const getMesa = useServerFn(obtenerMesaSesion);
@@ -245,6 +248,13 @@ function MesaEnServicio() {
       }
     }
   }, [mesaQ.data, prevListos]);
+
+  // Al entrar al detalle, reconocer la alerta de asignación de esta mesa
+  useEffect(() => {
+    const asig = mesaQ.data?.asignada_at;
+    if (asig) bus.ack(`asig:${idMesa}:${asig}`);
+  }, [mesaQ.data?.asignada_at, idMesa, bus]);
+
 
   // Tick visual del tiempo de servicio
   const [, setTick] = useState(0);
@@ -323,6 +333,7 @@ function MesaEnServicio() {
     mutationFn: (idPedido: string) => entregaFn({ data: { idPedido } }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      bus.ack(`listo:${idMesa}`);
       toast.success(`Entregados ${r.entregados} items`);
     },
     onError: (e) =>
