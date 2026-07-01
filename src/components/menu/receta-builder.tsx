@@ -24,6 +24,39 @@ interface Sub { id_subcategoria: string; nombre: string; id_categoria: string }
 interface Insumo { id_insumo: string; nombre_insumo: string; unidad_receta: string }
 interface ExtraState { id_insumo_extra: string; cantidad_porcion: number; precio_extra: number }
 
+// Acepta números decimales ("0.5", "0,5") y fracciones ("1/2", "1 1/2", "3/4").
+// Devuelve null si el texto no es válido o resulta en <= 0.
+function parseCantidadTexto(raw: string): number | null {
+  const s = raw.trim().replace(",", ".");
+  if (!s) return null;
+  // "N M/D" (mixto) o "M/D" (fracción)
+  const mixto = /^(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(s);
+  if (mixto) {
+    const [, ent, num, den] = mixto;
+    const d = Number(den);
+    if (d === 0) return null;
+    const val = Number(ent) + Number(num) / d;
+    return val > 0 ? val : null;
+  }
+  const frac = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(s);
+  if (frac) {
+    const [, num, den] = frac;
+    const d = Number(den);
+    if (d === 0) return null;
+    const val = Number(num) / d;
+    return val > 0 ? val : null;
+  }
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function formatCantidadDisplay(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  // hasta 3 decimales, sin ceros colgando
+  return Number(n.toFixed(3)).toString();
+}
+
+
 interface Props {
   idNegocio: string;
   mode: "create" | "edit";
