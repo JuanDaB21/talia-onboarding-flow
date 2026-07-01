@@ -409,7 +409,7 @@ export function AppSidebar() {
             <AlertDialogTitle>¿Finalizar turno?</AlertDialogTitle>
             <AlertDialogDescription>
               {rol === "MESERO"
-                ? "Si tienes mesas con cuenta abierta no podrás salir. Tras finalizar, dejarás de recibir asignaciones."
+                ? "Tus mesas se reasignarán automáticamente a otros meseros en turno y dejarás de recibir nuevas asignaciones."
                 : "Tras finalizar, dejarás de recibir nuevos pedidos en tu estación."}
             </AlertDialogDescription>
           </AlertDialogHeader>

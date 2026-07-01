@@ -214,20 +214,13 @@ export const inhabilitarStaff = createServerFn({ method: "POST" })
     if (target.rol === "SUPERADMIN")
       throw new Error("No se puede inhabilitar a un superadministrador");
 
-    // Si es mesero, no debe tener mesas abiertas
+    // Si es mesero, reasignar sus mesas a otros meseros en turno
     if (target.rol === "MESERO") {
-      const { data: mesasAb } = await supabaseAdmin
-        .from("mesas")
-        .select("identificador")
-        .eq("id_mesero_asignado", targetId)
-        .neq("estado", "LIBRE");
-      if (mesasAb && mesasAb.length > 0) {
-        throw new Error(
-          `Tiene ${mesasAb.length} mesa(s) con cuenta abierta: ${mesasAb
-            .map((m) => m.identificador)
-            .join(", ")}`,
-        );
-      }
+      const { error: reasErr } = await supabaseAdmin.rpc(
+        "reasignar_mesas_de_mesero",
+        { p_mesero: targetId },
+      );
+      if (reasErr) throw new Error(reasErr.message);
     }
 
     const { error: updErr } = await supabaseAdmin

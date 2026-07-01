@@ -2108,6 +2108,7 @@ export type Database = {
       }
       purgar_prepedido_inactivo: { Args: never; Returns: number }
       reabrir_caja: { Args: never; Returns: string }
+      reasignar_mesas_de_mesero: { Args: { p_mesero: string }; Returns: number }
       recalcular_total_pedido: {
         Args: { p_id_pedido: string }
         Returns: undefined
