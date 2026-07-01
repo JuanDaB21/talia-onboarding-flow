@@ -171,6 +171,8 @@ function imprimirComandasDePedido(
 function MesaEnServicio() {
   const { idMesa } = Route.useParams();
   const qc = useQueryClient();
+  const bus = useAlertaBus();
+
   
 
   const getMesa = useServerFn(obtenerMesaSesion);
