@@ -513,6 +513,41 @@ export type Database = {
           },
         ]
       }
+      espacio_impresora: {
+        Row: {
+          ancho_papel_mm: number
+          codepage: string
+          created_at: string
+          id_espacio: string
+          requiere_impresora: boolean
+          updated_at: string
+        }
+        Insert: {
+          ancho_papel_mm?: number
+          codepage?: string
+          created_at?: string
+          id_espacio: string
+          requiere_impresora?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ancho_papel_mm?: number
+          codepage?: string
+          created_at?: string
+          id_espacio?: string
+          requiere_impresora?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "espacio_impresora_id_espacio_fkey"
+            columns: ["id_espacio"]
+            isOneToOne: true
+            referencedRelation: "espacios_trabajo"
+            referencedColumns: ["id_espacio"]
+          },
+        ]
+      }
       espacios_trabajo: {
         Row: {
           activo: boolean
