@@ -1081,6 +1081,9 @@ function PasoMetodo({
   reservaInfo,
   onPagar,
   isLoading,
+  onPagarDividido,
+  isLoadingDividido,
+  reservaCubreTodo,
 }: {
   metodo: Metodo;
   setMetodo: (m: Metodo) => void;
@@ -1098,7 +1101,19 @@ function PasoMetodo({
     urlComprobante?: string;
   }) => void;
   isLoading: boolean;
+  onPagarDividido: (
+    partes: Array<{
+      metodo: Metodo;
+      subtipo: string | null;
+      voucher: string | null;
+      urlComprobante: string | null;
+      monto: number;
+    }>,
+  ) => void;
+  isLoadingDividido: boolean;
+  reservaCubreTodo: boolean;
 }) {
+  const [dividir, setDividir] = useState(false);
   const [subtipo, setSubtipo] = useState("");
   const [voucher, setVoucher] = useState("");
   const [recibido, setRecibido] = useState("");
