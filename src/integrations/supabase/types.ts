@@ -1720,6 +1720,7 @@ export type Database = {
           estado: string
           fecha_reserva: string
           hora_reserva: string
+          id_metodo_pago_qr: string | null
           id_negocio: string
           id_pedido_aplicado: string | null
           id_reserva: string
@@ -1737,6 +1738,7 @@ export type Database = {
           estado?: string
           fecha_reserva: string
           hora_reserva: string
+          id_metodo_pago_qr?: string | null
           id_negocio: string
           id_pedido_aplicado?: string | null
           id_reserva?: string
@@ -1754,6 +1756,7 @@ export type Database = {
           estado?: string
           fecha_reserva?: string
           hora_reserva?: string
+          id_metodo_pago_qr?: string | null
           id_negocio?: string
           id_pedido_aplicado?: string | null
           id_reserva?: string
@@ -1762,6 +1765,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reservas_id_metodo_pago_qr_fkey"
+            columns: ["id_metodo_pago_qr"]
+            isOneToOne: false
+            referencedRelation: "metodos_pago_qr"
+            referencedColumns: ["id_qr"]
+          },
           {
             foreignKeyName: "reservas_id_negocio_fkey"
             columns: ["id_negocio"]

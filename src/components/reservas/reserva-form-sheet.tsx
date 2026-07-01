@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -31,6 +32,7 @@ import {
   crearReserva,
   type Reserva,
 } from "@/lib/reservas.functions";
+import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
 
 interface Props {
   open: boolean;
@@ -49,6 +51,7 @@ type FormState = {
   tipo_reserva: string;
   estado: EstadoReserva;
   monto_abonado: string;
+  id_metodo_pago_qr: string;
 };
 
 const empty = (): FormState => ({
@@ -60,6 +63,7 @@ const empty = (): FormState => ({
   tipo_reserva: "",
   estado: "intencion",
   monto_abonado: "0",
+  id_metodo_pago_qr: "",
 });
 
 const TIPO_SUGERENCIAS = ["Cumpleaños", "Aniversario", "Grado", "Cena", "Reunión"];
@@ -85,6 +89,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         tipo_reserva: reserva.tipo_reserva ?? "",
         estado: reserva.estado,
         monto_abonado: String(reserva.monto_abonado),
+        id_metodo_pago_qr: reserva.id_metodo_pago_qr ?? "",
       });
     } else {
       setForm(empty());
@@ -94,6 +99,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
 
   const mut = useMutation({
     mutationFn: async () => {
+      const monto = Number(form.monto_abonado) || 0;
       const parsed = reservaCrearSchema.safeParse({
         customer_name: form.customer_name,
         customer_phone: form.customer_phone || null,
@@ -102,7 +108,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         cantidad_personas: Number(form.cantidad_personas) || 0,
         tipo_reserva: form.tipo_reserva || null,
         estado: form.estado,
-        monto_abonado: Number(form.monto_abonado) || 0,
+        monto_abonado: monto,
+        id_metodo_pago_qr: monto > 0 ? form.id_metodo_pago_qr || null : null,
       });
       if (!parsed.success) {
         const e: Record<string, string> = {};
@@ -132,6 +139,15 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
+
+  const listarQr = useServerFn(listarMetodosPagoQr);
+  const cuentasQ = useQuery({
+    queryKey: ["metodosPagoQr"],
+    queryFn: () => listarQr(),
+    enabled: open,
+  });
+  const cuentas = cuentasQ.data ?? [];
+  const montoNum = Number(form.monto_abonado) || 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -270,8 +286,54 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
               {errors.monto_abonado && (
                 <p className="text-xs text-destructive mt-1">{errors.monto_abonado}</p>
               )}
-            </div>
           </div>
+          {montoNum > 0 && (
+            <div>
+              <Label htmlFor="cuenta">Cuenta donde se recibió el abono *</Label>
+              {cuentas.length === 0 ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No hay cuentas configuradas.{" "}
+                  <Link
+                    to="/configuracion/metodos-pago"
+                    className="text-primary underline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Configurar métodos de pago
+                  </Link>
+                </p>
+              ) : (
+                <Select
+                  value={form.id_metodo_pago_qr}
+                  onValueChange={(v) => set("id_metodo_pago_qr", v)}
+                >
+                  <SelectTrigger id="cuenta">
+                    <SelectValue placeholder="Selecciona la cuenta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cuentas.map((c) => {
+                      const label =
+                        c.plataforma === "Otra"
+                          ? c.etiqueta || "Otra"
+                          : c.plataforma;
+                      return (
+                        <SelectItem key={c.id_qr} value={c.id_qr}>
+                          {label}
+                          {c.titular ? ` · ${c.titular}` : ""}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+              {errors.id_metodo_pago_qr && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.id_metodo_pago_qr}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         </div>
 
         <SheetFooter>

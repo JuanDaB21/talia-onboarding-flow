@@ -127,6 +127,11 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                   <span className="font-semibold tabular-nums">
                     {fmt.format(reserva.monto_abonado)}
                   </span>
+                  {reserva.monto_abonado > 0 && reserva.metodo_pago_label && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      · {reserva.metodo_pago_label}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <WhatsappCopyButton

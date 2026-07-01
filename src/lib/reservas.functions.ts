@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ESTADOS_RESERVA,
+  reservaBaseSchema,
   reservaCrearSchema,
   type EstadoReserva,
 } from "./reservas.schemas";
@@ -19,6 +20,8 @@ export interface Reserva {
   monto_abonado: number;
   estado: EstadoReserva;
   id_pedido_aplicado: string | null;
+  id_metodo_pago_qr: string | null;
+  metodo_pago_label: string | null;
   created_at: string;
 }
 
@@ -36,7 +39,7 @@ export const listarReservas = createServerFn({ method: "POST" })
     let q = supabase
       .from("reservas")
       .select(
-        "id_reserva, codigo_reserva, customer_name, customer_phone, fecha_reserva, hora_reserva, cantidad_personas, tipo_reserva, monto_abonado, estado, id_pedido_aplicado, created_at",
+        "id_reserva, codigo_reserva, customer_name, customer_phone, fecha_reserva, hora_reserva, cantidad_personas, tipo_reserva, monto_abonado, estado, id_pedido_aplicado, id_metodo_pago_qr, created_at, metodos_pago_qr:id_metodo_pago_qr(plataforma, etiqueta)",
       )
       .order("fecha_reserva", { ascending: true })
       .order("hora_reserva", { ascending: true });
@@ -48,10 +51,20 @@ export const listarReservas = createServerFn({ method: "POST" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => ({
-      ...r,
-      monto_abonado: Number(r.monto_abonado),
-    })) as Reserva[];
+    return (rows ?? []).map((r: any) => {
+      const mp = r.metodos_pago_qr;
+      const label = mp
+        ? mp.plataforma === "Otra"
+          ? mp.etiqueta || "Otra"
+          : mp.plataforma
+        : null;
+      const { metodos_pago_qr, ...rest } = r;
+      return {
+        ...rest,
+        monto_abonado: Number(r.monto_abonado),
+        metodo_pago_label: label,
+      };
+    }) as Reserva[];
   });
 
 export const getMetricasReservasHoy = createServerFn({ method: "GET" })
@@ -105,6 +118,7 @@ export const crearReserva = createServerFn({ method: "POST" })
         tipo_reserva: data.tipo_reserva || null,
         estado: data.estado,
         monto_abonado: data.monto_abonado,
+        id_metodo_pago_qr: data.id_metodo_pago_qr ?? null,
         created_by: userId,
       } as any)
       .select("id_reserva, codigo_reserva")
@@ -113,7 +127,7 @@ export const crearReserva = createServerFn({ method: "POST" })
     return row;
   });
 
-const actualizarSchema = reservaCrearSchema.innerType().partial().extend({
+const actualizarSchema = reservaBaseSchema.partial().extend({
   id_reserva: z.string().uuid(),
 });
 
