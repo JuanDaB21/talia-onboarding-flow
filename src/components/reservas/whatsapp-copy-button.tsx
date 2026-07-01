@@ -15,16 +15,18 @@ interface Props {
   codigo: string;
   monto: number;
   telefono?: string | null;
+  negocio?: string | null;
 }
 
-export function WhatsappCopyButton({ nombre, fecha, hora, codigo, monto, telefono }: Props) {
+export function WhatsappCopyButton({ nombre, fecha, hora, codigo, monto, telefono, negocio }: Props) {
   const handle = async () => {
     const fechaFmt = new Date(fecha + "T00:00:00").toLocaleDateString("es-CO", {
       weekday: "long",
       day: "numeric",
       month: "long",
     });
-    const msg = `¡Hola ${nombre}! Tu reserva en TALIA para el ${fechaFmt} a las ${hora} ha sido registrada. Código de reserva: ${codigo}. Abono: ${fmt.format(monto)}. ¡Te esperamos!`;
+    const nombreNegocio = (negocio ?? "").trim() || "nuestro restaurante";
+    const msg = `¡Hola ${nombre}! Tu reserva en ${nombreNegocio} para el ${fechaFmt} a las ${hora} ha sido registrada. Código de reserva: ${codigo}. Abono: ${fmt.format(monto)}. ¡Te esperamos!`;
     try {
       await navigator.clipboard.writeText(msg);
       toast.success("Mensaje copiado");
