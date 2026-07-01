@@ -275,7 +275,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
         navigate({ to: "/menu/recetas/$id", params: { id: recetaIdFinal } });
       } else {
         toast.success("Receta actualizada");
-        navigate({ to: "/menu/productos", search: { editar: productoId } });
+        navigate({ to: "/menu/recetas" });
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
