@@ -49,9 +49,10 @@ function OperacionPage() {
         <Alertas />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
+        <AlertasImpresion />
         <PersonalTurno />
-        <MesasGrid />
       </div>
+      <MesasGrid />
       <PropinasPanel />
     </div>
   );
