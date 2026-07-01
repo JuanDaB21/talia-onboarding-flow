@@ -286,8 +286,54 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
               {errors.monto_abonado && (
                 <p className="text-xs text-destructive mt-1">{errors.monto_abonado}</p>
               )}
-            </div>
           </div>
+          {montoNum > 0 && (
+            <div>
+              <Label htmlFor="cuenta">Cuenta donde se recibió el abono *</Label>
+              {cuentas.length === 0 ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No hay cuentas configuradas.{" "}
+                  <Link
+                    to="/configuracion/metodos-pago"
+                    className="text-primary underline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Configurar métodos de pago
+                  </Link>
+                </p>
+              ) : (
+                <Select
+                  value={form.id_metodo_pago_qr}
+                  onValueChange={(v) => set("id_metodo_pago_qr", v)}
+                >
+                  <SelectTrigger id="cuenta">
+                    <SelectValue placeholder="Selecciona la cuenta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cuentas.map((c) => {
+                      const label =
+                        c.plataforma === "Otra"
+                          ? c.etiqueta || "Otra"
+                          : c.plataforma;
+                      return (
+                        <SelectItem key={c.id_qr} value={c.id_qr}>
+                          {label}
+                          {c.titular ? ` · ${c.titular}` : ""}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+              {errors.id_metodo_pago_qr && (
+                <p className="text-xs text-destructive mt-1">
+                  {errors.id_metodo_pago_qr}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         </div>
 
         <SheetFooter>
