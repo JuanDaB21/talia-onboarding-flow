@@ -1,121 +1,104 @@
 ## Objetivo
 
-En el cobro (`PagarSheet`), permitir que el mesero divida el pago total en **varias partes con distinto método** (ej. 60.000 en efectivo + 60.000 por transferencia a Bancolombia), manteniendo trazabilidad completa y el flujo de confirmación de admin para las partes que lo requieran (transferencias).
+Permitir abrir una mesa desde la vista de servicio:
+- **Mesero**: abre una mesa `LIBRE` y queda auto-asignado a sí mismo.
+- **Admin/Superadmin/Cajero**: abre una mesa `LIBRE` eligiendo qué mesero la atenderá.
+
+Cerrar la mesa ya existe (RPC `cerrar_mesa` + botón "Cerrar mesa" en el detalle) y funciona para ambos roles: solo se documenta, sin cambios.
 
 ## Comportamiento actual
 
-- Selección de items → un único método (EFECTIVO / TRANSFERENCIA / DATAFONO) → `registrar_pago` crea un `pagos` con `monto = subtotal - descuentos` y estado `PENDIENTE` si es TRANSFERENCIA.
-- No hay forma de partir el cobro entre varios métodos.
+- Hoy una mesa pasa a `OCUPADA` únicamente cuando el cliente escanea el QR, acepta un prepedido, o llama al mesero.
+- El admin puede "Asignar mesero" desde el card de la lista, pero eso solo escribe `id_mesero_asignado` sin cambiar el estado — la mesa sigue `LIBRE` hasta que ocurra una interacción del cliente.
+- No hay forma de que el mesero, desde su vista de servicio, abra una mesa `LIBRE` y se autoasigne para empezar a tomar pedido.
 
 ## Diseño
 
-### 1. Base de datos
+### 1. Base de datos — nueva migración
 
-Nueva migración:
+RPC `abrir_mesa(p_id_mesa uuid, p_id_mesero uuid DEFAULT NULL)`:
 
-- `ALTER TABLE public.pagos ADD COLUMN id_pago_padre uuid NULL REFERENCES public.pagos(id_pago) ON DELETE CASCADE;`
-- Índice `CREATE INDEX idx_pagos_padre ON public.pagos(id_pago_padre);`
-- Nuevo RPC `registrar_pago_dividido(...)`:
-  - Parámetros: `p_id_mesa uuid, p_item_ids uuid[], p_partes jsonb, p_propina numeric, p_id_bono uuid, p_id_reserva uuid`.
-  - `p_partes` = array de objetos `{ metodo, subtipo, voucher, url_comprobante, monto }`.
-  - Validaciones:
-    - Reusar toda la validación de items/bono/reserva de `registrar_pago`.
-    - Sumar subtotal → aplicar bono/reserva → `total_requerido = subtotal - descuentos + propina`.
-    - `SUM(partes.monto) = total_requerido` (tolerancia ±1 COP).
-    - Cada parte con `metodo='TRANSFERENCIA'` DEBE tener `url_comprobante`.
-    - `array_length(partes) >= 2` (partes=1 debe usar el RPC existente).
-    - `monto > 0` por parte.
-  - Ejecución en transacción:
-    - Insertar la **primera parte** como pago PRINCIPAL: se le atribuyen `propina` completa, `descuento_bono`, `descuento_neto`, `id_bono`, subtipo con "Reserva …" si aplica. `pago_items` linkea todos los items al principal. Marcar `pedido_items.pagado_at = now(), id_pago = principal`.
-    - Insertar las partes 2..N como pagos con `id_pago_padre = principal`, `propina = 0`, sin `id_bono`, con su propio `monto`, `metodo`, `subtipo`, `voucher`, `url_comprobante`, `estado_confirmacion` según método.
-    - Si algún parte es TRANSFERENCIA → esa parte queda `PENDIENTE`; las demás `CONFIRMADO`.
-    - `bono_aplicaciones` sigue vinculado solo al principal.
-    - `reservas` update igual (una sola vez).
-    - `PERFORM intentar_liberar_mesa_si_pagada(p_id_mesa)` al final.
-  - Devuelve `uuid` del pago principal.
-- Grants: mismo patrón que `registrar_pago` (SECURITY DEFINER, revoke public, grant execute a `authenticated` si aplica, o solo `service_role` — replicar lo que hoy tiene `registrar_pago`).
+- `SECURITY DEFINER`, `search_path=public`.
+- Valida `current_user_negocio()` y que la mesa pertenezca a ese negocio.
+- Lee `rol` del llamante en `usuarios_staff`.
+- Resolución del mesero a asignar:
+  - Si `p_id_mesero IS NULL`:
+    - Si llamante es `MESERO` → `p_id_mesero := auth.uid()`.
+    - Si llamante es `ADMIN/SUPERADMIN/CAJERO` → error `Debes seleccionar un mesero`.
+  - Si `p_id_mesero` viene:
+    - Debe existir en `usuarios_staff` con `rol='MESERO'`, `estado='ACTIVO'`, mismo `id_negocio`.
+    - Un `MESERO` solo puede indicar su propio `id_usuario` (bloquea que un mesero asigne a otro).
+- Estado esperado: `mesas.estado = 'LIBRE'`. Si ya está `OCUPADA` → error `La mesa ya está abierta` (el flujo correcto es reasignar).
+- `UPDATE mesas SET estado='OCUPADA', id_mesero_asignado=p_id_mesero, asignada_at=now(), liberada_at=NULL, solicitud_cliente=NULL, solicitud_at=NULL WHERE id_mesa=p_id_mesa`.
+- `RETURN p_id_mesero`.
+- `REVOKE ALL ... FROM PUBLIC`; `GRANT EXECUTE ... TO authenticated`.
 
 ### 2. Server function
 
-`src/lib/pagos.functions.ts`:
+En `src/lib/servicio.functions.ts`:
 
-- Nueva `registrarPagoDividido` (createServerFn + requireSupabaseAuth) con Zod schema:
-  ```ts
-  z.object({
-    idMesa: z.string().uuid(),
-    itemIds: z.array(z.string().uuid()).min(1).max(200),
-    propina: z.number().min(0).max(10_000_000).default(0),
-    idBono: z.string().uuid().nullable().optional(),
-    idReserva: z.string().uuid().nullable().optional(),
-    partes: z.array(z.object({
-      metodo: z.enum(["EFECTIVO","TRANSFERENCIA","DATAFONO"]),
-      subtipo: z.string().max(50).nullable().optional(),
-      voucher: z.string().max(50).nullable().optional(),
-      urlComprobante: z.string().max(500).nullable().optional(),
-      monto: z.number().int().positive(),
-    })).min(2).max(10),
-  })
-  ```
-- Llama `supabase.rpc("registrar_pago_dividido", { ... })`.
+```ts
+const abrirMesaSchema = z.object({
+  idMesa: z.string().uuid(),
+  idMesero: z.string().uuid().nullable().optional(),
+});
+export const abrirMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => abrirMesaSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: idMesero, error } = await context.supabase.rpc("abrir_mesa", {
+      p_id_mesa: data.idMesa,
+      p_id_mesero: data.idMesero ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { idMesero: idMesero as string };
+  });
+```
 
-### 3. UI — `src/components/servicio/pagar-sheet.tsx`
+### 3. UI — `src/routes/_app.servicio.index.tsx` (`MesaCard`)
 
-En `PasoMetodo`:
+- Cuando `m.estado === 'LIBRE'`:
+  - **Mesero** (no admin): botón principal "Abrir mesa" que:
+    - Ejecuta `abrirMesa({ idMesa })` (auto-asignación).
+    - Al éxito, navega a `/servicio/$idMesa` y refresca queries `servicio/mesas` y `mesaSesion`.
+    - Toast: "Mesa abierta y asignada a ti".
+  - **Admin/Cajero**: botón "Abrir mesa" que abre un nuevo `AbrirMesaDialog` con:
+    - Selector de mesero (reutiliza `listarMeserosNegocio`, muestra "(fuera de turno)" si aplica).
+    - Botón "Abrir mesa" → `abrirMesa({ idMesa, idMesero: sel })`.
+    - Al éxito: toast, cierra dialog, refresca queries.
+  - El Link a `/servicio/$idMesa` de la card se envuelve con `preventDefault` cuando la mesa está LIBRE para que el clic ejecute la acción de abrir (mesero) o abra el dialog (admin), no el detalle vacío.
+- Cuando `m.estado === 'OCUPADA'`:
+  - Comportamiento actual (link al detalle, y admin mantiene "Reasignar mesero" con `ReasignarMeseroDialog`).
 
-- **Nuevo Switch** "Dividir pago entre varios métodos" arriba de la selección de método.
-- Cuando OFF: comportamiento actual (un solo método).
-- Cuando ON:
-  - Oculta el selector único y muestra una **lista de partes** editables:
-    - Cada tarjeta: selector método (mismos 3 iconos), input `monto` (numérico, formato COP), y campos condicionales del método (selector subtipo/cuenta reusando `SubtipoTransferenciaSelector` y el uploader de comprobante que ya existen para transferencia; input voucher para datáfono).
-    - Botón "×" para eliminar la parte (mínimo 2).
-    - Botón "+ Agregar parte" (máximo 10).
-  - Resumen sticky abajo:
-    - "Total requerido: {totalConPropina}"
-    - "Suma partes: {sumaPartes}"
-    - "Saldo por asignar: {totalRequerido - sumaPartes}" con color: verde si 0, rojo si distinto.
-    - Botón "Autocompletar saldo" que asigna el saldo restante a la última parte.
-  - Botón "Pagar" habilitado solo si:
-    - Sum(partes.monto) === totalRequerido.
-    - Cada parte válida (monto > 0, campos requeridos por método).
-    - Al menos 2 partes.
-  - Al enviar: llama `registrarPagoDividido`. Toast: si alguna parte es transferencia → "Pago registrado · N transferencia(s) esperando confirmación del admin"; sino → "Pago registrado".
-- Reset del split al cambiar el step o abrir el sheet.
+### 4. Nuevo componente `src/components/servicio/abrir-mesa-dialog.tsx`
 
-### 4. Trazabilidad y confirmación
+- Copia estructural de `ReasignarMeseroDialog` pero:
+  - Sin `meseroActualId`.
+  - Título "Abrir mesa" / descripción "Selecciona el mesero que la atenderá".
+  - Mutación llama `abrirMesa` en vez de `reasignarMeseroMesa`.
+  - Al éxito navega a `/servicio/$idMesa` con el `useNavigate` del router.
 
-- `PagosPendientesSheet` (admin): ya lista todos los `pagos` `PENDIENTE`. Al hacerse partes en registros individuales, cada transferencia aparece por separado. **Ajuste menor**: en la tarjeta del pago pendiente, si `id_pago_padre !== null`, mostrar badge "Pago dividido — parte X de Y" (consulta ligera para contar partes del mismo padre).
-- `caja` / analytics: cada parte suma independientemente por método, sin cambios adicionales.
-- Historial de pagos por mesa (si existe UI): las partes se muestran como pagos separados; para agruparlas visualmente, si hay una vista de "detalle de mesa" con pagos, ordenar por `COALESCE(id_pago_padre, id_pago)` y agrupar. **Fuera de alcance**: dejar la vista tal cual, solo se documenta la relación por `id_pago_padre`.
+### 5. Cerrar mesa (sin cambios)
 
-### 5. Validaciones y edge cases
-
-- Bono/reserva se aplican al principal (que se toma como la primera parte); los descuentos ya reducen `total_requerido` antes de dividir.
-- Reserva que cubre TODO el total (`reservaCubreTodo`) sigue usando el flujo actual con `pagar_con_abono_reserva` — el switch de dividir no se habilita en ese caso.
-- Propina completa se atribuye al pago principal, no se prorratea entre partes (más simple y ya sirve para efectos de reporte).
-- Si alguna parte es transferencia, la mesa NO se libera hasta que el admin confirme esas partes (el helper `intentar_liberar_mesa_si_pagada` ya considera `estado_confirmacion`).
+- El botón "Cerrar mesa" en `_app.servicio.$idMesa.tsx` ya está disponible para el mesero asignado y admin. `cerrar_mesa` valida items pendientes, transferencias pendientes y libera la mesa.
 
 ## Archivos a tocar
 
-- Nueva migración SQL (columna + RPC).
-- `src/lib/pagos.functions.ts` — nueva `registrarPagoDividido`.
-- `src/components/servicio/pagar-sheet.tsx` — Switch + editor de partes + envío al nuevo RPC.
-- `src/components/servicio/pagos-pendientes-sheet.tsx` — badge de "pago dividido" (opcional, mejora trazabilidad).
-- `src/integrations/supabase/types.ts` — regenerado automáticamente tras la migración.
+- Nueva migración SQL (RPC `abrir_mesa` + grants).
+- `src/lib/servicio.functions.ts` — nueva `abrirMesa`.
+- `src/components/servicio/abrir-mesa-dialog.tsx` — nuevo.
+- `src/routes/_app.servicio.index.tsx` — `MesaCard`: botón "Abrir mesa" para libres, según rol.
+- `src/integrations/supabase/types.ts` — regenerado tras la migración.
 
 ## Verificación
 
-- Cobrar 3 items = 120.000: activar switch, parte 1 = 60.000 EFECTIVO, parte 2 = 60.000 TRANSFERENCIA (Bancolombia + comprobante). Guardar.
-  - Se crean 2 filas en `pagos`: principal EFECTIVO CONFIRMADO, hija TRANSFERENCIA PENDIENTE con `id_pago_padre = principal`.
-  - `pedido_items.pagado_at` != null, `id_pago = principal`.
-  - Admin ve la parte de transferencia en `PagosPendientesSheet` con badge "parte 2 de 2".
-  - Al confirmarla → mesa liberable.
-- Con propina 10%: se atribuye al principal; `pagos.monto` del principal incluye su parte del items + propina; hija solo su monto de items.
-- Sum de partes distinto al total → botón "Pagar" deshabilitado, muestra saldo restante.
-- 1 sola parte con switch ON → no permitido (botón deshabilitado, mínimo 2).
-- `bunx tsgo --noEmit` sin errores.
+- Mesero en turno con mesa LIBRE → "Abrir mesa" → mesa queda OCUPADA, `id_mesero_asignado = él`, `asignada_at = now`, navega al detalle.
+- Mesero intenta abrir una mesa ya OCUPADA por otro → error del RPC (mesa ya abierta); UI muestra toast.
+- Admin sobre mesa LIBRE → dialog con selector → escoge mesero → abrir → mismo resultado; el card refleja el nombre del mesero.
+- Admin/Mesero cierra la mesa (flujo actual) → vuelve a LIBRE; puede volver a abrirse.
+- `bunx tsgo --noEmit` limpio.
 
 ## Fuera de alcance
 
-- Reprorrateo de propina entre partes.
-- Combinación de partes con bono aplicado a partes distintas al principal.
-- Agrupar visualmente las partes en el historial de la mesa (más allá del badge del admin).
+- Mostrar la sala/orden preferida para elegir mesero automáticamente (ya cubierto por el algoritmo de asignación en `asignar_mesero_a_mesa`; aquí el admin elige manualmente).
+- Cambiar `cerrar_mesa` o el botón existente.

@@ -799,3 +799,21 @@ export const reasignarMeseroMesa = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Abrir una mesa LIBRE. Si no se pasa idMesero, el llamante (mesero) se autoasigna.
+const abrirMesaSchema = z.object({
+  idMesa: z.string().uuid(),
+  idMesero: z.string().uuid().nullable().optional(),
+});
+export const abrirMesa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => abrirMesaSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: idMesero, error } = await supabase.rpc("abrir_mesa", {
+      p_id_mesa: data.idMesa,
+      p_id_mesero: data.idMesero ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { idMesero: idMesero as string };
+  });
+
