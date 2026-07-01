@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,12 @@ export function ReservaCard({ reserva, onEdit }: Props) {
   const qc = useQueryClient();
   const cancelarFn = useServerFn(cancelarReserva);
   const eliminarFn = useServerFn(eliminarReserva);
+  const getNegocio = useServerFn(getNegocioConfig);
+  const negocioQ = useQuery({
+    queryKey: ["negocio", "config"],
+    queryFn: () => getNegocio(),
+    staleTime: 5 * 60 * 1000,
+  });
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const cancelarMut = useMutation({
@@ -141,6 +148,7 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                     codigo={reserva.codigo_reserva}
                     monto={reserva.monto_abonado}
                     telefono={reserva.customer_phone}
+                    negocio={negocioQ.data?.nombre_comercial ?? null}
                   />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
