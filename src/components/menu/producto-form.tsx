@@ -29,10 +29,12 @@ export function ProductoForm({
         descripcion_producto: producto.descripcion_producto ?? "",
         precio_venta: Number(producto.precio_venta),
         activo: producto.activo,
+        facturable: producto.facturable ?? true,
       },
     });
 
   const activo = watch("activo");
+  const facturable = watch("facturable");
 
   const onPickFile = (f: File | null) => {
     if (!f) return;
