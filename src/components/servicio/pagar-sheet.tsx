@@ -213,6 +213,61 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
+  type PartePagoInput = {
+    metodo: Metodo;
+    subtipo: string | null;
+    voucher: string | null;
+    urlComprobante: string | null;
+    monto: number;
+  };
+  const pagarDivididoMut = useMutation({
+    mutationFn: (partes: PartePagoInput[]) =>
+      pagarDivididoFn({
+        data: {
+          idMesa,
+          itemIds: Array.from(selected),
+          propina,
+          idBono,
+          idReserva: abonoActivo ? idReservaAbono : null,
+          partes,
+        },
+      }),
+    onSuccess: (_res, partes) => {
+      const hayTransfer = partes.some((p) => p.metodo === "TRANSFERENCIA");
+      const nTransfer = partes.filter((p) => p.metodo === "TRANSFERENCIA").length;
+      toast.success(
+        hayTransfer
+          ? `Pago dividido registrado · ${nTransfer} transferencia${nTransfer > 1 ? "s" : ""} esperando confirmación`
+          : "Pago dividido registrado",
+        { icon: <CheckCircle2 className="h-4 w-4" /> },
+      );
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["bonos"] });
+      itemsQ.refetch().then((r) => {
+        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
+        if (restantes.length === 0 && !hayTransfer) {
+          onOpenChange(false);
+          navigate({ to: "/servicio" });
+        } else {
+          setPaso("items");
+          setSelected(new Set());
+          setPropinaPct(0.1);
+          setPropinaCustom(null);
+          setIdBono(null);
+          setIdReservaAbono(null);
+        }
+      });
+    },
+    onError: (e) =>
+      toast.error("No se pudo registrar el pago dividido", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+
   const abonoMut = useMutation({
     mutationFn: () =>
       aplicarAbonoFn({
