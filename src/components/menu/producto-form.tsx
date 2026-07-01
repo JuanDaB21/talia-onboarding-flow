@@ -138,9 +138,19 @@ export function ProductoForm({
       <div className="flex items-center justify-between rounded-md border p-3">
         <div>
           <Label htmlFor="act">Producto activo</Label>
-          <p className="text-xs text-muted-foreground">Disponible para venta en el menú.</p>
+          <p className="text-xs text-muted-foreground">Visible en el menú público para los clientes.</p>
         </div>
         <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
+      </div>
+
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div>
+          <Label htmlFor="fac">Disponible para facturar</Label>
+          <p className="text-xs text-muted-foreground">
+            El mesero o administrador puede agregarlo y facturarlo aunque no aparezca en el menú público.
+          </p>
+        </div>
+        <Switch id="fac" checked={facturable} onCheckedChange={(v) => setValue("facturable", v, { shouldDirty: true })} />
       </div>
 
       {/* Las variantes se editan desde la receta asociada. */}
