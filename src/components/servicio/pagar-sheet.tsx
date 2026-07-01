@@ -28,11 +28,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import {
   listarItemsCobrables,
   registrarPago,
+  registrarPagoDividido,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
 import {
@@ -71,6 +73,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const navigate = useNavigate();
   const getItems = useServerFn(listarItemsCobrables);
   const pagarFn = useServerFn(registrarPago);
+  const pagarDivididoFn = useServerFn(registrarPagoDividido);
   const reservasFn = useServerFn(listarReservasAplicablesHoy);
   const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
 
@@ -211,6 +214,61 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
+  type PartePagoInput = {
+    metodo: Metodo;
+    subtipo: string | null;
+    voucher: string | null;
+    urlComprobante: string | null;
+    monto: number;
+  };
+  const pagarDivididoMut = useMutation({
+    mutationFn: (partes: PartePagoInput[]) =>
+      pagarDivididoFn({
+        data: {
+          idMesa,
+          itemIds: Array.from(selected),
+          propina,
+          idBono,
+          idReserva: abonoActivo ? idReservaAbono : null,
+          partes,
+        },
+      }),
+    onSuccess: (_res, partes) => {
+      const hayTransfer = partes.some((p) => p.metodo === "TRANSFERENCIA");
+      const nTransfer = partes.filter((p) => p.metodo === "TRANSFERENCIA").length;
+      toast.success(
+        hayTransfer
+          ? `Pago dividido registrado · ${nTransfer} transferencia${nTransfer > 1 ? "s" : ""} esperando confirmación`
+          : "Pago dividido registrado",
+        { icon: <CheckCircle2 className="h-4 w-4" /> },
+      );
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["bonos"] });
+      itemsQ.refetch().then((r) => {
+        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
+        if (restantes.length === 0 && !hayTransfer) {
+          onOpenChange(false);
+          navigate({ to: "/servicio" });
+        } else {
+          setPaso("items");
+          setSelected(new Set());
+          setPropinaPct(0.1);
+          setPropinaCustom(null);
+          setIdBono(null);
+          setIdReservaAbono(null);
+        }
+      });
+    },
+    onError: (e) =>
+      toast.error("No se pudo registrar el pago dividido", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+
   const abonoMut = useMutation({
     mutationFn: () =>
       aplicarAbonoFn({
@@ -340,6 +398,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
               })
             }
             isLoading={pagarMut.isPending}
+            onPagarDividido={(partes) => pagarDivididoMut.mutate(partes)}
+            isLoadingDividido={pagarDivididoMut.isPending}
+            reservaCubreTodo={reservaCubreTodo}
           />
         )}
       </SheetContent>
@@ -1021,6 +1082,9 @@ function PasoMetodo({
   reservaInfo,
   onPagar,
   isLoading,
+  onPagarDividido,
+  isLoadingDividido,
+  reservaCubreTodo,
 }: {
   metodo: Metodo;
   setMetodo: (m: Metodo) => void;
@@ -1038,7 +1102,19 @@ function PasoMetodo({
     urlComprobante?: string;
   }) => void;
   isLoading: boolean;
+  onPagarDividido: (
+    partes: Array<{
+      metodo: Metodo;
+      subtipo: string | null;
+      voucher: string | null;
+      urlComprobante: string | null;
+      monto: number;
+    }>,
+  ) => void;
+  isLoadingDividido: boolean;
+  reservaCubreTodo: boolean;
 }) {
+  const [dividir, setDividir] = useState(false);
   const [subtipo, setSubtipo] = useState("");
   const [voucher, setVoucher] = useState("");
   const [recibido, setRecibido] = useState("");
@@ -1138,114 +1214,146 @@ function PasoMetodo({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <MetodoBtn
-            active={metodo === "EFECTIVO"}
-            onClick={() => setMetodo("EFECTIVO")}
-            icon={<Banknote className="h-5 w-5" />}
-            label="Efectivo"
-          />
-          <MetodoBtn
-            active={metodo === "TRANSFERENCIA"}
-            onClick={() => setMetodo("TRANSFERENCIA")}
-            icon={<Smartphone className="h-5 w-5" />}
-            label="Transferencia"
-          />
-          <MetodoBtn
-            active={metodo === "DATAFONO"}
-            onClick={() => setMetodo("DATAFONO")}
-            icon={<CreditCard className="h-5 w-5" />}
-            label="Datáfono"
+        <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
+          <div className="min-w-0 pr-3">
+            <p className="text-sm font-medium">Dividir pago</p>
+            <p className="text-[11px] text-muted-foreground">
+              Cobra el total en varias partes con métodos distintos.
+            </p>
+          </div>
+          <Switch
+            checked={dividir}
+            disabled={reservaCubreTodo}
+            onCheckedChange={(v) => setDividir(!!v)}
           />
         </div>
 
-        {metodo === "EFECTIVO" && (
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="recibido">Monto recibido (opcional)</Label>
-              <Input
-                id="recibido"
-                inputMode="numeric"
-                value={recibido}
-                onChange={(e) => setRecibido(e.target.value.replace(/[^\d]/g, ""))}
-                placeholder="0"
+        {!dividir && (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <MetodoBtn
+                active={metodo === "EFECTIVO"}
+                onClick={() => setMetodo("EFECTIVO")}
+                icon={<Banknote className="h-5 w-5" />}
+                label="Efectivo"
+              />
+              <MetodoBtn
+                active={metodo === "TRANSFERENCIA"}
+                onClick={() => setMetodo("TRANSFERENCIA")}
+                icon={<Smartphone className="h-5 w-5" />}
+                label="Transferencia"
+              />
+              <MetodoBtn
+                active={metodo === "DATAFONO"}
+                onClick={() => setMetodo("DATAFONO")}
+                icon={<CreditCard className="h-5 w-5" />}
+                label="Datáfono"
               />
             </div>
-            {cambio !== null && (
-              <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Cambio</span>
-                <span className="text-lg font-bold tabular-nums">{fmt.format(cambio)}</span>
+
+            {metodo === "EFECTIVO" && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="recibido">Monto recibido (opcional)</Label>
+                  <Input
+                    id="recibido"
+                    inputMode="numeric"
+                    value={recibido}
+                    onChange={(e) =>
+                      setRecibido(e.target.value.replace(/[^\d]/g, ""))
+                    }
+                    placeholder="0"
+                  />
+                </div>
+                {cambio !== null && (
+                  <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Cambio</span>
+                    <span className="text-lg font-bold tabular-nums">
+                      {fmt.format(cambio)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+
+            {metodo === "TRANSFERENCIA" && (
+              <TransferenciaSection
+                subtipo={subtipo}
+                setSubtipo={setSubtipo}
+                urlComprobante={urlComprobante}
+                subiendo={subiendo}
+                fileRef={fileRef}
+                handleFile={handleFile}
+              />
+            )}
+
+            {metodo === "DATAFONO" && (
+              <div className="space-y-3">
+                <div>
+                  <Label>Tipo</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {["Débito", "Crédito"].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSubtipo(s)}
+                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          subtipo === s
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card hover:bg-muted"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="voucher">N° voucher (opcional)</Label>
+                  <Input
+                    id="voucher"
+                    value={voucher}
+                    onChange={(e) => setVoucher(e.target.value.slice(0, 50))}
+                    placeholder="Ej: 123456"
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {metodo === "TRANSFERENCIA" && (
-          <TransferenciaSection
-            subtipo={subtipo}
-            setSubtipo={setSubtipo}
-            urlComprobante={urlComprobante}
-            subiendo={subiendo}
-            fileRef={fileRef}
-            handleFile={handleFile}
+        {dividir && (
+          <PartesEditor
+            totalRequerido={totalConPropina}
+            onSubmit={onPagarDividido}
+            isLoading={isLoadingDividido}
           />
         )}
-
-        {metodo === "DATAFONO" && (
-          <div className="space-y-3">
-            <div>
-              <Label>Tipo</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {["Débito", "Crédito"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubtipo(s)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      subtipo === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card hover:bg-muted"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="voucher">N° voucher (opcional)</Label>
-              <Input
-                id="voucher"
-                value={voucher}
-                onChange={(e) => setVoucher(e.target.value.slice(0, 50))}
-                placeholder="Ej: 123456"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="border-t bg-card px-5 py-4">
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!puedePagar}
-          onClick={() =>
-            onPagar({
-              subtipo: subtipo || undefined,
-              voucher: voucher || undefined,
-              urlComprobante: urlComprobante ?? undefined,
-            })
-          }
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-          )}
-          Confirmar pago de {fmt.format(totalConPropina)}
-        </Button>
-      </div>
+      {!dividir && (
+        <div className="border-t bg-card px-5 py-4">
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!puedePagar}
+            onClick={() =>
+              onPagar({
+                subtipo: subtipo || undefined,
+                voucher: voucher || undefined,
+                urlComprobante: urlComprobante ?? undefined,
+              })
+            }
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            Confirmar pago de {fmt.format(totalConPropina)}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -1456,5 +1564,331 @@ function PlataformaBtn({
         </span>
       )}
     </button>
+  );
+}
+
+type ParteState = {
+  key: string;
+  metodo: Metodo;
+  subtipo: string;
+  voucher: string;
+  urlComprobante: string | null;
+  monto: string; // string para input controlado
+};
+
+function nuevaParte(monto = ""): ParteState {
+  return {
+    key: Math.random().toString(36).slice(2, 9),
+    metodo: "EFECTIVO",
+    subtipo: "",
+    voucher: "",
+    urlComprobante: null,
+    monto,
+  };
+}
+
+function PartesEditor({
+  totalRequerido,
+  onSubmit,
+  isLoading,
+}: {
+  totalRequerido: number;
+  onSubmit: (
+    partes: Array<{
+      metodo: Metodo;
+      subtipo: string | null;
+      voucher: string | null;
+      urlComprobante: string | null;
+      monto: number;
+    }>,
+  ) => void;
+  isLoading: boolean;
+}) {
+  const [partes, setPartes] = useState<ParteState[]>(() => [
+    nuevaParte(String(Math.floor(totalRequerido / 2))),
+    nuevaParte(String(totalRequerido - Math.floor(totalRequerido / 2))),
+  ]);
+  const { idNegocio } = useCurrentNegocio();
+
+  const updateParte = (key: string, patch: Partial<ParteState>) =>
+    setPartes((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+  const removeParte = (key: string) =>
+    setPartes((ps) => (ps.length <= 2 ? ps : ps.filter((p) => p.key !== key)));
+  const addParte = () =>
+    setPartes((ps) => (ps.length >= 10 ? ps : [...ps, nuevaParte()]));
+
+  const sumaPartes = useMemo(
+    () => partes.reduce((a, b) => a + (Number(b.monto) || 0), 0),
+    [partes],
+  );
+  const saldo = totalRequerido - sumaPartes;
+
+  const autocompletarSaldo = () => {
+    if (partes.length === 0) return;
+    const ultima = partes[partes.length - 1];
+    const nuevoMonto = Math.max(0, (Number(ultima.monto) || 0) + saldo);
+    updateParte(ultima.key, { monto: String(nuevoMonto) });
+  };
+
+  const parteValida = (p: ParteState) => {
+    const n = Number(p.monto);
+    if (!Number.isFinite(n) || n <= 0) return false;
+    if (p.metodo === "TRANSFERENCIA") return !!p.subtipo && !!p.urlComprobante;
+    if (p.metodo === "DATAFONO") return !!p.subtipo;
+    return true;
+  };
+  const todasValidas = partes.every(parteValida);
+  const cuadra = Math.abs(saldo) <= 1;
+  const puedePagar =
+    !isLoading && partes.length >= 2 && todasValidas && cuadra;
+
+  const handleSubmit = () => {
+    if (!puedePagar) return;
+    onSubmit(
+      partes.map((p) => ({
+        metodo: p.metodo,
+        subtipo: p.subtipo || null,
+        voucher: p.voucher || null,
+        urlComprobante: p.urlComprobante,
+        monto: Math.max(1, Math.floor(Number(p.monto) || 0)),
+      })),
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {partes.map((p, i) => (
+        <ParteCard
+          key={p.key}
+          index={i}
+          parte={p}
+          onChange={(patch) => updateParte(p.key, patch)}
+          onRemove={partes.length > 2 ? () => removeParte(p.key) : null}
+          idNegocio={idNegocio ?? null}
+        />
+      ))}
+
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={addParte}
+          disabled={partes.length >= 10}
+        >
+          + Agregar parte
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={autocompletarSaldo}
+          disabled={saldo === 0}
+        >
+          Autocompletar saldo
+        </Button>
+      </div>
+
+      <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Total requerido</span>
+          <span className="tabular-nums font-medium">
+            {fmt.format(totalRequerido)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Suma de partes</span>
+          <span className="tabular-nums font-medium">
+            {fmt.format(sumaPartes)}
+          </span>
+        </div>
+        <div
+          className={`flex items-center justify-between font-semibold ${
+            cuadra
+              ? "text-emerald-700 dark:text-emerald-400"
+              : "text-red-600 dark:text-red-400"
+          }`}
+        >
+          <span>Saldo por asignar</span>
+          <span className="tabular-nums">{fmt.format(Math.abs(saldo))}</span>
+        </div>
+      </div>
+
+      <Button
+        size="lg"
+        className="w-full"
+        disabled={!puedePagar}
+        onClick={handleSubmit}
+      >
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4 mr-2" />
+        )}
+        Confirmar pago dividido de {fmt.format(totalRequerido)}
+      </Button>
+    </div>
+  );
+}
+
+function ParteCard({
+  index,
+  parte,
+  onChange,
+  onRemove,
+  idNegocio,
+}: {
+  index: number;
+  parte: ParteState;
+  onChange: (patch: Partial<ParteState>) => void;
+  onRemove: (() => void) | null;
+  idNegocio: string | null;
+}) {
+  const [subiendo, setSubiendo] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!idNegocio) {
+      toast.error("No se pudo identificar el negocio");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Máximo 8MB");
+      return;
+    }
+    setSubiendo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `${idNegocio}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("comprobantes-pago")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      onChange({ urlComprobante: path });
+      toast.success("Comprobante subido");
+    } catch (err) {
+      toast.error("No se pudo subir el comprobante", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSubiendo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">Parte {index + 1}</p>
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onRemove}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <MetodoBtn
+          active={parte.metodo === "EFECTIVO"}
+          onClick={() =>
+            onChange({
+              metodo: "EFECTIVO",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<Banknote className="h-4 w-4" />}
+          label="Efectivo"
+        />
+        <MetodoBtn
+          active={parte.metodo === "TRANSFERENCIA"}
+          onClick={() =>
+            onChange({
+              metodo: "TRANSFERENCIA",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<Smartphone className="h-4 w-4" />}
+          label="Transf."
+        />
+        <MetodoBtn
+          active={parte.metodo === "DATAFONO"}
+          onClick={() =>
+            onChange({
+              metodo: "DATAFONO",
+              subtipo: "",
+              urlComprobante: null,
+              voucher: "",
+            })
+          }
+          icon={<CreditCard className="h-4 w-4" />}
+          label="Datáfono"
+        />
+      </div>
+
+      <div>
+        <Label>Monto</Label>
+        <Input
+          inputMode="numeric"
+          value={parte.monto}
+          onChange={(e) =>
+            onChange({ monto: e.target.value.replace(/[^\d]/g, "") })
+          }
+          placeholder="0"
+          className="h-11 text-base"
+        />
+      </div>
+
+      {parte.metodo === "TRANSFERENCIA" && (
+        <TransferenciaSection
+          subtipo={parte.subtipo}
+          setSubtipo={(s) => onChange({ subtipo: s })}
+          urlComprobante={parte.urlComprobante}
+          subiendo={subiendo}
+          fileRef={fileRef}
+          handleFile={handleFile}
+        />
+      )}
+
+      {parte.metodo === "DATAFONO" && (
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {["Débito", "Crédito"].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onChange({ subtipo: s })}
+                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  parte.subtipo === s
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card hover:bg-muted"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <Input
+            value={parte.voucher}
+            onChange={(e) =>
+              onChange({ voucher: e.target.value.slice(0, 50) })
+            }
+            placeholder="N° voucher (opcional)"
+          />
+        </div>
+      )}
+    </div>
   );
 }

@@ -16,6 +16,26 @@ const registrarPagoSchema = z.object({
   idReserva: z.string().uuid().optional().nullable(),
 });
 
+const registrarPagoDivididoSchema = z.object({
+  idMesa: z.string().uuid(),
+  itemIds: z.array(z.string().uuid()).min(1).max(200),
+  propina: z.number().min(0).max(10_000_000).optional().default(0),
+  idBono: z.string().uuid().optional().nullable(),
+  idReserva: z.string().uuid().optional().nullable(),
+  partes: z
+    .array(
+      z.object({
+        metodo: z.enum(["EFECTIVO", "TRANSFERENCIA", "DATAFONO"]),
+        subtipo: z.string().max(50).optional().nullable(),
+        voucher: z.string().max(50).optional().nullable(),
+        urlComprobante: z.string().max(500).optional().nullable(),
+        monto: z.number().int().positive(),
+      }),
+    )
+    .min(2)
+    .max(10),
+});
+
 const confirmarPagoSchema = z.object({
   idPago: z.string().uuid(),
   aprobar: z.boolean(),
@@ -107,6 +127,29 @@ export const registrarPago = createServerFn({ method: "POST" })
       p_voucher: data.voucher ?? "",
       p_url_comprobante: data.urlComprobante ?? "",
       p_item_ids: data.itemIds,
+      p_propina: data.propina ?? 0,
+      p_id_bono: data.idBono ?? undefined,
+      p_id_reserva: data.idReserva ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { idPago: id as string };
+  });
+
+export const registrarPagoDividido = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => registrarPagoDivididoSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: id, error } = await supabase.rpc("registrar_pago_dividido", {
+      p_id_mesa: data.idMesa,
+      p_item_ids: data.itemIds,
+      p_partes: data.partes.map((p) => ({
+        metodo: p.metodo,
+        subtipo: p.subtipo ?? "",
+        voucher: p.voucher ?? "",
+        url_comprobante: p.urlComprobante ?? "",
+        monto: p.monto,
+      })),
       p_propina: data.propina ?? 0,
       p_id_bono: data.idBono ?? undefined,
       p_id_reserva: data.idReserva ?? undefined,
