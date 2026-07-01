@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -31,6 +32,7 @@ import {
   crearReserva,
   type Reserva,
 } from "@/lib/reservas.functions";
+import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
 
 interface Props {
   open: boolean;
@@ -49,6 +51,7 @@ type FormState = {
   tipo_reserva: string;
   estado: EstadoReserva;
   monto_abonado: string;
+  id_metodo_pago_qr: string;
 };
 
 const empty = (): FormState => ({
@@ -60,6 +63,7 @@ const empty = (): FormState => ({
   tipo_reserva: "",
   estado: "intencion",
   monto_abonado: "0",
+  id_metodo_pago_qr: "",
 });
 
 const TIPO_SUGERENCIAS = ["Cumpleaños", "Aniversario", "Grado", "Cena", "Reunión"];
