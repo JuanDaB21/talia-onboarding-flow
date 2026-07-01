@@ -450,19 +450,26 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
                     type="text"
                     inputMode="decimal"
                     placeholder="0"
-                    value={ing.cantidad === 0 ? "" : String(ing.cantidad)}
+                    title="Acepta decimales (0.5) o fracciones (1/2, 1 1/2)"
+                    defaultValue={formatCantidadDisplay(ing.cantidad)}
+                    key={`${ing.id_insumo}-${ing.cantidad}`}
                     onChange={(e) => {
-                      const v = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
-                      if (v === "") { setCantidad(ing.id_insumo, 0); return; }
-                      const n = Number(v);
-                      if (!Number.isNaN(n)) setCantidad(ing.id_insumo, n);
+                      // permite escribir libremente decimales, comas, "/" y espacios
+                      const raw = e.target.value.replace(/[^0-9.,/\s]/g, "");
+                      if (raw !== e.target.value) e.target.value = raw;
+                      // intento optimista: si ya es un número o fracción válida, actualiza el modelo
+                      const parsed = parseCantidadTexto(raw);
+                      if (parsed !== null) setCantidad(ing.id_insumo, parsed);
                     }}
                     onBlur={(e) => {
-                      const n = Number(e.target.value.replace(",", "."));
-                      setCantidad(ing.id_insumo, Number.isFinite(n) && n > 0 ? n : 0);
+                      const parsed = parseCantidadTexto(e.target.value);
+                      const val = parsed ?? 0;
+                      setCantidad(ing.id_insumo, val);
+                      e.target.value = formatCantidadDisplay(val);
                     }}
                     className="h-8 w-20 text-center tabular-nums"
                   />
+
                   <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={() => stepCantidad(ing.id_insumo, 1)}>
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
