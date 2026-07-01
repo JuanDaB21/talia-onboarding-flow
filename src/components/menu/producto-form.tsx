@@ -72,6 +72,7 @@ export function ProductoForm({
       precio_venta: v.precio_venta,
       url_imagen: finalUrl,
       activo: v.activo,
+      facturable: v.facturable,
     }).eq("id_producto", producto.id_producto);
     if (error) return toast.error("No se pudo guardar", { description: error.message });
 
