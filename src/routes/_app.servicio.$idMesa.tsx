@@ -53,6 +53,7 @@ import {
 import { PrepedidoEnVivoCard } from "@/components/servicio/prepedido-en-vivo-card";
 import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
+import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 import {
   EditarItemDialog,
   type EditarItemDialogItem,
