@@ -23,6 +23,7 @@ import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { inhabilitarStaff } from "@/lib/usuarios.functions";
 import { useMiStaff } from "@/hooks/use-mi-staff";
 import { PropinasPanel } from "@/components/operacion/propinas-panel";
+import { AlertasImpresion } from "@/components/operacion/alertas-impresion";
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
