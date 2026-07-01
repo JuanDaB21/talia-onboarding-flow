@@ -183,9 +183,11 @@ function ServicioIndex() {
   );
 }
 
-function MesaCard({ m }: { m: MesaServicio }) {
+function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
   const ocupada = m.estado === "OCUPADA";
+  const [reasignarOpen, setReasignarOpen] = useState(false);
   return (
+    <div className="relative">
     <Link
       to="/servicio/$idMesa"
       params={{ idMesa: m.id_mesa }}
