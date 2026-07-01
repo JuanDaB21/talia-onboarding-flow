@@ -22,7 +22,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
 import { minutosTranscurridos, retrasoItem } from "./comanda-utils";
-import { imprimirComandas, type ComandaDestino } from "./comanda-print";
+import { type ComandaDestino } from "./comanda-print";
+import { dispatchComandas } from "@/services/printDispatch";
 
 interface Props {
   comanda: ComandaEstacion | null;
