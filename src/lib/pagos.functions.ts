@@ -135,6 +135,29 @@ export const registrarPago = createServerFn({ method: "POST" })
     return { idPago: id as string };
   });
 
+export const registrarPagoDividido = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => registrarPagoDivididoSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: id, error } = await supabase.rpc("registrar_pago_dividido", {
+      p_id_mesa: data.idMesa,
+      p_item_ids: data.itemIds,
+      p_partes: data.partes.map((p) => ({
+        metodo: p.metodo,
+        subtipo: p.subtipo ?? "",
+        voucher: p.voucher ?? "",
+        url_comprobante: p.urlComprobante ?? "",
+        monto: p.monto,
+      })),
+      p_propina: data.propina ?? 0,
+      p_id_bono: data.idBono ?? undefined,
+      p_id_reserva: data.idReserva ?? undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { idPago: id as string };
+  });
+
 export const cerrarMesa = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => idMesaInput.parse(input))
