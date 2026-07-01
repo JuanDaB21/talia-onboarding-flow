@@ -1484,6 +1484,7 @@ export type Database = {
           activo: boolean
           created_at: string
           descripcion_producto: string | null
+          facturable: boolean
           id_negocio: string
           id_producto: string
           id_receta: string
@@ -1496,6 +1497,7 @@ export type Database = {
           activo?: boolean
           created_at?: string
           descripcion_producto?: string | null
+          facturable?: boolean
           id_negocio: string
           id_producto?: string
           id_receta: string
@@ -1508,6 +1510,7 @@ export type Database = {
           activo?: boolean
           created_at?: string
           descripcion_producto?: string | null
+          facturable?: boolean
           id_negocio?: string
           id_producto?: string
           id_receta?: string
