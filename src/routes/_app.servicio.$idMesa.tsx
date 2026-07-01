@@ -78,6 +78,7 @@ import { useMiStaff } from "@/hooks/use-mi-staff";
 import { type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import { dispatchComandas } from "@/services/printDispatch";
 import { beepListo } from "@/components/servicio/alerta-sound";
+import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
