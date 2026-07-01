@@ -324,8 +324,9 @@ async function sendBytesToDevice(device: USBDevice, data: Uint8Array): Promise<v
     // Chunk 4KB para evitar timeouts en impresoras lentas
     const CHUNK = 4096;
     for (let i = 0; i < data.length; i += CHUNK) {
-      const slice = data.subarray(i, Math.min(i + CHUNK, data.length));
-      const res = await device.transferOut(ep.endpointNumber, slice);
+      const slice = data.slice(i, Math.min(i + CHUNK, data.length));
+      const buf = slice.buffer.slice(slice.byteOffset, slice.byteOffset + slice.byteLength) as ArrayBuffer;
+      const res = await device.transferOut(ep.endpointNumber, buf);
       if (res.status !== "ok") throw new Error(`transferOut status=${res.status}`);
     }
   } finally {
