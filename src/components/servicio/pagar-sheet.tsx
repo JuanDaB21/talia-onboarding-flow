@@ -33,6 +33,7 @@ import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import {
   listarItemsCobrables,
   registrarPago,
+  registrarPagoDividido,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
 import {
