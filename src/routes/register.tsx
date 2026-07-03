@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { supabase } from "@/integrations/supabase/client";
+import { register as registerNegocio } from "@/lib/auth";
+import { setAuthUser } from "@/hooks/use-auth-user";
 import { checkCorreoDisponible } from "@/lib/auth-check.functions";
 import {
   step1Schema,
@@ -93,7 +94,7 @@ function RegisterPage() {
     setCorreoCheck({ status: "checking", correo });
     const t = setTimeout(async () => {
       try {
-        const res = await checkCorreoDisponible({ data: { correo } });
+        const res = await checkCorreoDisponible(correo);
         if (res.disponible) {
           setCorreoCheck({ status: "ok", correo });
           if (form1.formState.errors.correo?.type === "manual") {
@@ -118,7 +119,7 @@ function RegisterPage() {
     const correo = values.correo.trim().toLowerCase();
     if (correoCheck.status !== "ok" || correoCheck.correo !== correo) {
       try {
-        const res = await checkCorreoDisponible({ data: { correo } });
+        const res = await checkCorreoDisponible(correo);
         if (!res.disponible) {
           form1.setError("correo", {
             type: "manual",
@@ -143,50 +144,18 @@ function RegisterPage() {
     }
     setSubmitting(true);
     try {
-      // 1) Crear usuario en auth
-      const { data: signUp, error: signUpError } = await supabase.auth.signUp({
-        email: step1Data.correo,
+      // Alta atómica de negocio + admin en el backend (registrar_negocio_y_admin).
+      const user = await registerNegocio({
+        nombre: step1Data.nombre,
+        correo: step1Data.correo,
         password: step1Data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: { nombre: step1Data.nombre },
-        },
+        nombreComercial: values.nombre_comercial,
+        razonSocial: values.razon_social,
+        documentoTributario: values.documento_tributario,
+        telefono: values.telefono_contacto,
+        direccion: values.direccion,
       });
-
-      if (signUpError) throw signUpError;
-      const userId = signUp.user?.id;
-      if (!userId) throw new Error("No se pudo crear el usuario.");
-
-      // Asegurar sesión activa para que la RPC reciba auth.uid()
-      if (!signUp.session) {
-        const { error: signInError } =
-          await supabase.auth.signInWithPassword({
-            email: step1Data.correo,
-            password: step1Data.password,
-          });
-        if (signInError) throw signInError;
-      }
-
-      // 2) Llamar RPC transaccional
-      const { error: rpcError } = await supabase.rpc(
-        "registrar_negocio_y_admin",
-        {
-          p_user_id: userId,
-          p_nombre: step1Data.nombre,
-          p_correo: step1Data.correo,
-          p_nombre_comercial: values.nombre_comercial,
-          p_razon_social: values.razon_social,
-          p_documento_tributario: values.documento_tributario,
-          p_telefono: values.telefono_contacto,
-          p_direccion: values.direccion,
-        },
-      );
-
-      if (rpcError) {
-        // Cerrar sesión para no dejar un auth.user huérfano "activo"
-        await supabase.auth.signOut();
-        throw rpcError;
-      }
+      setAuthUser(user);
 
       toast.success("¡Cuenta creada!", {
         description: "Bienvenido a Talia.",

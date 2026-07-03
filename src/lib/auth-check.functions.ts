@@ -1,16 +1,10 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+// Verificación de correo disponible para el registro, vía REST (backend Talia).
+import { api } from "@/lib/api-client";
 
-export const checkCorreoDisponible = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z.object({ correo: z.string().trim().toLowerCase().email().max(255) }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: staff } = await supabaseAdmin
-      .from("usuarios_staff")
-      .select("id_usuario")
-      .eq("correo", data.correo)
-      .maybeSingle();
-    return { disponible: !staff };
-  });
+export function checkCorreoDisponible(correo: string) {
+  const c = correo.trim().toLowerCase();
+  return api.get<{ disponible: boolean }>(
+    `/auth/correo-disponible?correo=${encodeURIComponent(c)}`,
+    { auth: false },
+  );
+}

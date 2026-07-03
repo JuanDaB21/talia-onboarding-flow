@@ -6,8 +6,9 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, LogIn } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
-import { useAuthUser } from "@/hooks/use-auth-user";
+import { login } from "@/lib/auth";
+import { ApiError } from "@/lib/api-client";
+import { useAuthUser, setAuthUser } from "@/hooks/use-auth-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,26 +63,18 @@ function LoginPage() {
   const onSubmit = async (values: LoginValues) => {
     setSubmitting(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: values.correo,
-        password: values.password,
-      });
-
-      if (error) {
-        const msg =
-          error.message === "Invalid login credentials"
-            ? "Correo o contraseña incorrectos."
-            : error.message;
-        toast.error("No se pudo iniciar sesión", { description: msg });
-        return;
-      }
-
+      const user = await login(values.correo, values.password);
+      setAuthUser(user);
       toast.success("Bienvenido de vuelta");
       navigate({ to: "/dashboard" });
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Ocurrió un error inesperado.";
-      toast.error("Error", { description: message });
+        err instanceof ApiError && err.status === 401
+          ? "Correo o contraseña incorrectos."
+          : err instanceof Error
+            ? err.message
+            : "Ocurrió un error inesperado.";
+      toast.error("No se pudo iniciar sesión", { description: message });
     } finally {
       setSubmitting(false);
     }
