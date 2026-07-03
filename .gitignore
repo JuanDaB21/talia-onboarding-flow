@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Entorno del deploy (Railway): no versionar; usar .env.example como plantilla
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
