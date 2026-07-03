@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -25,6 +26,8 @@ import { Route as AppCocinaRouteImport } from './routes/_app.cocina'
 import { Route as AppCajaRouteImport } from './routes/_app.caja'
 import { Route as AppBodegaRouteImport } from './routes/_app.bodega'
 import { Route as AppBarraRouteImport } from './routes/_app.barra'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AppServicioIndexRouteImport } from './routes/_app.servicio.index'
 import { Route as AppReservasIndexRouteImport } from './routes/_app.reservas.index'
 import { Route as AppMenuIndexRouteImport } from './routes/_app.menu.index'
@@ -48,6 +51,7 @@ import { Route as AppBodegaProveedoresInsumosRouteImport } from './routes/_app.b
 import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.inventario'
 import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
 import { Route as AppBodegaBodegasRouteImport } from './routes/_app.bodega.bodegas'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AppMenuRecetasIndexRouteImport } from './routes/_app.menu.recetas.index'
 import { Route as AppBodegaInventarioIndexRouteImport } from './routes/_app.bodega.inventario.index'
 import { Route as ApiPublicHooksCerrarTurnosRouteImport } from './routes/api/public/hooks/cerrar-turnos'
@@ -59,6 +63,11 @@ import { Route as AppBodegaInventarioIdRouteImport } from './routes/_app.bodega.
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -135,6 +144,18 @@ const AppBarraRoute = AppBarraRouteImport.update({
   path: '/barra',
   getParentRoute: () => AppRoute,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppServicioIndexRoute = AppServicioIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -257,6 +278,12 @@ const AppBodegaBodegasRoute = AppBodegaBodegasRouteImport.update({
   path: '/bodegas',
   getParentRoute: () => AppBodegaRoute,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppMenuRecetasIndexRoute = AppMenuRecetasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -298,7 +325,10 @@ const AppBodegaInventarioIdRoute = AppBodegaInventarioIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/register': typeof RegisterRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/barra': typeof AppBarraRoute
   '/bodega': typeof AppBodegaRouteWithChildren
   '/caja': typeof AppCajaRouteWithChildren
@@ -311,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -345,13 +376,17 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/register': typeof RegisterRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/barra': typeof AppBarraRoute
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
   '/operacion': typeof AppOperacionRoute
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -386,7 +421,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/register': typeof RegisterRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/barra': typeof AppBarraRoute
   '/_app/bodega': typeof AppBodegaRouteWithChildren
   '/_app/caja': typeof AppCajaRouteWithChildren
@@ -399,6 +437,7 @@ export interface FileRoutesById {
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -435,7 +474,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/mcp'
     | '/register'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/barra'
     | '/bodega'
     | '/caja'
@@ -448,6 +490,7 @@ export interface FileRouteTypes {
     | '/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.mcp/invoke-tool/$tool'
     | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/inventario'
@@ -482,13 +525,17 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/mcp'
     | '/register'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/barra'
     | '/cocina'
     | '/dashboard'
     | '/operacion'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.mcp/invoke-tool/$tool'
     | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
@@ -522,7 +569,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/mcp'
     | '/register'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_app/barra'
     | '/_app/bodega'
     | '/_app/caja'
@@ -535,6 +585,7 @@ export interface FileRouteTypes {
     | '/_app/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.mcp/invoke-tool/$tool'
     | '/_app/bodega/bodegas'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
@@ -571,9 +622,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   RegisterRoute: typeof RegisterRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
   CartaIdMesaRoute: typeof CartaIdMesaRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksCerrarTurnosRoute: typeof ApiPublicHooksCerrarTurnosRoute
 }
 
@@ -584,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -690,6 +752,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/barra'
       preLoaderRoute: typeof AppBarraRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/servicio/': {
       id: '/_app/servicio/'
@@ -851,6 +927,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/bodega/bodegas'
       preLoaderRoute: typeof AppBodegaBodegasRouteImport
       parentRoute: typeof AppBodegaRoute
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/menu/recetas/': {
       id: '/_app/menu/recetas/'
@@ -1070,9 +1153,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   RegisterRoute: RegisterRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
   CartaIdMesaRoute: CartaIdMesaRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksCerrarTurnosRoute: ApiPublicHooksCerrarTurnosRoute,
 }
 export const routeTree = rootRouteImport

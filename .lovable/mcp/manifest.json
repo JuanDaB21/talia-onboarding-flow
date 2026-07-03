@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://bstuxgnyvjlpbynxikph.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "talia-mcp",
+      "version": "0.1.0",
+      "title": "Talia — Restaurant Management"
+    },
+    "tools": [
+      {
+        "name": "get_ventas_resumen",
+        "title": "Resumen de ventas",
+        "description": "Devuelve ingresos totales, número de pedidos pagados y ticket promedio del negocio del usuario en un rango de fechas ISO.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "desde": {
+              "type": "string",
+              "description": "Fecha ISO de inicio, ej. 2026-06-01T00:00:00Z"
+            },
+            "hasta": {
+              "type": "string",
+              "description": "Fecha ISO de fin, ej. 2026-06-30T23:59:59Z"
+            }
+          },
+          "required": [
+            "desde",
+            "hasta"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_productos_top",
+        "title": "Productos más vendidos",
+        "description": "Lista los productos más vendidos del negocio en un rango de fechas (pedidos confirmados o pagados).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "desde": {
+              "type": "string"
+            },
+            "hasta": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 5
+            }
+          },
+          "required": [
+            "desde",
+            "hasta"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_stock_bajo",
+        "title": "Insumos con stock bajo",
+        "description": "Devuelve los insumos cuyo stock actual está por debajo del mínimo configurado.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_mesas_estado",
+        "title": "Estado de mesas",
+        "description": "Devuelve el estado actual de todas las mesas y un resumen agregado por estado.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_pedidos_activos",
+        "title": "Pedidos activos",
+        "description": "Devuelve los pedidos actualmente activos (no pagados) con su mesa y total.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_turnos_activos",
+        "title": "Personal en turno",
+        "description": "Devuelve el staff que actualmente tiene turno abierto.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_caja_dia",
+        "title": "Estado de la caja del día",
+        "description": "Devuelve el estado de la caja del día más reciente (abierta o cerrada).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "buscar_producto",
+        "title": "Buscar productos del menú",
+        "description": "Busca productos del menú por coincidencia parcial en el nombre.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Texto a buscar en el nombre del producto"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
