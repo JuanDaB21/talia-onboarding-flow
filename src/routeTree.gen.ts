@@ -52,6 +52,7 @@ import { Route as AppBodegaInventarioRouteImport } from './routes/_app.bodega.in
 import { Route as AppBodegaComprasRouteImport } from './routes/_app.bodega.compras'
 import { Route as AppBodegaBodegasRouteImport } from './routes/_app.bodega.bodegas'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AppMenuRecetasIndexRouteImport } from './routes/_app.menu.recetas.index'
 import { Route as AppBodegaInventarioIndexRouteImport } from './routes/_app.bodega.inventario.index'
 import { Route as ApiPublicHooksCerrarTurnosRouteImport } from './routes/api/public/hooks/cerrar-turnos'
@@ -284,6 +285,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppMenuRecetasIndexRoute = AppMenuRecetasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -341,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
@@ -386,6 +393,7 @@ export interface FileRoutesByTo {
   '/operacion': typeof AppOperacionRoute
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
@@ -437,6 +445,7 @@ export interface FileRoutesById {
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
@@ -490,6 +499,7 @@ export interface FileRouteTypes {
     | '/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/bodega/bodegas'
     | '/bodega/compras'
@@ -535,6 +545,7 @@ export interface FileRouteTypes {
     | '/operacion'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/bodega/bodegas'
     | '/bodega/compras'
@@ -585,6 +596,7 @@ export interface FileRouteTypes {
     | '/_app/servicio'
     | '/api/chat'
     | '/carta/$idMesa'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_app/bodega/bodegas'
     | '/_app/bodega/compras'
@@ -628,6 +640,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiChatRoute: typeof ApiChatRoute
   CartaIdMesaRoute: typeof CartaIdMesaRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksCerrarTurnosRoute: typeof ApiPublicHooksCerrarTurnosRoute
 }
@@ -935,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/menu/recetas/': {
       id: '/_app/menu/recetas/'
       path: '/'
@@ -1160,6 +1180,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiChatRoute: ApiChatRoute,
   CartaIdMesaRoute: CartaIdMesaRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksCerrarTurnosRoute: ApiPublicHooksCerrarTurnosRoute,
 }
