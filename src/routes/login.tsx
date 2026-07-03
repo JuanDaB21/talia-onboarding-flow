@@ -29,8 +29,16 @@ export const Route = createFileRoute("/login")({
       },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: LoginPage,
 });
+
+function isSafeRelativePath(p: string | undefined): p is string {
+  return !!p && p.startsWith("/") && !p.startsWith("//");
+}
+
 
 const loginSchema = z.object({
   correo: z
@@ -48,10 +56,17 @@ function LoginPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuthUser();
+  const { next } = Route.useSearch();
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
-  }, [user, navigate]);
+    if (user) {
+      if (isSafeRelativePath(next)) {
+        window.location.assign(next);
+      } else {
+        navigate({ to: "/dashboard" });
+      }
+    }
+  }, [user, navigate, next]);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -77,7 +92,11 @@ function LoginPage() {
       }
 
       toast.success("Bienvenido de vuelta");
-      navigate({ to: "/dashboard" });
+      if (isSafeRelativePath(next)) {
+        window.location.assign(next);
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Ocurrió un error inesperado.";
@@ -86,6 +105,7 @@ function LoginPage() {
       setSubmitting(false);
     }
   };
+
 
   return (
     <main className="min-h-screen bg-muted/30 px-4 py-8 sm:py-12">
