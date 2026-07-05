@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
+import { logout } from "@/lib/auth";
 import { toast } from "sonner";
 import {
   Boxes,
@@ -25,7 +25,6 @@ import {
   Settings,
   CalendarDays,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -58,7 +57,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMiStaff, type Rol } from "@/hooks/use-mi-staff";
-import { useAuthUser } from "@/hooks/use-auth-user";
+import { useAuthUser, setAuthUser } from "@/hooks/use-auth-user";
 import { useEspacios, type EspacioTrabajo } from "@/hooks/use-espacios";
 import { iniciarTurno, finalizarTurno } from "@/lib/turno.functions";
 
@@ -162,17 +161,18 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { user } = useAuthUser();
-  const email = user?.email ?? "";
+  const email = user?.correo ?? "";
   const { rol, enTurno, turnoIniciadoAt, invalidate, staff } = useMiStaff();
   const { espacios } = useEspacios({ soloActivos: true });
-  const iniciar = useServerFn(iniciarTurno);
-  const finalizar = useServerFn(finalizarTurno);
+  const iniciar = iniciarTurno;
+  const finalizar = finalizarTurno;
   const [confirmCerrarOpen, setConfirmCerrarOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logout();
+    setAuthUser(null);
     navigate({ to: "/login" });
   };
 

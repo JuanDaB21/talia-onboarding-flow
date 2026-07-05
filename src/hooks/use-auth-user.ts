@@ -1,16 +1,16 @@
 import { useEffect, useSyncExternalStore } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { getMe, currentTokens, type AuthUser } from "@/lib/auth";
+import { onAuthExpired } from "@/lib/api-client";
 
 /**
- * Sesión de usuario compartida entre TODOS los componentes.
- * Una sola llamada a `supabase.auth.getUser()` por carga de la app +
- * suscripción a `onAuthStateChange`. Sustituye los 4 useEffect duplicados
- * que disparaban un fetch por cada mount.
+ * Sesión de usuario compartida entre TODOS los componentes, basada en el JWT
+ * propio del backend (no Supabase). Una sola hidratación por carga de la app
+ * (`getMe()` si hay tokens) + escucha de `onAuthExpired` para limpiar al vencer.
+ * `login`/`register`/`logout` empujan el estado con `setAuthUser` sin recargar.
  */
 
 type State = {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
 };
 
@@ -24,20 +24,27 @@ function setState(next: State) {
   listeners.forEach((l) => l());
 }
 
+/** Actualiza la sesión tras login/register (user) o logout (null). */
+export function setAuthUser(user: AuthUser | null) {
+  setState({ user, loading: false });
+}
+
 function init() {
   if (initialized) return;
   initialized = true;
 
-  // Lectura inicial
-  supabase.auth.getUser().then(({ data }) => {
-    setState({ user: data.user ?? null, loading: false });
-  }).catch(() => {
+  if (!currentTokens()) {
     setState({ user: null, loading: false });
-  });
+    return;
+  }
 
-  // Mantenerse sincronizado con cambios de auth (login/logout/refresh)
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setState({ user: session?.user ?? null, loading: false });
+  getMe()
+    .then((u) => setState({ user: u, loading: false }))
+    .catch(() => setState({ user: null, loading: false }));
+
+  // Si el refresh falla, api-client dispara "expired": limpiamos la sesión.
+  onAuthExpired.addEventListener("expired", () => {
+    setState({ user: null, loading: false });
   });
 }
 
@@ -54,7 +61,6 @@ function getSnapshot(): State {
 }
 
 export function useAuthUser(): State {
-  // Asegura inicialización incluso si la suscripción ocurre después
   useEffect(() => {
     init();
   }, []);

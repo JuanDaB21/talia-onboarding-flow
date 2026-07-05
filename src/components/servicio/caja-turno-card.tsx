@@ -6,7 +6,8 @@ import { Clock, LogIn, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { getMiStaff } from "@/lib/turno.functions";
 import { inhabilitarStaff } from "@/lib/usuarios.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { logout } from "@/lib/auth";
+import { setAuthUser } from "@/hooks/use-auth-user";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -30,12 +31,11 @@ function formatDuracion(ms: number) {
 }
 
 export function CajaTurnoCard() {
-  const fn = useServerFn(getMiStaff);
   const inhabilitar = useServerFn(inhabilitarStaff);
   const navigate = useNavigate();
   const { data } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
-    queryFn: () => fn(),
+    queryFn: () => getMiStaff(),
     ...POLL.SLOW,
   });
 
@@ -63,7 +63,8 @@ export function CajaTurnoCard() {
     try {
       await inhabilitar({ data: {} });
       toast.success("Tu cuenta fue inhabilitada");
-      await supabase.auth.signOut();
+      await logout();
+      setAuthUser(null);
       navigate({ to: "/login" });
     } catch (e) {
       toast.error("No se pudo inhabilitar", {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { supabase } from "@/integrations/supabase/client";
+import { getTokens, onAuthExpired } from "@/lib/api-client";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useChatStorage } from "@/hooks/use-chat-storage";
 import {
@@ -47,19 +47,14 @@ export function ChatPanel() {
   const { user } = useAuthUser();
   const userId = user?.id ?? null;
   const { initial, ready, save, clear } = useChatStorage(userId);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => getTokens()?.access ?? null);
 
   useEffect(() => {
-    let cancel = false;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!cancel) setToken(data.session?.access_token ?? null);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setToken(session?.access_token ?? null);
-    });
+    const update = () => setToken(getTokens()?.access ?? null);
+    update();
+    onAuthExpired.addEventListener("expired", update);
     return () => {
-      cancel = true;
-      sub.subscription.unsubscribe();
+      onAuthExpired.removeEventListener("expired", update);
     };
   }, []);
 

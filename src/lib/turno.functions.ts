@@ -1,5 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+// Turno + contexto de staff vía REST (backend Talia). Mismas firmas que la
+// versión Supabase para no tocar los componentes que las consumen.
+import { api } from "@/lib/api-client";
 
 export interface MiStaff {
   id_usuario: string;
@@ -13,42 +14,13 @@ export interface MiStaff {
   espacio_nombre: string | null;
 }
 
-export const getMiStaff = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("usuarios_staff")
-      .select(
-        "id_usuario, id_negocio, nombre, rol, esta_en_turno, turno_iniciado_at, id_espacio_asignado, espacios_trabajo:id_espacio_asignado(slug, nombre)",
-      )
-      .eq("id_usuario", userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Usuario no es staff");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const esp = (data as any).espacios_trabajo as { slug: string; nombre: string } | null;
-    return {
-      id_usuario: data.id_usuario,
-      id_negocio: data.id_negocio,
-      nombre: data.nombre,
-      rol: data.rol as MiStaff["rol"],
-      esta_en_turno: data.esta_en_turno ?? false,
-      turno_iniciado_at: data.turno_iniciado_at,
-      id_espacio_asignado: data.id_espacio_asignado ?? null,
-      espacio_slug: esp?.slug ?? null,
-      espacio_nombre: esp?.nombre ?? null,
-    } satisfies MiStaff;
-  });
+export function getMiStaff() {
+  return api.get<MiStaff>("/turno/mi-staff");
+}
 
-export const iniciarTurno = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { error } = await supabase.rpc("iniciar_turno");
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+export function iniciarTurno() {
+  return api.post<{ ok: true }>("/turno/iniciar");
+}
 
 export interface MesaAbierta {
   id_mesa: string;
@@ -56,35 +28,14 @@ export interface MesaAbierta {
   estado: string;
 }
 
-export const finalizarTurno = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+export function finalizarTurno() {
+  // El backend (finalizar_turno) valida mesas abiertas para meseros y devuelve
+  // el error correspondiente; aquí solo disparamos la acción.
+  return api.post<{ ok: true }>("/turno/finalizar");
+}
 
-    // Pre-check informativo para meseros: listar mesas activas
-    const { data: yo } = await supabase
-      .from("usuarios_staff")
-      .select("rol")
-      .eq("id_usuario", userId)
-      .maybeSingle();
-
-    if (yo?.rol === "MESERO") {
-      const { data: mesas } = await supabase
-        .from("mesas")
-        .select("id_mesa, identificador, estado")
-        .eq("id_mesero_asignado", userId)
-        .neq("estado", "LIBRE");
-      if (mesas && mesas.length > 0) {
-        const err = new Error(
-          `Tienes ${mesas.length} mesa(s) con cuenta abierta: ${mesas
-            .map((m) => m.identificador)
-            .join(", ")}`,
-        );
-        throw err;
-      }
-    }
-
-    const { error } = await supabase.rpc("finalizar_turno");
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+export function calcularPropinas(desde: string, hasta: string) {
+  return api.get<{ filas: Array<Record<string, unknown>> }>(
+    `/turno/propinas?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`,
+  );
+}
