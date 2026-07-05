@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -36,13 +35,11 @@ export function AbrirMesaDialog({
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const listFn = useServerFn(listarMeserosNegocio);
-  const abrirFn = useServerFn(abrirMesa);
   const [sel, setSel] = useState<string>("");
 
   const meserosQ = useQuery({
     queryKey: ["meseros-negocio"],
-    queryFn: () => listFn(),
+    queryFn: () => listarMeserosNegocio(),
     enabled: open,
     staleTime: 30_000,
   });
@@ -52,7 +49,7 @@ export function AbrirMesaDialog({
   }, [open]);
 
   const mut = useMutation({
-    mutationFn: (idMesero: string) => abrirFn({ data: { idMesa, idMesero } }),
+    mutationFn: (idMesero: string) => abrirMesa({ idMesa, idMesero }),
     onSuccess: () => {
       toast.success("Mesa abierta");
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });

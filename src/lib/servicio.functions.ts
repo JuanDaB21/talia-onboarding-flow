@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { api } from "@/lib/api-client";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cargarPrepedido, type PrepedidoData } from "@/lib/prepedido.functions";
 
@@ -49,104 +50,11 @@ export interface MesaServicio {
   tiene_prepedido: boolean;
 }
 
-export const listarMesasServicio = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-
-    const { data: yo } = await supabase
-      .from("usuarios_staff")
-      .select("rol")
-      .eq("id_usuario", userId)
-      .maybeSingle();
-    const esAdmin = yo?.rol === "ADMIN" || yo?.rol === "SUPERADMIN";
-
-    let q = supabase
-      .from("mesas")
-      .select(
-        "id_mesa, identificador, estado, id_mesero_asignado, asignada_at, solicitud_cliente, solicitud_at",
-      )
-      .order("identificador");
-    if (!esAdmin) {
-      q = q.eq("id_mesero_asignado", userId);
-    }
-    const { data: mesas, error } = await q;
-    if (error) throw new Error(error.message);
-
-    const meseroIds = Array.from(
-      new Set((mesas ?? []).map((m) => m.id_mesero_asignado).filter(Boolean) as string[]),
-    );
-    const nombres = new Map<string, string>();
-    if (meseroIds.length > 0) {
-      const { data: ms } = await supabase
-        .from("usuarios_staff")
-        .select("id_usuario, nombre")
-        .in("id_usuario", meseroIds);
-      (ms ?? []).forEach((m) => nombres.set(m.id_usuario, m.nombre));
-    }
-
-    const mesaIds = (mesas ?? []).map((m) => m.id_mesa);
-    const listoSet = new Set<string>();
-    const seguimientoSet = new Set<string>();
-    const prepedidoSet = new Set<string>();
-
-    if (mesaIds.length > 0) {
-      // Mesas con items LISTO esperando recogida
-      const { data: pedidosActivos } = await supabase
-        .from("pedidos")
-        .select("id_pedido, id_mesa, entregado_at, seguimiento_visto_at, estado")
-        .in("id_mesa", mesaIds)
-        .neq("estado", "PAGADO");
-
-      const pedidoToMesa = new Map<string, string>();
-      const haceMediaHora = Date.now() - 30 * 60 * 1000;
-      (pedidosActivos ?? []).forEach((p) => {
-        pedidoToMesa.set(p.id_pedido, p.id_mesa);
-        if (
-          p.entregado_at &&
-          !p.seguimiento_visto_at &&
-          new Date(p.entregado_at).getTime() < haceMediaHora
-        ) {
-          seguimientoSet.add(p.id_mesa);
-        }
-      });
-
-      const pedidoIds = Array.from(pedidoToMesa.keys());
-      if (pedidoIds.length > 0) {
-        const { data: itemsListos } = await supabase
-          .from("pedido_items")
-          .select("id_pedido")
-          .in("id_pedido", pedidoIds)
-          .eq("estado_preparacion", "LISTO");
-        (itemsListos ?? []).forEach((i) => {
-          const mid = pedidoToMesa.get(i.id_pedido);
-          if (mid) listoSet.add(mid);
-        });
-      }
-
-      // Mesas con pre-pedido en curso (clientes armando pedido desde su celular)
-      const { data: preItems } = await supabase
-        .from("prepedido_items")
-        .select("id_mesa")
-        .in("id_mesa", mesaIds);
-      (preItems ?? []).forEach((p) => prepedidoSet.add(p.id_mesa as string));
-    }
-
-    const out: MesaServicio[] = (mesas ?? []).map((m) => ({
-      id_mesa: m.id_mesa,
-      identificador: m.identificador,
-      estado: m.estado,
-      id_mesero_asignado: m.id_mesero_asignado,
-      asignada_at: m.asignada_at,
-      mesero_nombre: m.id_mesero_asignado ? nombres.get(m.id_mesero_asignado) ?? null : null,
-      solicitud_cliente: m.solicitud_cliente,
-      solicitud_at: m.solicitud_at,
-      alerta_listo: listoSet.has(m.id_mesa),
-      alerta_seguimiento: seguimientoSet.has(m.id_mesa),
-      tiene_prepedido: prepedidoSet.has(m.id_mesa),
-    }));
-    return { mesas: out, esAdmin, userId };
-  });
+// REST → GET /servicio/mesas. La agregación (alertas listo/seguimiento/prepedido,
+// nombre de mesero, filtro por rol) vive en el backend.
+export function listarMesasServicio() {
+  return api.get<{ mesas: MesaServicio[]; esAdmin: boolean; userId: string }>("/servicio/mesas");
+}
 
 // Pre-pedido en vivo de una mesa (vista mesero/admin)
 const prepedidoMesaInput = z.object({ idMesa: z.string().uuid() });
@@ -680,17 +588,11 @@ export const marcarSeguimientoVisto = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const limpiarSolicitudCliente = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => idMesaInput.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { error } = await supabase.rpc("limpiar_solicitud_cliente", {
-      p_id_mesa: data.idMesa,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+export function limpiarSolicitudCliente(input: { idMesa: string }) {
+  return api.post<{ ok: true; result: number | null }>(
+    `/servicio/mesas/${input.idMesa}/limpiar-solicitud`,
+  );
+}
 
 // Mesero atendió el llamado y va a tomar el pedido: limpia la solicitud, mantiene OCUPADA.
 export const tomarPedidoLlamado = createServerFn({ method: "POST" })
@@ -737,83 +639,26 @@ export const detenerAlertaLlamado = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Listar meseros activos del negocio (para reasignación)
-export const listarMeserosNegocio = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase
-      .from("usuarios_staff")
-      .select("id_usuario, nombre, esta_en_turno")
-      .eq("rol", "MESERO")
-      .eq("estado", "ACTIVO")
-      .order("nombre");
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((u) => ({
-      id_usuario: u.id_usuario,
-      nombre: u.nombre,
-      esta_en_turno: u.esta_en_turno ?? false,
-    }));
+// Listar meseros activos del negocio (para reasignación) → GET /servicio/meseros
+export function listarMeserosNegocio() {
+  return api.get<Array<{ id_usuario: string; nombre: string; esta_en_turno: boolean }>>(
+    "/servicio/meseros",
+  );
+}
+
+// Reasignar mesero a una mesa → POST /servicio/mesas/:id/reasignar
+// (validación de rol/negocio/mesero vive en el backend)
+export function reasignarMeseroMesa(input: { idMesa: string; idMesero: string }) {
+  return api.post<{ ok: true }>(`/servicio/mesas/${input.idMesa}/reasignar`, {
+    idMesero: input.idMesero,
   });
+}
 
-// Reasignar mesero a una mesa (MESERO, ADMIN, SUPERADMIN, CAJERO)
-const reasignarSchema = z.object({
-  idMesa: z.string().uuid(),
-  idMesero: z.string().uuid(),
-});
-export const reasignarMeseroMesa = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => reasignarSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const { data: yo } = await supabase
-      .from("usuarios_staff")
-      .select("rol, id_negocio")
-      .eq("id_usuario", userId)
-      .maybeSingle();
-    if (!yo) throw new Error("No autorizado");
-    const permitido = ["MESERO", "ADMIN", "SUPERADMIN", "CAJERO"];
-    if (!permitido.includes(yo.rol)) {
-      throw new Error("No tienes permiso para reasignar mesas");
-    }
-
-    const { data: nuevo, error: nErr } = await supabase
-      .from("usuarios_staff")
-      .select("id_usuario, rol, estado, id_negocio")
-      .eq("id_usuario", data.idMesero)
-      .maybeSingle();
-    if (nErr) throw new Error(nErr.message);
-    if (!nuevo || nuevo.rol !== "MESERO" || nuevo.estado !== "ACTIVO") {
-      throw new Error("Mesero inválido");
-    }
-    if (nuevo.id_negocio !== yo.id_negocio) {
-      throw new Error("Mesero de otro negocio");
-    }
-
-    const { error } = await supabase
-      .from("mesas")
-      .update({ id_mesero_asignado: data.idMesero, asignada_at: new Date().toISOString() })
-      .eq("id_mesa", data.idMesa);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+// Abrir una mesa LIBRE → POST /servicio/mesas/:id/abrir.
+// Si no se pasa idMesero, el backend autoasigna al llamante.
+export function abrirMesa(input: { idMesa: string; idMesero?: string | null }) {
+  return api.post<{ idMesero: string }>(`/servicio/mesas/${input.idMesa}/abrir`, {
+    idMesero: input.idMesero ?? null,
   });
-
-// Abrir una mesa LIBRE. Si no se pasa idMesero, el llamante (mesero) se autoasigna.
-const abrirMesaSchema = z.object({
-  idMesa: z.string().uuid(),
-  idMesero: z.string().uuid().nullable().optional(),
-});
-export const abrirMesa = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => abrirMesaSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: idMesero, error } = await supabase.rpc("abrir_mesa", {
-      p_id_mesa: data.idMesa,
-      p_id_mesero: data.idMesero ?? undefined,
-    });
-    if (error) throw new Error(error.message);
-    return { idMesero: idMesero as string };
-  });
+}
 

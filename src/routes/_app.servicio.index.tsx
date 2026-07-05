@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Bell, ChefHat, ClipboardCheck, Clock, CreditCard, DoorOpen, Loader2, Plus, Radio, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
 import { abrirMesa, listarMesasServicio, type MesaServicio } from "@/lib/servicio.functions";
 import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
@@ -22,10 +22,9 @@ export const Route = createFileRoute("/_app/servicio/")({
 });
 
 function ServicioIndex() {
-  const listar = useServerFn(listarMesasServicio);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["servicio", "mesas"],
-    queryFn: () => listar(),
+    queryFn: () => listarMesasServicio(),
     // Sin polling: el canal realtime de abajo invalida cualquier cambio.
     staleTime: 60_000,
   });
@@ -34,7 +33,7 @@ function ServicioIndex() {
   useEffect(() => {
     if (!data?.userId) return;
     const myId = data.userId;
-    const ch = supabase
+    const ch = realtime
       .channel("servicio-mesas-global")
       .on(
         "postgres_changes",
@@ -73,7 +72,7 @@ function ServicioIndex() {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      realtime.removeChannel(ch);
     };
   }, [data?.userId, refetch]);
 
@@ -111,14 +110,14 @@ function ServicioIndex() {
   // Realtime: refrescar badge cuando llegue/cambie un pago
   useEffect(() => {
     if (!data?.esAdmin) return;
-    const ch = supabase
+    const ch = realtime
       .channel("pagos-badge")
       .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, () => {
         pagosQ.refetch();
       })
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      realtime.removeChannel(ch);
     };
   }, [data?.esAdmin, pagosQ]);
   const pendCount = pagosQ.data?.pagos.length ?? 0;
@@ -191,10 +190,8 @@ function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
   const [abrirOpen, setAbrirOpen] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const abrirFn = useServerFn(abrirMesa);
-
   const abrirMut = useMutation({
-    mutationFn: () => abrirFn({ data: { idMesa: m.id_mesa } }),
+    mutationFn: () => abrirMesa({ idMesa: m.id_mesa }),
     onSuccess: () => {
       toast.success(`Mesa ${m.identificador} abierta`, {
         description: "Quedaste asignado como mesero.",
