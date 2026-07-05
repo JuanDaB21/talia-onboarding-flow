@@ -339,16 +339,14 @@ function MesaEnServicio() {
   const [cerrarOpen, setCerrarOpen] = useState(false);
   const navigate = useNavigate();
 
-  const estadoFn = useServerFn(estadoCierreMesa);
   const estadoQ = useQuery({
     queryKey: ["estadoCierre", idMesa],
-    queryFn: () => estadoFn({ data: { idMesa } }),
+    queryFn: () => estadoCierreMesa(idMesa),
     ...POLL.LIVE,
   });
 
-  const cerrarFn = useServerFn(cerrarMesa);
   const cerrarMut = useMutation({
-    mutationFn: () => cerrarFn({ data: { idMesa } }),
+    mutationFn: () => cerrarMesa(idMesa),
     onSuccess: () => {
       toast.success("Mesa cerrada y liberada");
       setCerrarOpen(false);

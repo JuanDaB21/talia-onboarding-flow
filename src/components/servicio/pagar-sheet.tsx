@@ -71,15 +71,12 @@ interface Props {
 export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const getItems = useServerFn(listarItemsCobrables);
-  const pagarFn = useServerFn(registrarPago);
-  const pagarDivididoFn = useServerFn(registrarPagoDividido);
   const reservasFn = useServerFn(listarReservasAplicablesHoy);
   const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
 
   const itemsQ = useQuery({
     queryKey: ["pagos", "items", idMesa],
-    queryFn: () => getItems({ data: { idMesa } }),
+    queryFn: () => listarItemsCobrables(idMesa),
     enabled: open,
   });
 
@@ -178,7 +175,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     idReserva: string | null;
   };
   const pagarMut = useMutation({
-    mutationFn: (input: PagarInput) => pagarFn({ data: input }),
+    mutationFn: (input: PagarInput) => registrarPago(input),
     onSuccess: (_res, vars) => {
       const esTransfer = vars.metodo === "TRANSFERENCIA";
       toast.success(
@@ -223,15 +220,13 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   };
   const pagarDivididoMut = useMutation({
     mutationFn: (partes: PartePagoInput[]) =>
-      pagarDivididoFn({
-        data: {
-          idMesa,
-          itemIds: Array.from(selected),
-          propina,
-          idBono,
-          idReserva: abonoActivo ? idReservaAbono : null,
-          partes,
-        },
+      registrarPagoDividido({
+        idMesa,
+        itemIds: Array.from(selected),
+        propina,
+        idBono,
+        idReserva: abonoActivo ? idReservaAbono : null,
+        partes,
       }),
     onSuccess: (_res, partes) => {
       const hayTransfer = partes.some((p) => p.metodo === "TRANSFERENCIA");

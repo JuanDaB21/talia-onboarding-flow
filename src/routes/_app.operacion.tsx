@@ -59,12 +59,10 @@ function OperacionPage() {
 }
 
 function PagosPendientes() {
-  const fn = useServerFn(listarPagosPendientes);
-  const conf = useServerFn(confirmarPago);
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["pagos-pendientes"],
-    queryFn: () => fn(),
+    queryFn: () => listarPagosPendientes(),
     ...POLL.LIVE,
   });
   const [busy, setBusy] = useState<string | null>(null);
@@ -72,7 +70,7 @@ function PagosPendientes() {
   const handle = async (idPago: string, aprobar: boolean) => {
     setBusy(idPago);
     try {
-      await conf({ data: { idPago, aprobar } });
+      await confirmarPago(idPago, aprobar);
       toast.success(aprobar ? "Pago aprobado" : "Pago rechazado");
       qc.invalidateQueries({ queryKey: ["pagos-pendientes"] });
       qc.invalidateQueries({ queryKey: ["estado-caja"] });

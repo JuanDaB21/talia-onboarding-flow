@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bell, ChefHat, ClipboardCheck, Clock, CreditCard, DoorOpen, Loader2, Plus, Radio, UserCheck, Wallet } from "lucide-react";
@@ -99,10 +98,9 @@ function ServicioIndex() {
   }, [data?.mesas]);
 
   const [pagosOpen, setPagosOpen] = useState(false);
-  const pagosFn = useServerFn(listarPagosPendientes);
   const pagosQ = useQuery({
     queryKey: ["pagos", "pendientes", "badge"],
-    queryFn: () => pagosFn(),
+    queryFn: () => listarPagosPendientes(),
     // Sin polling: el canal "pagos-badge" invalida cuando cambia un pago.
     staleTime: 60_000,
     enabled: !!data?.esAdmin,
