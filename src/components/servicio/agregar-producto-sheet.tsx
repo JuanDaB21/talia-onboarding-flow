@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { ImageIcon, Loader2, Plus, Search, X } from "lucide-react";
 import {
@@ -43,10 +42,9 @@ export function AgregarProductoSheet({
   idPedido: string;
   titulo?: string;
 }) {
-  const getCat = useServerFn(getCatalogoServicio);
   const { data, isLoading } = useQuery({
     queryKey: ["catalogoServicio"],
-    queryFn: () => getCat(),
+    queryFn: () => getCatalogoServicio(),
     enabled: open,
   });
 

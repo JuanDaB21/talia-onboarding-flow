@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bell, ClipboardList, Loader2, XCircle } from "lucide-react";
@@ -19,8 +18,6 @@ interface Props {
 export function LlamadoPanel({ idMesa, identificador, solicitudAt }: Props) {
   const qc = useQueryClient();
   const nav = useNavigate();
-  const detenerFn = useServerFn(detenerAlertaLlamado);
-  const tomarFn = useServerFn(tomarPedidoLlamado);
 
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -34,7 +31,7 @@ export function LlamadoPanel({ idMesa, identificador, solicitudAt }: Props) {
     : 0;
 
   const detener = useMutation({
-    mutationFn: () => detenerFn({ data: { idMesa } }),
+    mutationFn: () => detenerAlertaLlamado(idMesa),
     onSuccess: () => {
       toast.success(`Alerta de mesa ${identificador} detenida`);
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
@@ -48,7 +45,7 @@ export function LlamadoPanel({ idMesa, identificador, solicitudAt }: Props) {
   });
 
   const tomar = useMutation({
-    mutationFn: () => tomarFn({ data: { idMesa } }),
+    mutationFn: () => tomarPedidoLlamado(idMesa),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });

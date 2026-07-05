@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -36,7 +35,6 @@ export function EditarItemDialog({
   item: EditarItemDialogItem | null;
 }) {
   const qc = useQueryClient();
-  const editFn = useServerFn(editarItem);
   const [alergia, setAlergia] = useState(false);
   const [nota, setNota] = useState("");
 
@@ -49,13 +47,11 @@ export function EditarItemDialog({
 
   const mut = useMutation({
     mutationFn: () =>
-      editFn({
-        data: {
-          idItem: item!.id_item,
-          cantidad: 1,
-          tieneAlergia: alergia,
-          nota,
-        },
+      editarItem({
+        idItem: item!.id_item,
+        cantidad: 1,
+        tieneAlergia: alergia,
+        nota,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion"] });

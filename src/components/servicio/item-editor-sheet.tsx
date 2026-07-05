@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Minus, Plus } from "lucide-react";
@@ -35,8 +34,6 @@ export function ItemEditorSheet({
   idPedido: string;
 }) {
   const qc = useQueryClient();
-  const getOps = useServerFn(getOpcionesProducto);
-  const addFn = useServerFn(agregarItem);
 
   const [cantidad, setCantidad] = useState(1);
   const [alergia, setAlergia] = useState(false);
@@ -47,7 +44,7 @@ export function ItemEditorSheet({
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesProducto", producto?.id_producto],
-    queryFn: () => getOps({ data: { idProducto: producto!.id_producto } }),
+    queryFn: () => getOpcionesProducto(producto!.id_producto),
     enabled: !!producto && open,
   });
 
@@ -59,17 +56,15 @@ export function ItemEditorSheet({
 
   const mut = useMutation({
     mutationFn: () =>
-      addFn({
-        data: {
-          idPedido,
-          idProducto: producto!.id_producto,
-          cantidad,
-          tieneAlergia: alergia,
-          nota,
-          extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
-          exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
-          variantes: variantesArr,
-        },
+      agregarItem({
+        idPedido,
+        idProducto: producto!.id_producto,
+        cantidad,
+        tieneAlergia: alergia,
+        nota,
+        extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
+        exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+        variantes: variantesArr,
       }),
     onSuccess: () => {
       toast.success("Producto agregado");
@@ -228,8 +223,6 @@ export function ItemEditorSheet({
                 <Label>Agregar extras</Label>
                 <div className="space-y-2 rounded-lg border p-3">
                   {ops!.extras.map((e) => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const ins: any = e.insumos;
                     return (
                       <label
                         key={e.id_insumo_extra}
@@ -246,7 +239,7 @@ export function ItemEditorSheet({
                             }}
                           />
                           <span className="text-sm truncate">
-                            {ins?.nombre_insumo ?? "—"}
+                            {e.nombre_insumo}
                           </span>
                         </div>
                         <span className="text-xs font-medium tabular-nums">
@@ -264,8 +257,6 @@ export function ItemEditorSheet({
                 <Label>Quitar ingredientes</Label>
                 <div className="space-y-2 rounded-lg border p-3">
                   {ops!.ingredientes.map((i) => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const ins: any = i.insumos;
                     return (
                       <label
                         key={i.id_insumo}
@@ -280,7 +271,7 @@ export function ItemEditorSheet({
                             setExclus(next);
                           }}
                         />
-                        <span className="text-sm">Sin {ins?.nombre_insumo ?? "—"}</span>
+                        <span className="text-sm">Sin {i.nombre_insumo}</span>
                       </label>
                     );
                   })}
