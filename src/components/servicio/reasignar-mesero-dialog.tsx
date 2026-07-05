@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -36,13 +35,11 @@ export function ReasignarMeseroDialog({
   meseroActualId: string | null;
 }) {
   const qc = useQueryClient();
-  const listFn = useServerFn(listarMeserosNegocio);
-  const reasFn = useServerFn(reasignarMeseroMesa);
   const [sel, setSel] = useState<string>("");
 
   const meserosQ = useQuery({
     queryKey: ["meseros-negocio"],
-    queryFn: () => listFn(),
+    queryFn: () => listarMeserosNegocio(),
     enabled: open,
     staleTime: 30_000,
   });
@@ -52,7 +49,7 @@ export function ReasignarMeseroDialog({
   }, [open, meseroActualId]);
 
   const mut = useMutation({
-    mutationFn: (idMesero: string) => reasFn({ data: { idMesa, idMesero } }),
+    mutationFn: (idMesero: string) => reasignarMeseroMesa({ idMesa, idMesero }),
     onSuccess: () => {
       toast.success("Mesero reasignado");
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });

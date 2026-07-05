@@ -1,4 +1,3 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, ClipboardCheck, CreditCard, Loader2, Plus } from "lucide-react";
@@ -13,9 +12,8 @@ interface Props {
 
 export function SolicitudBanner({ idMesa, tipo, solicitudAt }: Props) {
   const qc = useQueryClient();
-  const fn = useServerFn(limpiarSolicitudCliente);
   const mut = useMutation({
-    mutationFn: () => fn({ data: { idMesa } }),
+    mutationFn: () => limpiarSolicitudCliente({ idMesa }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });

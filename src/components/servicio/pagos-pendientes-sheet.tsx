@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, ImageOff, Loader2, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 
 
@@ -24,12 +23,10 @@ export function PagosPendientesSheet({
   onOpenChange: (o: boolean) => void;
 }) {
   const qc = useQueryClient();
-  const listar = useServerFn(listarPagosPendientes);
-  const confFn = useServerFn(confirmarPago);
 
   const q = useQuery({
     queryKey: ["pagos", "pendientes"],
-    queryFn: () => listar(),
+    queryFn: () => listarPagosPendientes(),
     enabled: open,
     // Sin polling: canal "pagos-pendientes" invalida al cambiar un pago.
     staleTime: 30_000,
@@ -37,7 +34,7 @@ export function PagosPendientesSheet({
 
   useEffect(() => {
     if (!open) return;
-    const ch = supabase
+    const ch = realtime
       .channel("pagos-pendientes")
       .on(
         "postgres_changes",
@@ -46,12 +43,12 @@ export function PagosPendientesSheet({
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      realtime.removeChannel(ch);
     };
   }, [open, qc]);
 
   const mut = useMutation({
-    mutationFn: (v: { idPago: string; aprobar: boolean }) => confFn({ data: v }),
+    mutationFn: (v: { idPago: string; aprobar: boolean }) => confirmarPago(v.idPago, v.aprobar),
     onSuccess: (_d, vars) => {
       toast.success(vars.aprobar ? "Pago aprobado" : "Pago rechazado");
       qc.invalidateQueries({ queryKey: ["pagos"] });

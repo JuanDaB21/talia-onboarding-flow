@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -14,7 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
 import {
   listarMesasServicio,
   limpiarSolicitudCliente,
@@ -28,20 +27,18 @@ function minsAgo(iso: string | null) {
 }
 
 export function AlertasMeseroBanner() {
-  const fn = useServerFn(listarMesasServicio);
-  const limpiar = useServerFn(limpiarSolicitudCliente);
   const qc = useQueryClient();
   const nav = useNavigate();
   const bus = useAlertaBus();
 
   const { data, refetch } = useQuery({
     queryKey: ["servicio", "mesas"],
-    queryFn: () => fn(),
+    queryFn: () => listarMesasServicio(),
     staleTime: 60_000,
   });
 
   useEffect(() => {
-    const ch = supabase
+    const ch = realtime
       .channel("alertas-mesero-banner")
       .on(
         "postgres_changes",
@@ -55,7 +52,7 @@ export function AlertasMeseroBanner() {
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      realtime.removeChannel(ch);
     };
   }, [refetch]);
 
@@ -97,7 +94,7 @@ export function AlertasMeseroBanner() {
   }, [asignaciones, bus]);
 
   const limpiarMut = useMutation({
-    mutationFn: (idMesa: string) => limpiar({ data: { idMesa } }),
+    mutationFn: (idMesa: string) => limpiarSolicitudCliente({ idMesa }),
     onSuccess: () => {
       toast.success("Solicitud atendida");
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });

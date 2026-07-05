@@ -36,7 +36,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
 import {
   obtenerMesaSesion,
   getCatalogoServicio,
@@ -175,16 +175,9 @@ function MesaEnServicio() {
 
   
 
-  const getMesa = useServerFn(obtenerMesaSesion);
-  const delFn = useServerFn(eliminarItem);
-  const confFn = useServerFn(confirmarPedido);
-  const newFn = useServerFn(iniciarNuevoPedido);
-  const entregaFn = useServerFn(marcarPedidoEntregado);
-  const segFn = useServerFn(marcarSeguimientoVisto);
-
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
-    queryFn: () => getMesa({ data: { idMesa } }),
+    queryFn: () => obtenerMesaSesion(idMesa),
     // Sin polling: el canal `mesa-sesion-${idMesa}` invalida en cambios reales.
     staleTime: 30_000,
   });
@@ -199,7 +192,7 @@ function MesaEnServicio() {
 
   // Realtime: refrescar cuando cambien items/pedidos/mesa/pre-pedido, y avisar cuando algo pase a LISTO
   useEffect(() => {
-    const ch = supabase
+    const ch = realtime
       .channel(`mesa-sesion-${idMesa}`)
       .on(
         "postgres_changes",
@@ -208,27 +201,27 @@ function MesaEnServicio() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "pedidos", filter: `id_mesa=eq.${idMesa}` },
+        { event: "*", schema: "public", table: "pedidos" },
         () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "mesas", filter: `id_mesa=eq.${idMesa}` },
+        { event: "UPDATE", schema: "public", table: "mesas" },
         () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_items", filter: `id_mesa=eq.${idMesa}` },
+        { event: "*", schema: "public", table: "prepedido_items" },
         () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_sesiones", filter: `id_mesa=eq.${idMesa}` },
+        { event: "*", schema: "public", table: "prepedido_sesiones" },
         () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      realtime.removeChannel(ch);
     };
   }, [idMesa, qc]);
 
@@ -276,13 +269,13 @@ function MesaEnServicio() {
         !p.seguimiento_visto_at &&
         ahora - new Date(p.entregado_at).getTime() > 30 * 60 * 1000
       ) {
-        segFn({ data: { idPedido: p.id_pedido } }).catch(() => undefined);
+        marcarSeguimientoVisto(p.id_pedido).catch(() => undefined);
       }
     }
-  }, [mesaQ.data, segFn]);
+  }, [mesaQ.data]);
 
   const delMut = useMutation({
-    mutationFn: (idItem: string) => delFn({ data: { idItem } }),
+    mutationFn: (idItem: string) => eliminarItem(idItem),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       toast.success("Item eliminado");
@@ -294,7 +287,7 @@ function MesaEnServicio() {
   });
 
   const confMut = useMutation({
-    mutationFn: (idPedido: string) => confFn({ data: { idPedido } }),
+    mutationFn: (idPedido: string) => confirmarPedido(idPedido),
     onSuccess: (_r, idPedido) => {
       toast.success("¡Orden enviada a cocina/barra!", {
         icon: <CheckCircle2 className="h-4 w-4" />,
@@ -318,7 +311,7 @@ function MesaEnServicio() {
   });
 
   const newMut = useMutation({
-    mutationFn: () => newFn({ data: { idMesa } }),
+    mutationFn: () => iniciarNuevoPedido(idMesa),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       toast.success("Nuevo pedido creado");
@@ -330,7 +323,7 @@ function MesaEnServicio() {
   });
 
   const entMut = useMutation({
-    mutationFn: (idPedido: string) => entregaFn({ data: { idPedido } }),
+    mutationFn: (idPedido: string) => marcarPedidoEntregado(idPedido),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       bus.ack(`listo:${idMesa}`);
@@ -346,16 +339,14 @@ function MesaEnServicio() {
   const [cerrarOpen, setCerrarOpen] = useState(false);
   const navigate = useNavigate();
 
-  const estadoFn = useServerFn(estadoCierreMesa);
   const estadoQ = useQuery({
     queryKey: ["estadoCierre", idMesa],
-    queryFn: () => estadoFn({ data: { idMesa } }),
+    queryFn: () => estadoCierreMesa(idMesa),
     ...POLL.LIVE,
   });
 
-  const cerrarFn = useServerFn(cerrarMesa);
   const cerrarMut = useMutation({
-    mutationFn: () => cerrarFn({ data: { idMesa } }),
+    mutationFn: () => cerrarMesa(idMesa),
     onSuccess: () => {
       toast.success("Mesa cerrada y liberada");
       setCerrarOpen(false);
@@ -1068,10 +1059,9 @@ function PedidoAbiertoCard({
   confirmando: boolean;
   onPrint: () => void;
 }) {
-  const getCat = useServerFn(getCatalogoServicio);
   const catQ = useQuery({
     queryKey: ["catalogoServicio"],
-    queryFn: () => getCat(),
+    queryFn: () => getCatalogoServicio(),
   });
   const [catActiva, setCatActiva] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
