@@ -47,15 +47,12 @@ Por cada módulo (empezar por `servicio` o `caja`):
 `mesas` (configuración, + realtime), `impresión`. **Storage** helper `src/lib/storage.ts`
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
-**Aún en Supabase** (con su razón):
-- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — **bloqueado por backend**:
-  `/usuarios` no cubre `id_espacio_asignado`, `recibe_propinas`, roles BARRA/ESTACION, password
-  elegido, delete ni inhabilitar. Extender backend antes de repuntar (ver CUTOVER-BACKEND §B).
-- **Analítica avanzada** (`analytics.functions.ts`: ingeniería de menú / comportamiento / eficiencia /
-  fugas) — **bloqueado por backend**: no hay endpoints `/analytics/*` para esas 4 agregaciones
-  (ver CUTOVER-BACKEND §C).
-- Residuos: `analytics.functions.ts`, `preparacion/comanda-print.ts` importan `supabase` (revisar si
-  es tipo/uso real).
+**Aún en Supabase** (backend YA listo — solo falta el repunte del front, ver checklist abajo):
+- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — ✅ backend listo (talia-backend
+  PR #11, §B). Falta repuntar a `/usuarios` (ver **[ ] usuarios** abajo).
+- **Analítica avanzada** (`analytics.functions.ts`) — ✅ backend listo (PR #11, §C). Falta repuntar a
+  `/analytics/*` (ver **[ ] analítica avanzada** abajo).
+- Residuo: `preparacion/comanda-print.ts` importa `supabase` (revisar si es tipo/uso real).
 - **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.
 
 ## Pendiente para llegar a 0% Supabase
@@ -99,6 +96,45 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
 - [x] **impresión** → config `espacio_impresora` por REST (backend §11).
 - [x] **Storage de imágenes** → `src/lib/storage.ts` usado por QR, comprobantes, **producto**
       (`producto-form`) y **logo** (`configuracion/apariencia`).
+
+---
+
+## Repunte pendiente (backend listo — ejecutar en la próxima sesión)
+
+> Solo quedan estos dos. Backend vivo: `talia-backend` PR #11 (endpoints §B/§C). Contrato completo en
+> `talia-backend/docs/CUTOVER-BACKEND.md` §B/§C. Patrón: reescribir el `*.functions.ts` con
+> `api.get/post/patch/put/del` de `@/lib/api-client`, quitar `createServerFn`/`requireSupabaseAuth`, y
+> en los call-sites cambiar `useServerFn(fn)` → `fn` directo y `fn({ data: x })` → `fn(x)`.
+
+- [ ] **usuarios** → reescribir `src/lib/usuarios.functions.ts` a REST. Preservar las 4 firmas
+      (`crearUsuarioStaff`, `actualizarUsuarioStaff`, `eliminarUsuarioStaff`, `inhabilitarStaff`).
+      Mapa endpoint:
+      - `crearUsuarioStaff(input)` → `api.post("/usuarios", input)`; input tal cual
+        `{nombre, correo, password, rol, id_espacio_asignado?, estado:boolean, recibe_propinas:boolean}`.
+        Devuelve `{ id_usuario }`.
+      - `actualizarUsuarioStaff({id_usuario, ...rest})` → `api.patch("/usuarios/" + id_usuario, rest)`
+        con `{nombre, rol, id_espacio_asignado?, estado:boolean, recibe_propinas:boolean, password?}`.
+      - `eliminarUsuarioStaff({id_usuario})` → `api.del("/usuarios/" + id_usuario)`.
+      - `inhabilitarStaff({id_usuario?})` → si viene `id_usuario`: `api.post("/usuarios/" + id_usuario + "/inhabilitar")`;
+        si no (auto): `api.post("/usuarios/inhabilitar")`.
+      - `GET` de la lista (en `usuarios-tab.tsx`, hoy `supabase.from("usuarios_staff").select(...)`) →
+        `api.get("/usuarios")`. El backend ya devuelve `id_usuario, nombre, correo, rol, estado,
+        recibe_propinas, id_espacio_asignado, esta_en_turno`.
+      - Notas: el backend **valida las mismas reglas** (password 8–72 mayús/minús/dígito; espacio
+        obligatorio si COCINA/BARRA/ESTACION; bloquea SUPERADMIN → 403). Las validaciones del form
+        pueden quedarse. Ya no se crea usuario en Supabase Auth (el backend inserta con `password_hash`).
+      - Call-sites: `configuracion/usuarios-tab.tsx`, `configuracion/usuario-form.tsx`.
+
+- [ ] **analítica avanzada** → reescribir `src/lib/analytics.functions.ts` a REST. Las 4 funciones son
+      `POST { desde, hasta }` con la **misma forma de salida** (tipos `IngenieriaMenu`,
+      `ComportamientoCliente`, `EficienciaOperativa`, `AlertasFugas` se conservan tal cual):
+      - `getIngenieriaMenu(r)` → `api.post("/analytics/ingenieria-menu", r)`.
+      - `getComportamientoCliente(r)` → `api.post("/analytics/comportamiento-cliente", r)`.
+      - `getEficienciaOperativa(r)` → `api.post("/analytics/eficiencia-operativa", r)`.
+      - `getAlertasFugas(r)` → `api.post("/analytics/alertas-fugas", r)`.
+      - El backend ya devuelve el JSON con los mismos campos (heatmap 7×24, cuadrantes,
+        productos_lentos, desviaciones, etc.), así que el componente consumidor no cambia de shape.
+      - Con esto se elimina el import de `supabase` en `analytics.functions.ts`.
 
 ### Cierre final (cuando no quede ningún `supabase.*`)
 
