@@ -1,15 +1,9 @@
 // Prepedido del comensal (carta pública) y vista mesero, vía REST del backend Talia.
 // Flujo público → /prepedido/public/* (endpoints sin auth, funciones SECURITY DEFINER).
 // Aceptar prepedido (staff) → /prepedido/mesas/:id/aceptar.
-//
-// Excepción: editarItemPrepedidoStaff/eliminarItemPrepedidoStaff siguen como server
-// functions Supabase — el backend no expone un endpoint autenticado para que el staff
-// edite/elimine items de prepedido de OTRO cliente (las RPC públicas validan id_cliente).
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+// Staff edita/elimina item de OTRO comensal → /prepedido/items/:id (PATCH) y
+// /prepedido/items/:id/eliminar (POST), autenticados (backend 0006).
 import { api } from "@/lib/api-client";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ============================================================
 // Tipos
@@ -182,211 +176,27 @@ export function aceptarPrepedido(input: { idMesa: string }): Promise<{ aceptados
 }
 
 // ============================================================
-// Staff — editar/eliminar item de prepedido (AÚN Supabase: sin endpoint backend)
+// Staff — editar/eliminar item de prepedido de OTRO comensal (REST autenticado)
+// El backend (0006, SECURITY DEFINER) valida que la mesa del item sea del negocio.
 // ============================================================
 
-const uuid = z.string().uuid();
-
-async function validarExtrasYExclusiones(
-  idProducto: string,
-  extras: Array<{ id_insumo_extra: string }>,
-  exclusiones: Array<{ id_insumo: string }>,
-) {
-  if (extras.length > 0) {
-    const ids = extras.map((e) => e.id_insumo_extra);
-    const { data } = await supabaseAdmin
-      .from("extras_permitidos")
-      .select("id_insumo_extra")
-      .eq("id_producto", idProducto)
-      .in("id_insumo_extra", ids);
-    const ok = new Set((data ?? []).map((d) => d.id_insumo_extra as string));
-    for (const e of extras) {
-      if (!ok.has(e.id_insumo_extra)) throw new Error("Extra no permitido");
-    }
-  }
-  if (exclusiones.length > 0) {
-    const { data: prod } = await supabaseAdmin
-      .from("productos")
-      .select("id_receta")
-      .eq("id_producto", idProducto)
-      .maybeSingle();
-    if (!prod) throw new Error("Producto inválido");
-    const ids = exclusiones.map((e) => e.id_insumo);
-    const { data } = await supabaseAdmin
-      .from("receta_detalle")
-      .select("id_insumo")
-      .eq("id_receta", prod.id_receta as string)
-      .in("id_insumo", ids);
-    const ok = new Set((data ?? []).map((d) => d.id_insumo as string));
-    for (const x of exclusiones) {
-      if (!ok.has(x.id_insumo)) throw new Error("Exclusión no válida");
-    }
-  }
+export interface EditarItemPrepedidoStaffInput {
+  idItem: string;
+  cantidad: number;
+  tieneAlergia?: boolean;
+  nota?: string | null;
+  extras: Array<{ id_insumo_extra: string }>;
+  exclusiones: Array<{ id_insumo: string }>;
+  variantes: Array<{ id_opcion: string }>;
 }
 
-// Resuelve snapshots de variantes (nombre y precio) validando contra la receta del producto
-async function resolverVariantes(
-  idProducto: string,
-  variantes: Array<{ id_opcion: string }>,
-): Promise<
-  Array<{
-    id_opcion: string;
-    id_grupo: string;
-    id_insumo_opcion: string;
-    nombre_grupo: string;
-    nombre_opcion: string;
-    precio_delta: number;
-    cantidad_porcion: number;
-  }>
-> {
-  if (variantes.length === 0) return [];
-
-  const { data: prod } = await supabaseAdmin
-    .from("productos")
-    .select("id_receta")
-    .eq("id_producto", idProducto)
-    .maybeSingle();
-  if (!prod) throw new Error("Producto inválido");
-  const idReceta = prod.id_receta as string;
-
-  const ids = variantes.map((v) => v.id_opcion);
-  const { data, error } = await supabaseAdmin
-    .from("producto_variante_opciones")
-    .select(
-      "id_opcion, id_grupo, id_insumo_opcion, precio_delta, cantidad_porcion, producto_variante_grupos:id_grupo(id_receta, nombre), insumos:id_insumo_opcion(nombre_insumo)",
-    )
-    .in("id_opcion", ids);
-  if (error) throw new Error(error.message);
-
-  const map = new Map<
-    string,
-    {
-      id_opcion: string;
-      id_grupo: string;
-      id_insumo_opcion: string;
-      nombre_grupo: string;
-      nombre_opcion: string;
-      precio_delta: number;
-      cantidad_porcion: number;
-    }
-  >();
-  for (const raw of (data ?? []) as unknown as Array<Record<string, unknown>>) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const g = (raw as any).producto_variante_grupos;
-    if (!g || g.id_receta !== idReceta) continue;
-    map.set(raw.id_opcion as string, {
-      id_opcion: raw.id_opcion as string,
-      id_grupo: raw.id_grupo as string,
-      id_insumo_opcion: raw.id_insumo_opcion as string,
-      nombre_grupo: (g.nombre as string) ?? "",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nombre_opcion: ((raw as any).insumos?.nombre_insumo as string) ?? "—",
-      precio_delta: Number(raw.precio_delta ?? 0),
-      cantidad_porcion: Number(raw.cantidad_porcion ?? 0),
-    });
-  }
-  const out: Array<{
-    id_opcion: string;
-    id_grupo: string;
-    id_insumo_opcion: string;
-    nombre_grupo: string;
-    nombre_opcion: string;
-    precio_delta: number;
-    cantidad_porcion: number;
-  }> = [];
-  for (const v of variantes) {
-    const snap = map.get(v.id_opcion);
-    if (!snap) throw new Error("Variante no permitida");
-    out.push(snap);
-  }
-  return out;
+export function editarItemPrepedidoStaff(
+  input: EditarItemPrepedidoStaffInput,
+): Promise<{ ok: true }> {
+  const { idItem, ...body } = input;
+  return api.patch<{ ok: true }>(`/prepedido/items/${idItem}`, body);
 }
 
-const editarStaffSchema = z.object({
-  idItem: uuid,
-  cantidad: z.number().int().min(1).max(50),
-  tieneAlergia: z.boolean().optional().default(false),
-  nota: z.string().max(300).optional().nullable(),
-  extras: z.array(z.object({ id_insumo_extra: uuid })).default([]),
-  exclusiones: z.array(z.object({ id_insumo: uuid })).default([]),
-  variantes: z.array(z.object({ id_opcion: uuid })).default([]),
-});
-
-async function verificarMesaStaff(
-  supabase: {
-    from: (t: string) => {
-      select: (s: string) => {
-        eq: (
-          c: string,
-          v: string,
-        ) => { maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }> };
-      };
-    };
-  },
-  idMesa: string,
-) {
-  const { data, error } = await supabase
-    .from("mesas")
-    .select("id_mesa")
-    .eq("id_mesa", idMesa)
-    .maybeSingle();
-  if (error) throw new Error((error as { message: string }).message);
-  if (!data) throw new Error("No autorizado");
+export function eliminarItemPrepedidoStaff(input: { idItem: string }): Promise<{ ok: true }> {
+  return api.post<{ ok: true }>(`/prepedido/items/${input.idItem}/eliminar`);
 }
-
-export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => editarStaffSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { data: item, error } = await supabaseAdmin
-      .from("prepedido_items")
-      .select("id_prepedido_item, id_mesa, id_producto")
-      .eq("id_prepedido_item", data.idItem)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!item) throw new Error("Item no encontrado");
-
-    await verificarMesaStaff(
-      context.supabase as unknown as Parameters<typeof verificarMesaStaff>[0],
-      item.id_mesa as string,
-    );
-    await validarExtrasYExclusiones(item.id_producto as string, data.extras, data.exclusiones);
-    const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
-
-    const { error: uErr } = await supabaseAdmin
-      .from("prepedido_items")
-      .update({
-        cantidad: data.cantidad,
-        tiene_alergia: !!data.tieneAlergia,
-        nota: data.nota?.trim() || null,
-        extras: data.extras,
-        exclusiones: data.exclusiones,
-        variantes: variantesSnap,
-      })
-      .eq("id_prepedido_item", data.idItem);
-    if (uErr) throw new Error(uErr.message);
-    return { ok: true };
-  });
-
-export const eliminarItemPrepedidoStaff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ idItem: uuid }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { data: item, error } = await supabaseAdmin
-      .from("prepedido_items")
-      .select("id_prepedido_item, id_mesa")
-      .eq("id_prepedido_item", data.idItem)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!item) return { ok: true };
-    await verificarMesaStaff(
-      context.supabase as unknown as Parameters<typeof verificarMesaStaff>[0],
-      item.id_mesa as string,
-    );
-    const { error: dErr } = await supabaseAdmin
-      .from("prepedido_items")
-      .delete()
-      .eq("id_prepedido_item", data.idItem);
-    if (dErr) throw new Error(dErr.message);
-    return { ok: true };
-  });

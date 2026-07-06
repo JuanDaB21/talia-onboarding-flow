@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { listarCompras } from "@/lib/bodega.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,14 +40,7 @@ function ComprasPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("compras")
-      .select(
-        "id_compra, fecha_compra, numero_factura, estado, total, proveedores:id_proveedor(razon_social)"
-      )
-      .order("fecha_compra", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const data = await listarCompras().catch(() => []);
     setRows((data as unknown as CompraRow[]) ?? []);
     setLoading(false);
   };
@@ -102,9 +95,7 @@ function ComprasPage() {
                   onClick={() => setSelected(r.id_compra)}
                 >
                   <TableCell>{r.fecha_compra}</TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {r.numero_factura ?? "—"}
-                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">{r.numero_factura ?? "—"}</TableCell>
                   <TableCell className="font-medium">
                     {r.proveedores?.razon_social ?? "—"}
                   </TableCell>

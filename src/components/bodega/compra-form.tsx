@@ -5,7 +5,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { listarProveedores, listarInsumos, registrarCompra } from "@/lib/bodega.functions";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { Button } from "@/components/ui/button";
@@ -99,21 +99,12 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
     if (!idNegocio) return;
     (async () => {
       setLoadingCatalogos(true);
-      const [{ data: prov }, { data: ins }] = await Promise.all([
-        supabase
-          .from("proveedores")
-          .select("id_proveedor, razon_social, documento_tributario")
-          .eq("id_negocio", idNegocio)
-          .eq("estado", true)
-          .order("razon_social"),
-        supabase
-          .from("insumos")
-          .select("id_insumo, nombre_insumo, unidad_compra, costo_promedio")
-          .eq("id_negocio", idNegocio)
-          .order("nombre_insumo"),
-      ]);
-      setProveedores(prov ?? []);
-      setInsumos((ins ?? []) as Insumo[]);
+      const [prov, ins] = await Promise.all([listarProveedores(), listarInsumos()]);
+      const provActivos = (prov as unknown as Array<Proveedor & { estado?: boolean }>)
+        .filter((p) => p.estado !== false)
+        .sort((a, b) => a.razon_social.localeCompare(b.razon_social));
+      setProveedores(provActivos);
+      setInsumos((ins as unknown as Insumo[]) ?? []);
       setLoadingCatalogos(false);
     })();
   }, [idNegocio]);
@@ -151,27 +142,31 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
 
   const onSubmit = async (values: CompraInput) => {
     // No bloqueamos duplicados de insumo: ahora pueden repetirse por bodega distinta
-    const { data, error } = await supabase.rpc("registrar_compra" as never, {
-      p_id_proveedor: values.id_proveedor,
-      p_numero_factura: values.numero_factura || "",
-      p_observaciones: values.observaciones || "",
-      p_fecha_compra: values.fecha_compra,
-      p_id_bodega_default: values.id_bodega_default,
-      p_items: values.items.map((i) => ({
-        id_insumo: i.id_insumo,
-        cantidad: Number(i.cantidad),
-        precio_unitario_compra: Number(i.precio_unitario_compra),
-        id_bodega_destino: i.id_bodega_destino || null,
-      })),
-    } as never);
-
-    if (error) {
-      toast.error("No se pudo registrar la compra", { description: error.message });
+    let idCompra: string;
+    try {
+      const res = await registrarCompra({
+        idProveedor: values.id_proveedor,
+        numeroFactura: values.numero_factura || "",
+        observaciones: values.observaciones || "",
+        fechaCompra: values.fecha_compra,
+        idBodegaDefault: values.id_bodega_default,
+        items: values.items.map((i) => ({
+          id_insumo: i.id_insumo,
+          cantidad: Number(i.cantidad),
+          precio_unitario_compra: Number(i.precio_unitario_compra),
+          id_bodega_destino: i.id_bodega_destino || null,
+        })),
+      });
+      idCompra = res.idCompra;
+    } catch (err) {
+      toast.error("No se pudo registrar la compra", {
+        description: err instanceof Error ? err.message : undefined,
+      });
       return;
     }
 
     toast.success("Compra registrada", {
-      description: `ID: ${String(data).slice(0, 8)}…`,
+      description: `ID: ${String(idCompra).slice(0, 8)}…`,
     });
     onSuccess?.();
   };
@@ -295,7 +290,12 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ id_insumo: "", cantidad: 1, precio_unitario_compra: 0, id_bodega_destino: "" })
+              append({
+                id_insumo: "",
+                cantidad: 1,
+                precio_unitario_compra: 0,
+                id_bodega_destino: "",
+              })
             }
           >
             <Plus className="h-4 w-4 mr-1" /> Agregar
@@ -308,7 +308,11 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
 
         <div className="space-y-2">
           {fields.map((field, index) => {
-            const row = items[index] ?? { cantidad: 0, precio_unitario_compra: 0, id_bodega_destino: "" };
+            const row = items[index] ?? {
+              cantidad: 0,
+              precio_unitario_compra: 0,
+              id_bodega_destino: "",
+            };
             const subtotal =
               (Number(row.cantidad) || 0) * (Number(row.precio_unitario_compra) || 0);
             const insumoSel = insumos.find((i) => i.id_insumo === row.id_insumo);

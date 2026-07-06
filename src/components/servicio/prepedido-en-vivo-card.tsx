@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Loader2, Pencil, Radio, Trash2 } from "lucide-react";
@@ -35,7 +34,6 @@ interface Props {
 
 export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
   const qc = useQueryClient();
-  const eliminarFn = useServerFn(eliminarItemPrepedidoStaff);
   const [editing, setEditing] = useState<PrepedidoItem | null>(null);
   const [deleting, setDeleting] = useState<PrepedidoItem | null>(null);
 
@@ -59,7 +57,7 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
   });
 
   const eliminarMut = useMutation({
-    mutationFn: (idItem: string) => eliminarFn({ data: { idItem } }),
+    mutationFn: (idItem: string) => eliminarItemPrepedidoStaff({ idItem }),
     onSuccess: () => {
       toast.success("Item eliminado del pre-pedido");
       invalidar();

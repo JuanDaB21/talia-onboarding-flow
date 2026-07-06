@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getCompraDetalle } from "@/lib/bodega.functions";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Badge } from "@/components/ui/badge";
 import { labelDe } from "@/lib/unidades";
@@ -45,23 +45,9 @@ export function CompraDetailSheet({ idCompra, open, onOpenChange }: Props) {
     if (!open || !idCompra) return;
     (async () => {
       setLoading(true);
-      const [{ data: c }, { data: d }] = await Promise.all([
-        supabase
-          .from("compras")
-          .select(
-            "id_compra, numero_factura, fecha_compra, estado, total, observaciones, proveedores:id_proveedor(razon_social)"
-          )
-          .eq("id_compra", idCompra)
-          .maybeSingle(),
-        supabase
-          .from("detalle_compra")
-          .select(
-            "id_detalle, cantidad, precio_unitario_compra, subtotal, insumos:id_insumo(nombre_insumo, unidad_compra)"
-          )
-          .eq("id_compra", idCompra),
-      ]);
-      setCompra((c as unknown as Compra) ?? null);
-      setDetalles((d as unknown as Detalle[]) ?? []);
+      const res = await getCompraDetalle(idCompra).catch(() => ({ compra: null, detalles: [] }));
+      setCompra((res.compra as unknown as Compra) ?? null);
+      setDetalles((res.detalles as unknown as Detalle[]) ?? []);
       setLoading(false);
     })();
   }, [open, idCompra]);
@@ -121,7 +107,10 @@ export function CompraDetailSheet({ idCompra, open, onOpenChange }: Props) {
               <TableBody>
                 {detalles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                    <TableCell
+                      colSpan={4}
+                      className="text-center text-sm text-muted-foreground py-6"
+                    >
                       Sin ítems.
                     </TableCell>
                   </TableRow>

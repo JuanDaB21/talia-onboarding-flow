@@ -48,16 +48,12 @@ Por cada módulo (empezar por `servicio` o `caja`):
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
 **Aún en Supabase** (con su razón):
-- **Variantes** (`variantes-builder`, `variantes.functions.ts`) — el backend **no expone** endpoints
-  (no está en §1–§11). Bloqueado por backend.
-- **Prepedido staff** — `editarItemPrepedidoStaff`/`eliminarItemPrepedidoStaff` (el staff edita/elimina
-  un item de OTRO cliente): las RPC públicas validan `id_cliente`, así que no sirven; no hay endpoint
-  autenticado. Bloqueado por backend.
-- **Bodega — inventario** (fuera del alcance de este cutover-config): `insumos`, `compras`,
-  `proveedores`, `ajustar-stock`, `movimientos`, `inventario`. Los endpoints ya existen (`/bodega/*`,
-  ver CUTOVER-BACKEND §0), pero los componentes `src/components/bodega/*` + `_app.bodega.*` siguen con
-  `supabase.from/rpc` inline. Pendiente de repunte.
-- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — pendiente de repunte.
+- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — **bloqueado por backend**:
+  `/usuarios` no cubre `id_espacio_asignado`, `recibe_propinas`, roles BARRA/ESTACION, password
+  elegido, delete ni inhabilitar. Extender backend antes de repuntar (ver CUTOVER-BACKEND §B).
+- **Analítica avanzada** (`analytics.functions.ts`: ingeniería de menú / comportamiento / eficiencia /
+  fugas) — **bloqueado por backend**: no hay endpoints `/analytics/*` para esas 4 agregaciones
+  (ver CUTOVER-BACKEND §C).
 - Residuos: `analytics.functions.ts`, `preparacion/comanda-print.ts` importan `supabase` (revisar si
   es tipo/uso real).
 - **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.
@@ -79,7 +75,10 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
       (`categorias-master-detail`, `productos-tab`, `producto-form`, `receta-builder`, `recetas-table`).
       Imagen de producto por `uploadToStorage("producto")` + `publicUrl`. Backend agregó lecturas
       `GET /menu/subcategorias`, `GET /menu/recetas/:id` (detalle para editar) y `unidad_receta` en
-      `GET /bodega/insumos`. **Variantes** siguen en Supabase (`variantes-builder`/`variantes.functions.ts`).
+      `GET /bodega/insumos`.
+- [x] **variantes de receta** → `variantes.functions.ts` repuntado a `/variantes/recetas/:id`
+      (`GET` grupos+opciones, `PUT` guardar); insumos-opción desde `/bodega/insumos`.
+      `variantes-builder.tsx` sin `useServerFn`. Backend: `routes/variantes.ts`.
 - [x] **bodegas (gestión)** → `/bodega/bodegas` (crear/renombrar/toggle) + `espacios_principales`
       en el listado (backend §1).
 - [x] **bonos** → `/bonos` CRUD + previsualizar + historial (backend §5).
@@ -89,8 +88,14 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
       y `/cuenta` (+ `llamar-mesero`/`solicitar`). Imágenes con `publicUrl`.
 - [x] **prepedido** → flujo público (`unirse`/`estado`/`opciones`/`agregar`/`editar`/`eliminar`) a
       `/prepedido/public/*`; `aceptarPrepedido` a `POST /prepedido/mesas/:id/aceptar`; `getPrepedidoMesa`
-      a `GET /prepedido/mesas/:id`. **Falta**: `editarItemPrepedidoStaff`/`eliminarItemPrepedidoStaff`
-      (staff edita item de otro cliente) — el backend no expone endpoint; siguen en Supabase.
+      a `GET /prepedido/mesas/:id`. **Staff edita/elimina item de OTRO comensal**:
+      `editarItemPrepedidoStaff` → `PATCH /prepedido/items/:id`, `eliminarItemPrepedidoStaff` →
+      `POST /prepedido/items/:id/eliminar` (backend 0006, SECURITY DEFINER valida negocio de la mesa).
+      `prepedido-en-vivo-card.tsx` / `prepedido-item-editor-staff.tsx` sin `useServerFn`.
+- [x] **bodega — inventario** → todo `src/components/bodega/*` + `_app.bodega.*` a
+      `@/lib/bodega.functions` (+ realtime por `@/lib/realtime-client`). Backend agregó lecturas de
+      detalle (`/bodega/inventario-bodega`, `/bodega/insumos/:id[/stock-por-bodega|/compras|/movimientos]`),
+      `DELETE /bodega/insumos/:id` y `/bodega/proveedores/:id`, y realtime de `inventario_bodega` (0007).
 - [x] **impresión** → config `espacio_impresora` por REST (backend §11).
 - [x] **Storage de imágenes** → `src/lib/storage.ts` usado por QR, comprobantes, **producto**
       (`producto-form`) y **logo** (`configuracion/apariencia`).
