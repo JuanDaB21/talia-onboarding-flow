@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -27,11 +26,7 @@ import {
   reservaCrearSchema,
   type EstadoReserva,
 } from "@/lib/reservas.schemas";
-import {
-  actualizarReserva,
-  crearReserva,
-  type Reserva,
-} from "@/lib/reservas.functions";
+import { actualizarReserva, crearReserva, type Reserva } from "@/lib/reservas.functions";
 import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
 
 interface Props {
@@ -138,10 +133,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
 
-  const listarQr = useServerFn(listarMetodosPagoQr);
   const cuentasQ = useQuery({
     queryKey: ["metodosPagoQr"],
-    queryFn: () => listarQr(),
+    queryFn: () => listarMetodosPagoQr(),
     enabled: open,
   });
   const cuentas = cuentasQ.data ?? [];
@@ -197,10 +191,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             </div>
             <div>
               <Label htmlFor="hora">Hora *</Label>
-              <Select
-                value={form.hora_reserva}
-                onValueChange={(v) => set("hora_reserva", v)}
-              >
+              <Select value={form.hora_reserva} onValueChange={(v) => set("hora_reserva", v)}>
                 <SelectTrigger id="hora">
                   <SelectValue placeholder="Selecciona hora" />
                 </SelectTrigger>
@@ -254,10 +245,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="estado">Estado</Label>
-              <Select
-                value={form.estado}
-                onValueChange={(v) => set("estado", v as EstadoReserva)}
-              >
+              <Select value={form.estado} onValueChange={(v) => set("estado", v as EstadoReserva)}>
                 <SelectTrigger id="estado">
                   <SelectValue />
                 </SelectTrigger>
@@ -276,62 +264,54 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
                 id="monto"
                 inputMode="numeric"
                 value={form.monto_abonado}
-                onChange={(e) =>
-                  set("monto_abonado", e.target.value.replace(/[^\d]/g, ""))
-                }
+                onChange={(e) => set("monto_abonado", e.target.value.replace(/[^\d]/g, ""))}
                 placeholder="0"
               />
               {errors.monto_abonado && (
                 <p className="text-xs text-destructive mt-1">{errors.monto_abonado}</p>
               )}
-          </div>
-          {montoNum > 0 && (
-            <div>
-              <Label htmlFor="cuenta">Cuenta donde se recibió el abono *</Label>
-              {cuentas.length === 0 ? (
-                <p className="text-xs text-muted-foreground mt-1">
-                  No hay cuentas configuradas.{" "}
-                  <Link
-                    to="/configuracion/metodos-pago"
-                    className="text-primary underline"
-                    onClick={() => onOpenChange(false)}
-                  >
-                    Configurar métodos de pago
-                  </Link>
-                </p>
-              ) : (
-                <Select
-                  value={form.id_metodo_pago_qr}
-                  onValueChange={(v) => set("id_metodo_pago_qr", v)}
-                >
-                  <SelectTrigger id="cuenta">
-                    <SelectValue placeholder="Selecciona la cuenta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cuentas.map((c) => {
-                      const label =
-                        c.plataforma === "Otra"
-                          ? c.etiqueta || "Otra"
-                          : c.plataforma;
-                      return (
-                        <SelectItem key={c.id_qr} value={c.id_qr}>
-                          {label}
-                          {c.titular ? ` · ${c.titular}` : ""}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              )}
-              {errors.id_metodo_pago_qr && (
-                <p className="text-xs text-destructive mt-1">
-                  {errors.id_metodo_pago_qr}
-                </p>
-              )}
             </div>
-          )}
-        </div>
-
+            {montoNum > 0 && (
+              <div>
+                <Label htmlFor="cuenta">Cuenta donde se recibió el abono *</Label>
+                {cuentas.length === 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No hay cuentas configuradas.{" "}
+                    <Link
+                      to="/configuracion/metodos-pago"
+                      className="text-primary underline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Configurar métodos de pago
+                    </Link>
+                  </p>
+                ) : (
+                  <Select
+                    value={form.id_metodo_pago_qr}
+                    onValueChange={(v) => set("id_metodo_pago_qr", v)}
+                  >
+                    <SelectTrigger id="cuenta">
+                      <SelectValue placeholder="Selecciona la cuenta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cuentas.map((c) => {
+                        const label = c.plataforma === "Otra" ? c.etiqueta || "Otra" : c.plataforma;
+                        return (
+                          <SelectItem key={c.id_qr} value={c.id_qr}>
+                            {label}
+                            {c.titular ? ` · ${c.titular}` : ""}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.id_metodo_pago_qr && (
+                  <p className="text-xs text-destructive mt-1">{errors.id_metodo_pago_qr}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <SheetFooter>
@@ -339,11 +319,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             Cancelar
           </Button>
           <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
-            {mut.isPending
-              ? "Guardando..."
-              : editing
-                ? "Guardar cambios"
-                : "Crear reserva"}
+            {mut.isPending ? "Guardando..." : editing ? "Guardar cambios" : "Crear reserva"}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -147,16 +147,12 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
       .from("insumos")
       .select("id_insumo, nombre_insumo")
       .in("id_insumo", Array.from(insumoIds));
-    (ins ?? []).forEach((i) =>
-      insumoNombres.set(i.id_insumo as string, i.nombre_insumo as string),
-    );
+    (ins ?? []).forEach((i) => insumoNombres.set(i.id_insumo as string, i.nombre_insumo as string));
   }
 
   // Precios de extras para subtotal y rendering
   const productoExtras = new Map<string, Map<string, number>>();
-  const productosUnicos = Array.from(
-    new Set((itemsRaw ?? []).map((i) => i.id_producto as string)),
-  );
+  const productosUnicos = Array.from(new Set((itemsRaw ?? []).map((i) => i.id_producto as string)));
   if (productosUnicos.length > 0) {
     const { data: ex } = await supabaseAdmin
       .from("extras_permitidos")
@@ -175,8 +171,7 @@ export async function cargarPrepedido(idMesa: string): Promise<PrepedidoData> {
     const ses = sesionMap.get(i.id_sesion as string);
     const extrasRaw = (i.extras as Array<{ id_insumo_extra: string }>) ?? [];
     const exclusRaw = (i.exclusiones as Array<{ id_insumo: string }>) ?? [];
-    const variantesRaw =
-      (i.variantes as Array<Record<string, unknown>> | null | undefined) ?? [];
+    const variantesRaw = (i.variantes as Array<Record<string, unknown>> | null | undefined) ?? [];
     const pid = i.id_producto as string;
     const precios = productoExtras.get(pid) ?? new Map<string, number>();
     const extras: PrepedidoExtra[] = extrasRaw.map((e) => ({
@@ -315,15 +310,17 @@ async function validarExtrasYExclusiones(
 async function resolverVariantes(
   idProducto: string,
   variantes: Array<{ id_opcion: string }>,
-): Promise<Array<{
-  id_opcion: string;
-  id_grupo: string;
-  id_insumo_opcion: string;
-  nombre_grupo: string;
-  nombre_opcion: string;
-  precio_delta: number;
-  cantidad_porcion: number;
-}>> {
+): Promise<
+  Array<{
+    id_opcion: string;
+    id_grupo: string;
+    id_insumo_opcion: string;
+    nombre_grupo: string;
+    nombre_opcion: string;
+    precio_delta: number;
+    cantidad_porcion: number;
+  }>
+> {
   if (variantes.length === 0) return [];
 
   const { data: prod } = await supabaseAdmin
@@ -343,15 +340,18 @@ async function resolverVariantes(
     .in("id_opcion", ids);
   if (error) throw new Error(error.message);
 
-  const map = new Map<string, {
-    id_opcion: string;
-    id_grupo: string;
-    id_insumo_opcion: string;
-    nombre_grupo: string;
-    nombre_opcion: string;
-    precio_delta: number;
-    cantidad_porcion: number;
-  }>();
+  const map = new Map<
+    string,
+    {
+      id_opcion: string;
+      id_grupo: string;
+      id_insumo_opcion: string;
+      nombre_grupo: string;
+      nombre_opcion: string;
+      precio_delta: number;
+      cantidad_porcion: number;
+    }
+  >();
   for (const raw of (data ?? []) as unknown as Array<Record<string, unknown>>) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const g = (raw as any).producto_variante_grupos;
@@ -384,10 +384,6 @@ async function resolverVariantes(
   return out;
 }
 
-
-
-
-
 // ============================================================
 // Server fns públicas (clientes en la mesa)
 // ============================================================
@@ -397,17 +393,15 @@ export const unirseSesionPrepedido = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await asegurarMesa(data.idMesa);
     await ocuparMesaSiLibre(data.idMesa);
-    const { error } = await supabaseAdmin
-      .from("prepedido_sesiones")
-      .upsert(
-        {
-          id_mesa: data.idMesa,
-          id_cliente: data.idCliente,
-          nombre: data.nombre.trim(),
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "id_mesa,id_cliente" },
-      );
+    const { error } = await supabaseAdmin.from("prepedido_sesiones").upsert(
+      {
+        id_mesa: data.idMesa,
+        id_cliente: data.idCliente,
+        nombre: data.nombre.trim(),
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "id_mesa,id_cliente" },
+    );
     if (error) throw new Error(error.message);
     const { data: ses } = await supabaseAdmin
       .from("prepedido_sesiones")
@@ -462,11 +456,7 @@ export const editarItemPrepedido = createServerFn({ method: "POST" })
     if (!item) throw new Error("Item no encontrado");
 
     await getSesionPropia(item.id_mesa as string, data.idCliente, item.id_sesion as string);
-    await validarExtrasYExclusiones(
-      item.id_producto as string,
-      data.extras,
-      data.exclusiones,
-    );
+    await validarExtrasYExclusiones(item.id_producto as string, data.extras, data.exclusiones);
     const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
@@ -505,9 +495,7 @@ export const eliminarItemPrepedido = createServerFn({ method: "POST" })
 
 // Opciones del producto para el editor del cliente (sin auth)
 export const getOpcionesProductoPublico = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z.object({ idMesa: uuid, idProducto: uuid }).parse(input),
-  )
+  .inputValidator((input) => z.object({ idMesa: uuid, idProducto: uuid }).parse(input))
   .handler(async ({ data }) => {
     const idNegocio = await asegurarMesa(data.idMesa);
     const { data: prod } = await supabaseAdmin
@@ -586,7 +574,16 @@ const editarStaffSchema = z.object({
 });
 
 async function verificarMesaStaff(
-  supabase: { from: (t: string) => { select: (s: string) => { eq: (c: string, v: string) => { maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }> } } } },
+  supabase: {
+    from: (t: string) => {
+      select: (s: string) => {
+        eq: (
+          c: string,
+          v: string,
+        ) => { maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }> };
+      };
+    };
+  },
   idMesa: string,
 ) {
   const { data, error } = await supabase
@@ -614,11 +611,7 @@ export const editarItemPrepedidoStaff = createServerFn({ method: "POST" })
       context.supabase as unknown as Parameters<typeof verificarMesaStaff>[0],
       item.id_mesa as string,
     );
-    await validarExtrasYExclusiones(
-      item.id_producto as string,
-      data.extras,
-      data.exclusiones,
-    );
+    await validarExtrasYExclusiones(item.id_producto as string, data.extras, data.exclusiones);
     const variantesSnap = await resolverVariantes(item.id_producto as string, data.variantes);
 
     const { error: uErr } = await supabaseAdmin
@@ -658,4 +651,3 @@ export const eliminarItemPrepedidoStaff = createServerFn({ method: "POST" })
     if (dErr) throw new Error(dErr.message);
     return { ok: true };
   });
-

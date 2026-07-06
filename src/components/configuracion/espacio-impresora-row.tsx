@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { getImpresionConfigs, guardarImpresionAncho } from "@/lib/impresion.functions";
 import {
   getPairedPrinter,
   isWebUSBSupported,
@@ -42,13 +42,14 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
   useEffect(() => {
     let cancel = false;
     (async () => {
-      const { data } = await supabase
-        .from("espacio_impresora")
-        .select("ancho_papel_mm")
-        .eq("id_espacio", id_espacio)
-        .maybeSingle();
-      if (cancel) return;
-      if (data?.ancho_papel_mm) setAncho(Number(data.ancho_papel_mm));
+      try {
+        const cfgs = await getImpresionConfigs();
+        if (cancel) return;
+        const cfg = cfgs.find((c) => c.id_espacio === id_espacio);
+        if (cfg?.ancho_papel_mm) setAncho(Number(cfg.ancho_papel_mm));
+      } catch {
+        /* sin config aún: se queda en el default 80 */
+      }
     })();
     return () => {
       cancel = true;
@@ -57,10 +58,13 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
 
   const updateAncho = async (v: number) => {
     setAncho(v);
-    const { error } = await supabase
-      .from("espacio_impresora")
-      .upsert({ id_espacio, ancho_papel_mm: v }, { onConflict: "id_espacio" });
-    if (error) toast.error("No se pudo guardar el ancho", { description: error.message });
+    try {
+      await guardarImpresionAncho({ id_espacio, ancho_papel_mm: v as 58 | 80 });
+    } catch (e) {
+      toast.error("No se pudo guardar el ancho", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
   };
 
   const handlePair = async () => {
@@ -114,7 +118,9 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
             <PrinterCheck className="h-3 w-3" /> Vinculada
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-xs">Sin vincular</Badge>
+          <Badge variant="outline" className="text-xs">
+            Sin vincular
+          </Badge>
         )}
         <div className="flex-1" />
         {paired && (
@@ -122,7 +128,12 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
             <Zap className="h-3.5 w-3.5 mr-1" /> Probar
           </Button>
         )}
-        <Button size="sm" variant={paired ? "outline" : "default"} onClick={handlePair} disabled={busy || !supported}>
+        <Button
+          size="sm"
+          variant={paired ? "outline" : "default"}
+          onClick={handlePair}
+          disabled={busy || !supported}
+        >
           {paired ? "Cambiar" : "Vincular"}
         </Button>
         {paired && (
@@ -156,8 +167,8 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
 
       {!supported && (
         <p className="text-[11px] text-muted-foreground pl-6">
-          Este navegador no soporta impresión USB directa. Usa Chrome, Edge u Opera de escritorio
-          en el PC donde esté conectada la térmica.
+          Este navegador no soporta impresión USB directa. Usa Chrome, Edge u Opera de escritorio en
+          el PC donde esté conectada la térmica.
         </p>
       )}
     </div>

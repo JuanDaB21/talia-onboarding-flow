@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Star, ArrowLeftRight } from "lucide-react";
@@ -57,13 +56,6 @@ function BodegasPage() {
   const qc = useQueryClient();
   const { bodegas, loading, invalidate } = useBodegas();
   const { espacios } = useEspacios({ soloActivos: true });
-
-  const crear = useServerFn(crearBodega);
-  const renombrar = useServerFn(renombrarBodega);
-  const toggle = useServerFn(toggleBodega);
-  const eliminar = useServerFn(eliminarBodega);
-  const setPrincipal = useServerFn(setBodegaPrincipalEspacio);
-  const trasladar = useServerFn(trasladarInventario);
 
   const [editSheet, setEditSheet] = useState<{ open: boolean; editing?: Bodega }>({ open: false });
   const [nombre, setNombre] = useState("");
@@ -132,10 +124,10 @@ function BodegasPage() {
     setSaving(true);
     try {
       if (editSheet.editing) {
-        await renombrar({ data: { id_bodega: editSheet.editing.id_bodega, nombre: trimmed } });
+        await renombrarBodega({ id_bodega: editSheet.editing.id_bodega, nombre: trimmed });
         toast.success("Bodega actualizada");
       } else {
-        await crear({ data: { nombre: trimmed } });
+        await crearBodega({ nombre: trimmed });
         toast.success("Bodega creada");
       }
       setEditSheet({ open: false });
@@ -149,7 +141,7 @@ function BodegasPage() {
 
   const handleToggle = async (b: Bodega, activa: boolean) => {
     try {
-      await toggle({ data: { id_bodega: b.id_bodega, activa } });
+      await toggleBodega({ id_bodega: b.id_bodega, activa });
       await refreshAll();
     } catch (e) {
       toast.error("No se pudo cambiar el estado", {
@@ -161,7 +153,7 @@ function BodegasPage() {
   const handleDelete = async () => {
     if (!delTarget) return;
     try {
-      await eliminar({ data: { id_bodega: delTarget.id_bodega } });
+      await eliminarBodega({ id_bodega: delTarget.id_bodega });
       toast.success("Bodega eliminada");
       setDelTarget(null);
       await refreshAll();
@@ -214,9 +206,7 @@ function BodegasPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {esPrincipal && (
-                          <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
-                        )}
+                        {esPrincipal && <Star className="h-4 w-4 text-amber-500 fill-amber-400" />}
                         <h3 className="font-semibold truncate">{b.nombre}</h3>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -241,10 +231,7 @@ function BodegasPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={b.activa}
-                        onCheckedChange={(v) => handleToggle(b, v)}
-                      />
+                      <Switch checked={b.activa} onCheckedChange={(v) => handleToggle(b, v)} />
                       <span className="text-xs text-muted-foreground">
                         {b.activa ? "Activa" : "Inactiva"}
                       </span>
@@ -274,7 +261,9 @@ function BodegasPage() {
       {/* Crear / editar */}
       <ResponsiveSheet
         open={editSheet.open}
-        onOpenChange={(open) => setEditSheet({ open, editing: open ? editSheet.editing : undefined })}
+        onOpenChange={(open) =>
+          setEditSheet({ open, editing: open ? editSheet.editing : undefined })
+        }
         title={editSheet.editing ? "Editar bodega" : "Nueva bodega"}
         description="Define el nombre con el que aparecerá en el sistema."
       >
@@ -334,13 +323,15 @@ function BodegasPage() {
                           onCheckedChange={async (v) => {
                             if (v) {
                               try {
-                                await setPrincipal({
-                                  data: { id_espacio: e.id_espacio, id_bodega: detail.id_bodega },
+                                await setBodegaPrincipalEspacio({
+                                  id_espacio: e.id_espacio,
+                                  id_bodega: detail.id_bodega,
                                 });
                                 toast.success(`Asignada como principal de ${e.nombre}`);
                                 await refreshAll();
                                 // Refresh detail
-                                const updated = (await qc.getQueryData<Bodega[]>(["bodegas"])) ?? [];
+                                const updated =
+                                  (await qc.getQueryData<Bodega[]>(["bodegas"])) ?? [];
                                 const next = updated.find((b) => b.id_bodega === detail.id_bodega);
                                 if (next) setDetail(next);
                               } catch (err) {
@@ -369,7 +360,10 @@ function BodegasPage() {
               ) : (
                 <div className="rounded-md border divide-y">
                   {stockDetail.map((s) => (
-                    <div key={s.id_insumo} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <div
+                      key={s.id_insumo}
+                      className="flex items-center justify-between px-3 py-2 text-sm"
+                    >
                       <span className="truncate">{s.nombre}</span>
                       <span className="tabular-nums font-medium">
                         {s.cantidad.toLocaleString()} {s.unidad}
@@ -390,7 +384,7 @@ function BodegasPage() {
         bodegas={bodegas.filter((b) => b.activa)}
         invRows={invQuery.data ?? []}
         onDone={refreshAll}
-        trasladar={trasladar}
+        trasladar={trasladarInventario}
       />
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
@@ -418,10 +412,17 @@ interface TrasladoDialogProps {
   bodegas: Bodega[];
   invRows: InvRow[];
   onDone: () => Promise<void> | void;
-  trasladar: ReturnType<typeof useServerFn<typeof trasladarInventario>>;
+  trasladar: typeof trasladarInventario;
 }
 
-function TrasladoDialog({ open, onOpenChange, bodegas, invRows, onDone, trasladar }: TrasladoDialogProps) {
+function TrasladoDialog({
+  open,
+  onOpenChange,
+  bodegas,
+  invRows,
+  onDone,
+  trasladar,
+}: TrasladoDialogProps) {
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [idInsumo, setIdInsumo] = useState("");
@@ -493,13 +494,11 @@ function TrasladoDialog({ open, onOpenChange, bodegas, invRows, onDone, traslada
     setSaving(true);
     try {
       await trasladar({
-        data: {
-          id_insumo: idInsumo,
-          id_bodega_origen: origen,
-          id_bodega_destino: destino,
-          cantidad: c,
-          motivo: motivo.trim(),
-        },
+        id_insumo: idInsumo,
+        id_bodega_origen: origen,
+        id_bodega_destino: destino,
+        cantidad: c,
+        motivo: motivo.trim(),
       });
       toast.success("Traslado registrado");
       onOpenChange(false);

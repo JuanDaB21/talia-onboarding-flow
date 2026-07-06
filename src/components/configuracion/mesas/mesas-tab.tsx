@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
+import { listarMesas } from "@/lib/mesas.functions";
 import { Button } from "@/components/ui/button";
 import type { Mesa } from "@/lib/mesas-schemas";
 import { MesaCard } from "./mesa-card";
@@ -15,31 +16,19 @@ export function MesasTab({ idNegocio }: { idNegocio: string }) {
   const [newOpen, setNewOpen] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase
-      .from("mesas")
-      .select("id_mesa,id_negocio,identificador,estado,created_at,updated_at")
-      .order("created_at", { ascending: true });
-    setItems((data as Mesa[]) ?? []);
+    const data = await listarMesas();
+    setItems(data ?? []);
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-    const channel = supabase
+    const channel = realtime
       .channel(`mesas-${idNegocio}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "mesas",
-          filter: `id_negocio=eq.${idNegocio}`,
-        },
-        () => load(),
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "mesas" }, () => load())
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idNegocio]);

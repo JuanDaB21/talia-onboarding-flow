@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { actualizarMesa, eliminarMesa } from "@/lib/mesas.functions";
 import { mesaSchema, type MesaInput, type Mesa } from "@/lib/mesas-schemas";
 import {
   Dialog,
@@ -70,9 +70,7 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
       if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
         throw new Error("Tu navegador no soporta copiar imágenes");
       }
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
-      ]);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
       toast.success("Imagen del QR copiada");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error al copiar";
@@ -115,12 +113,12 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
   };
 
   const onSubmit = async (values: MesaInput) => {
-    const { error } = await supabase
-      .from("mesas")
-      .update({ identificador: values.identificador })
-      .eq("id_mesa", mesa.id_mesa);
-    if (error) {
-      toast.error("No se pudo actualizar", { description: error.message });
+    try {
+      await actualizarMesa({ id_mesa: mesa.id_mesa, identificador: values.identificador });
+    } catch (e) {
+      toast.error("No se pudo actualizar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
       return;
     }
     toast.success("Mesa actualizada");
@@ -130,15 +128,16 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
 
   const handleDelete = async () => {
     setDeleting(true);
-    const { error } = await supabase
-      .from("mesas")
-      .delete()
-      .eq("id_mesa", mesa.id_mesa);
-    setDeleting(false);
-    if (error) {
-      toast.error("No se pudo eliminar", { description: error.message });
+    try {
+      await eliminarMesa({ id_mesa: mesa.id_mesa });
+    } catch (e) {
+      setDeleting(false);
+      toast.error("No se pudo eliminar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
       return;
     }
+    setDeleting(false);
     toast.success("Mesa eliminada");
     onChanged();
     onOpenChange(false);
@@ -149,23 +148,16 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Mesa {mesa.identificador}</DialogTitle>
-          <DialogDescription>
-            Código QR para ordenar desde esta mesa.
-          </DialogDescription>
+          <DialogDescription>Código QR para ordenar desde esta mesa.</DialogDescription>
         </DialogHeader>
 
         <div className="flex justify-center">
-          <div
-            ref={canvasWrapperRef}
-            className="bg-white p-4 rounded-md border"
-          >
+          <div ref={canvasWrapperRef} className="bg-white p-4 rounded-md border">
             <QRCodeCanvas value={url} size={240} level="M" includeMargin={false} />
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground break-all text-center">
-          {url}
-        </p>
+        <p className="text-xs text-muted-foreground break-all text-center">{url}</p>
 
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" onClick={handleCopy}>
@@ -181,9 +173,7 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
             <Label htmlFor="identificador">Identificador</Label>
             <Input id="identificador" {...register("identificador")} />
             {errors.identificador && (
-              <p className="text-xs text-destructive">
-                {errors.identificador.message}
-              </p>
+              <p className="text-xs text-destructive">{errors.identificador.message}</p>
             )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -213,11 +203,7 @@ export function MesaDetailDialog({ mesa, open, onOpenChange, onChanged }: Props)
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button
-              type="submit"
-              className="w-full sm:flex-1"
-              disabled={isSubmitting || !isDirty}
-            >
+            <Button type="submit" className="w-full sm:flex-1" disabled={isSubmitting || !isDirty}>
               {isSubmitting ? "Guardando…" : "Guardar cambios"}
             </Button>
           </div>

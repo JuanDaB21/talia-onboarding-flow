@@ -91,16 +91,10 @@ function AparienciaPage() {
         urlLogo={data.url_logo}
         idNegocio={data.id_negocio}
         onUpload={(url) =>
-          mut.mutate(
-            { url_logo: url },
-            { onSuccess: () => toast.success("Logo actualizado") },
-          )
+          mut.mutate({ url_logo: url }, { onSuccess: () => toast.success("Logo actualizado") })
         }
         onRemove={() =>
-          mut.mutate(
-            { url_logo: null },
-            { onSuccess: () => toast.success("Logo eliminado") },
-          )
+          mut.mutate({ url_logo: null }, { onSuccess: () => toast.success("Logo eliminado") })
         }
       />
 
@@ -182,7 +176,8 @@ function LogoCard({
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold">Logo del negocio</h2>
           <p className="text-sm text-muted-foreground">
-            Aparece arriba a la derecha del menú público. Recomendado cuadrado, PNG o SVG con fondo transparente. Máx 2MB.
+            Aparece arriba a la derecha del menú público. Recomendado cuadrado, PNG o SVG con fondo
+            transparente. Máx 2MB.
           </p>
         </div>
         <div className="flex gap-2">
@@ -244,9 +239,7 @@ function ThemePreviewCard({
       type="button"
       onClick={onSelect}
       className={`group relative overflow-hidden rounded-xl border-2 text-left transition-all hover:shadow-lg ${
-        selected
-          ? "border-primary ring-2 ring-primary/30"
-          : "border-border hover:border-primary/40"
+        selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40"
       }`}
     >
       {selected && (
@@ -259,10 +252,7 @@ function ThemePreviewCard({
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
-      <div
-        style={style}
-        className="aspect-[4/3] p-3"
-      >
+      <div style={style} className="aspect-[4/3] p-3">
         <div
           className="h-full w-full overflow-hidden flex flex-col"
           style={{
@@ -309,10 +299,7 @@ function MiniHeader({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
         >
           La Trattoria
         </div>
-        <div
-          className="mx-auto mt-0.5 h-px w-6"
-          style={{ background: "var(--menu-accent)" }}
-        />
+        <div className="mx-auto mt-0.5 h-px w-6" style={{ background: "var(--menu-accent)" }} />
       </div>
     );
   }
@@ -344,10 +331,7 @@ function MiniHeader({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
           borderBottom: "1px solid var(--menu-border)",
         }}
       >
-        <div
-          className="text-[8px] tracking-widest"
-          style={{ color: "var(--menu-accent)" }}
-        >
+        <div className="text-[8px] tracking-widest" style={{ color: "var(--menu-accent)" }}>
           · MESA 12 ·
         </div>
         <div
@@ -379,10 +363,7 @@ function MiniHeader({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
         <div className="text-[8px] uppercase tracking-wider" style={{ color: "var(--menu-muted)" }}>
           Mesa 12
         </div>
-        <div
-          className="text-[11px] font-bold"
-          style={{ fontFamily: "var(--menu-heading-font)" }}
-        >
+        <div className="text-[11px] font-bold" style={{ fontFamily: "var(--menu-heading-font)" }}>
           La Trattoria
         </div>
       </div>
@@ -441,7 +422,7 @@ function MiniCategories({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] })
           style={{
             background:
               i === 0
-                ? theme.vars["--menu-gradient"] ?? "var(--menu-primary)"
+                ? (theme.vars["--menu-gradient"] ?? "var(--menu-primary)")
                 : "var(--menu-surface)",
             color: i === 0 ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
             border: i === 0 ? "none" : "1px solid var(--menu-border)",
@@ -466,20 +447,20 @@ function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
           borderRadius: "3px",
         }
       : theme.priceStyle === "badge-gradiente"
-      ? {
-          background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
-          color: "var(--menu-primary-foreground)",
-          padding: "1px 6px",
-          borderRadius: "9999px",
-        }
-      : theme.priceStyle === "linea"
-      ? { color: "var(--menu-accent)" }
-      : theme.priceStyle === "subrayado"
-      ? {
-          color: "var(--menu-accent)",
-          borderBottom: "1.5px solid var(--menu-accent)",
-        }
-      : { color: "var(--menu-foreground)" };
+        ? {
+            background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+            color: "var(--menu-primary-foreground)",
+            padding: "1px 6px",
+            borderRadius: "9999px",
+          }
+        : theme.priceStyle === "linea"
+          ? { color: "var(--menu-accent)" }
+          : theme.priceStyle === "subrayado"
+            ? {
+                color: "var(--menu-accent)",
+                borderBottom: "1.5px solid var(--menu-accent)",
+              }
+            : { color: "var(--menu-foreground)" };
 
   const Price = () => (
     <span className="text-[9px] font-bold tabular-nums" style={priceStyle}>
@@ -525,14 +506,8 @@ function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
       >
         <div className="h-10" style={{ background: "var(--menu-surface-2)" }} />
         <div className="p-1.5 space-y-1">
-          <div
-            className="h-2 w-3/5 rounded"
-            style={{ background: "var(--menu-surface-2)" }}
-          />
-          <div
-            className="h-1.5 w-4/5 rounded"
-            style={{ background: "var(--menu-surface-2)" }}
-          />
+          <div className="h-2 w-3/5 rounded" style={{ background: "var(--menu-surface-2)" }} />
+          <div className="h-1.5 w-4/5 rounded" style={{ background: "var(--menu-surface-2)" }} />
           <Price />
         </div>
       </div>
@@ -547,10 +522,7 @@ function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
             className="flex items-center justify-between py-1"
             style={{ borderColor: "var(--menu-border)" }}
           >
-            <div
-              className="h-1.5 w-1/2 rounded"
-              style={{ background: "var(--menu-surface-2)" }}
-            />
+            <div className="h-1.5 w-1/2 rounded" style={{ background: "var(--menu-surface-2)" }} />
             <Price />
           </div>
         ))}
@@ -578,10 +550,7 @@ function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
             }}
           />
           <div className="flex-1 space-y-0.5 min-w-0">
-            <div
-              className="h-1.5 w-3/4 rounded"
-              style={{ background: "var(--menu-surface-2)" }}
-            />
+            <div className="h-1.5 w-3/4 rounded" style={{ background: "var(--menu-surface-2)" }} />
             <Price />
           </div>
         </div>
@@ -589,4 +558,3 @@ function MiniProducts({ theme }: { theme: (typeof MENU_THEMES)[MenuThemeId] }) {
     </div>
   );
 }
-

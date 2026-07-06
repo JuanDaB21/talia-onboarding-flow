@@ -56,9 +56,7 @@ function ConfiguracionIndex() {
     <div className="container mx-auto p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
-        <p className="text-sm text-muted-foreground">
-          Administra las opciones de tu negocio.
-        </p>
+        <p className="text-sm text-muted-foreground">Administra las opciones de tu negocio.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SECCIONES.map((s) => {

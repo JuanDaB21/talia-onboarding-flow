@@ -1,9 +1,4 @@
-// Negocio (tenant): lectura y apariencia vía REST del backend Talia.
-// Excepción: updateNegocioPropinas sigue en Supabase — el backend aún no expone
-// `porcentaje_retencion_propina` en PATCH /negocio (propinas se cutover-ea cuando lo cubra).
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+// Negocio (tenant): lectura, apariencia y propinas vía REST del backend Talia.
 import { api } from "@/lib/api-client";
 
 export interface NegocioConfig {
@@ -46,32 +41,12 @@ export async function updateNegocioApariencia(input: {
   return { ok: true };
 }
 
-const propinasSchema = z.object({
-  porcentaje_retencion_propina: z.number().min(0).max(100),
-});
-
-// TODO(cutover): mover a REST cuando el backend exponga la retención de propina.
-export const updateNegocioPropinas = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => propinasSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin, error: roleErr } = await supabase.rpc("is_admin_actual");
-    if (roleErr) throw new Error(roleErr.message);
-    if (!isAdmin) throw new Error("Solo administradores pueden modificar este valor");
-
-    const { data: neg, error: nErr } = await supabase
-      .from("negocio")
-      .select("id_negocio")
-      .maybeSingle();
-    if (nErr) throw new Error(nErr.message);
-    if (!neg) throw new Error("Negocio no encontrado");
-
-    const { error } = await supabase
-      .from("negocio")
-      .update({ porcentaje_retencion_propina: data.porcentaje_retencion_propina })
-      .eq("id_negocio", neg.id_negocio);
-    if (error) throw new Error(error.message);
-    void userId;
-    return { ok: true };
+// PATCH /negocio — retención de propina (solo ADMIN, validado en el backend).
+export async function updateNegocioPropinas(input: {
+  porcentaje_retencion_propina: number;
+}): Promise<{ ok: true }> {
+  await api.patch("/negocio", {
+    porcentaje_retencion_propina: input.porcentaje_retencion_propina,
   });
+  return { ok: true };
+}

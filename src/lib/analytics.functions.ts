@@ -64,7 +64,9 @@ export const getIngenieriaMenu = createServerFn({ method: "POST" })
       .eq("activo", true);
 
     // Costos por receta
-    const recetaIds = Array.from(new Set((productos ?? []).map((p) => p.id_receta).filter(Boolean) as string[]));
+    const recetaIds = Array.from(
+      new Set((productos ?? []).map((p) => p.id_receta).filter(Boolean) as string[]),
+    );
     const costoReceta = new Map<string, number>();
     if (recetaIds.length > 0) {
       const { data: det } = await supabase
@@ -74,7 +76,9 @@ export const getIngenieriaMenu = createServerFn({ method: "POST" })
       for (const d of det ?? []) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const ins = (d as any).insumos;
-        const costoUnitReceta = ins ? Number(ins.costo_promedio) / Math.max(1, Number(ins.factor_conversion ?? 1)) : 0;
+        const costoUnitReceta = ins
+          ? Number(ins.costo_promedio) / Math.max(1, Number(ins.factor_conversion ?? 1))
+          : 0;
         const sub = Number(d.cantidad) * costoUnitReceta;
         costoReceta.set(d.id_receta as string, (costoReceta.get(d.id_receta as string) ?? 0) + sub);
       }
@@ -98,15 +102,20 @@ export const getIngenieriaMenu = createServerFn({ method: "POST" })
       };
     });
 
-    const promUnidades = enriched.length ? enriched.reduce((a, b) => a + b.unidades, 0) / enriched.length : 0;
-    const promMargen = enriched.length ? enriched.reduce((a, b) => a + b.margen_unit, 0) / enriched.length : 0;
+    const promUnidades = enriched.length
+      ? enriched.reduce((a, b) => a + b.unidades, 0) / enriched.length
+      : 0;
+    const promMargen = enriched.length
+      ? enriched.reduce((a, b) => a + b.margen_unit, 0) / enriched.length
+      : 0;
     const umbralPop = promUnidades * 0.7;
 
     const conteo: Record<Cuadrante, number> = { STAR: 0, PLOWHORSE: 0, PUZZLE: 0, DOG: 0 };
     const productosOut: ProductoMenu[] = enriched.map((p) => {
       const popular = p.unidades >= umbralPop;
       const rentable = p.margen_unit >= promMargen;
-      const cuadrante: Cuadrante = popular && rentable ? "STAR" : popular ? "PLOWHORSE" : rentable ? "PUZZLE" : "DOG";
+      const cuadrante: Cuadrante =
+        popular && rentable ? "STAR" : popular ? "PLOWHORSE" : rentable ? "PUZZLE" : "DOG";
       conteo[cuadrante]++;
       return { ...p, cuadrante };
     });
@@ -265,19 +274,30 @@ export const getEficienciaOperativa = createServerFn({ method: "POST" })
     // Productos lentos: items con iniciado_at y listo_at en rango
     const { data: items } = await supabase
       .from("pedido_items")
-      .select("id_producto, destino, iniciado_at, listo_at, tiempo_planeado_min, productos:id_producto(nombre_producto)")
+      .select(
+        "id_producto, destino, iniciado_at, listo_at, tiempo_planeado_min, productos:id_producto(nombre_producto)",
+      )
       .gte("listo_at", desde)
       .lte("listo_at", hasta)
       .not("iniciado_at", "is", null)
       .not("listo_at", "is", null);
-    const agg = new Map<string, { nombre: string; destino: string | null; real: number; plan: number; n: number }>();
+    const agg = new Map<
+      string,
+      { nombre: string; destino: string | null; real: number; plan: number; n: number }
+    >();
     for (const it of items ?? []) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const anyIt = it as any;
       const real = (new Date(it.listo_at!).getTime() - new Date(it.iniciado_at!).getTime()) / 60000;
       const plan = Number(it.tiempo_planeado_min ?? 0);
       const k = it.id_producto;
-      const cur = agg.get(k) ?? { nombre: anyIt.productos?.nombre_producto ?? "—", destino: it.destino as string | null, real: 0, plan: 0, n: 0 };
+      const cur = agg.get(k) ?? {
+        nombre: anyIt.productos?.nombre_producto ?? "—",
+        destino: it.destino as string | null,
+        real: 0,
+        plan: 0,
+        n: 0,
+      };
       cur.real += real;
       cur.plan += plan;
       cur.n++;
@@ -320,7 +340,8 @@ export const getEficienciaOperativa = createServerFn({ method: "POST" })
       let sumR = 0;
       let nR = 0;
       for (const it of itM ?? []) {
-        const min = (new Date(it.entregado_at!).getTime() - new Date(it.listo_at!).getTime()) / 60000;
+        const min =
+          (new Date(it.entregado_at!).getTime() - new Date(it.listo_at!).getTime()) / 60000;
         if (min >= 0 && min < 120) {
           sumR += min;
           nR++;
@@ -400,7 +421,9 @@ export const getAlertasFugas = createServerFn({ method: "POST" })
         .select("cantidad, id_producto, productos:id_producto(id_receta)")
         .in("id_pedido", idsP);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const recetaIds = Array.from(new Set((items ?? []).map((i: any) => i.productos?.id_receta).filter(Boolean) as string[]));
+      const recetaIds = Array.from(
+        new Set((items ?? []).map((i: any) => i.productos?.id_receta).filter(Boolean) as string[]),
+      );
       const det = new Map<string, { id_insumo: string; cantidad: number }[]>();
       if (recetaIds.length > 0) {
         const { data: ds } = await supabase
@@ -419,7 +442,10 @@ export const getAlertasFugas = createServerFn({ method: "POST" })
         if (!rid) continue;
         const arr = det.get(rid) ?? [];
         for (const a of arr) {
-          teorico.set(a.id_insumo, (teorico.get(a.id_insumo) ?? 0) + a.cantidad * Number(it.cantidad));
+          teorico.set(
+            a.id_insumo,
+            (teorico.get(a.id_insumo) ?? 0) + a.cantidad * Number(it.cantidad),
+          );
         }
       }
     }

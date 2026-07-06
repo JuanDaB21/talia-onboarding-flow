@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +27,12 @@ function hoyIso() {
 }
 
 export function PropinasPanel() {
-  const fn = useServerFn(getPropinasPorUsuario);
   const [desde, setDesde] = useState(hoyIso());
   const [hasta, setHasta] = useState(hoyIso());
 
   const { data, isLoading } = useQuery({
     queryKey: ["propinas-por-usuario", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getPropinasPorUsuario({ desde, hasta }),
     ...POLL.NORMAL,
   });
 
@@ -55,13 +53,16 @@ export function PropinasPanel() {
           <Badge variant="secondary">{formatMoney(total)}</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          El negocio retiene {retencion}% · se reparte {(100 - retencion).toFixed(retencion % 1 ? 2 : 0)}% entre meseros en turno.
+          El negocio retiene {retencion}% · se reparte{" "}
+          {(100 - retencion).toFixed(retencion % 1 ? 2 : 0)}% entre meseros en turno.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label htmlFor="prop-desde" className="text-xs">Desde</Label>
+            <Label htmlFor="prop-desde" className="text-xs">
+              Desde
+            </Label>
             <Input
               id="prop-desde"
               type="date"
@@ -71,7 +72,9 @@ export function PropinasPanel() {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="prop-hasta" className="text-xs">Hasta</Label>
+            <Label htmlFor="prop-hasta" className="text-xs">
+              Hasta
+            </Label>
             <Input
               id="prop-hasta"
               type="date"

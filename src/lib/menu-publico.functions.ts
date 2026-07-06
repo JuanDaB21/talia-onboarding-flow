@@ -92,8 +92,9 @@ export const getMenuPublico = createServerFn({ method: "GET" })
 
     const categorias: CartaCategoria[] = Array.from(catsMap.entries())
       .map(([id_categoria, nombre]) => ({ id_categoria, nombre }))
-      .sort((a, b) => (ordenCat.get(a.id_categoria) ?? 9999) - (ordenCat.get(b.id_categoria) ?? 9999));
-
+      .sort(
+        (a, b) => (ordenCat.get(a.id_categoria) ?? 9999) - (ordenCat.get(b.id_categoria) ?? 9999),
+      );
 
     const mesaOut: CartaMesa = {
       id_mesa: mesa.id_mesa,
@@ -142,7 +143,6 @@ const solicitudSchema = z.object({
   idMesa: z.string().uuid(),
   tipo: z.enum(["PEDIR_MAS", "CUENTA", "TOMAR_PEDIDO"]),
 });
-
 
 export interface EstadoMesaPublico {
   id_mesa: string;

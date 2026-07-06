@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Coins, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +21,6 @@ export const Route = createFileRoute("/_app/configuracion/propinas")({
 
 function PropinasConfigPage() {
   const qc = useQueryClient();
-  const updateProp = useServerFn(updateNegocioPropinas);
 
   const { data, isLoading } = useQuery({
     queryKey: ["negocio-config"],
@@ -36,7 +34,7 @@ function PropinasConfigPage() {
   }, [data]);
 
   const mut = useMutation({
-    mutationFn: (pct: number) => updateProp({ data: { porcentaje_retencion_propina: pct } }),
+    mutationFn: (pct: number) => updateNegocioPropinas({ porcentaje_retencion_propina: pct }),
     onSuccess: () => {
       toast.success("Porcentaje actualizado");
       qc.invalidateQueries({ queryKey: ["negocio-config"] });

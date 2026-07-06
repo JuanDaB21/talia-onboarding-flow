@@ -7,13 +7,7 @@ const ROLES_UI = ["ADMIN", "CAJERO", "MESERO", "COCINA", "BARRA", "ESTACION"] as
 const rolEnum = z.enum(ROLES_UI);
 const estadoEnum = z.enum(["ACTIVO", "INACTIVO"]);
 
-const passwordRules = z
-  .string()
-  .min(8)
-  .max(72)
-  .regex(/[A-Z]/)
-  .regex(/[a-z]/)
-  .regex(/[0-9]/);
+const passwordRules = z.string().min(8).max(72).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/);
 
 async function getCallerNegocio(userId: string): Promise<string> {
   const { data, error } = await supabaseAdmin
@@ -27,10 +21,7 @@ async function getCallerNegocio(userId: string): Promise<string> {
   return data.id_negocio;
 }
 
-async function assertTargetSameNegocio(
-  idUsuarioTarget: string,
-  idNegocio: string,
-) {
+async function assertTargetSameNegocio(idUsuarioTarget: string, idNegocio: string) {
   const { data, error } = await supabaseAdmin
     .from("usuarios_staff")
     .select("id_negocio, rol")
@@ -59,35 +50,31 @@ export const crearUsuarioStaff = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const idNegocio = await getCallerNegocio(context.userId);
 
-    const esEstacion =
-      data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
+    const esEstacion = data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
     if (esEstacion && !data.id_espacio_asignado) {
       throw new Error("Selecciona el espacio de trabajo");
     }
 
-    const { data: created, error: authErr } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: data.correo,
-        password: data.password,
-        email_confirm: true,
-      });
+    const { data: created, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.correo,
+      password: data.password,
+      email_confirm: true,
+    });
     if (authErr || !created?.user) {
       throw new Error(authErr?.message ?? "No se pudo crear el usuario");
     }
 
     const newUserId = created.user.id;
-    const { error: insErr } = await supabaseAdmin
-      .from("usuarios_staff")
-      .insert({
-        id_usuario: newUserId,
-        id_negocio: idNegocio,
-        nombre: data.nombre,
-        correo: data.correo,
-        rol: data.rol,
-        id_espacio_asignado: esEstacion ? data.id_espacio_asignado ?? null : null,
-        estado: data.estado ? "ACTIVO" : "INACTIVO",
-        recibe_propinas: data.recibe_propinas,
-      });
+    const { error: insErr } = await supabaseAdmin.from("usuarios_staff").insert({
+      id_usuario: newUserId,
+      id_negocio: idNegocio,
+      nombre: data.nombre,
+      correo: data.correo,
+      rol: data.rol,
+      id_espacio_asignado: esEstacion ? (data.id_espacio_asignado ?? null) : null,
+      estado: data.estado ? "ACTIVO" : "INACTIVO",
+      recibe_propinas: data.recibe_propinas,
+    });
 
     if (insErr) {
       await supabaseAdmin.auth.admin.deleteUser(newUserId).catch(() => {});
@@ -116,8 +103,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
     const idNegocio = await getCallerNegocio(context.userId);
     await assertTargetSameNegocio(data.id_usuario, idNegocio);
 
-    const esEstacion =
-      data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
+    const esEstacion = data.rol === "COCINA" || data.rol === "BARRA" || data.rol === "ESTACION";
     if (esEstacion && !data.id_espacio_asignado) {
       throw new Error("Selecciona el espacio de trabajo");
     }
@@ -127,7 +113,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
       .update({
         nombre: data.nombre,
         rol: data.rol,
-        id_espacio_asignado: esEstacion ? data.id_espacio_asignado ?? null : null,
+        id_espacio_asignado: esEstacion ? (data.id_espacio_asignado ?? null) : null,
         estado: data.estado ? "ACTIVO" : "INACTIVO",
         recibe_propinas: data.recibe_propinas,
       })
@@ -137,10 +123,9 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
     if (data.password && data.password.length > 0) {
       const parsed = passwordRules.safeParse(data.password);
       if (!parsed.success) throw new Error("Contraseña inválida");
-      const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(
-        data.id_usuario,
-        { password: data.password },
-      );
+      const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(data.id_usuario, {
+        password: data.password,
+      });
       if (pwErr) throw new Error(pwErr.message);
     }
 
@@ -149,9 +134,7 @@ export const actualizarUsuarioStaff = createServerFn({ method: "POST" })
 
 export const eliminarUsuarioStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ id_usuario: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ id_usuario: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const idNegocio = await getCallerNegocio(context.userId);
     await assertTargetSameNegocio(data.id_usuario, idNegocio);
@@ -162,9 +145,7 @@ export const eliminarUsuarioStaff = createServerFn({ method: "POST" })
       .eq("id_usuario", data.id_usuario);
     if (delErr) throw new Error(delErr.message);
 
-    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(
-      data.id_usuario,
-    );
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(data.id_usuario);
     if (authErr) throw new Error(authErr.message);
 
     return { ok: true };
@@ -173,9 +154,7 @@ export const eliminarUsuarioStaff = createServerFn({ method: "POST" })
 export const inhabilitarStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({ id_usuario: z.string().uuid().optional() })
-      .parse(input ?? {}),
+    z.object({ id_usuario: z.string().uuid().optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const callerId = context.userId;
@@ -193,11 +172,7 @@ export const inhabilitarStaff = createServerFn({ method: "POST" })
         .eq("id_usuario", callerId)
         .maybeSingle();
       const rolCaller = caller?.rol;
-      if (
-        rolCaller !== "ADMIN" &&
-        rolCaller !== "SUPERADMIN" &&
-        rolCaller !== "CAJERO"
-      ) {
+      if (rolCaller !== "ADMIN" && rolCaller !== "SUPERADMIN" && rolCaller !== "CAJERO") {
         throw new Error("No autorizado");
       }
       await assertTargetSameNegocio(targetId, idNegocio);
@@ -216,10 +191,9 @@ export const inhabilitarStaff = createServerFn({ method: "POST" })
 
     // Si es mesero, reasignar sus mesas a otros meseros en turno
     if (target.rol === "MESERO") {
-      const { error: reasErr } = await supabaseAdmin.rpc(
-        "reasignar_mesas_de_mesero",
-        { p_mesero: targetId },
-      );
+      const { error: reasErr } = await supabaseAdmin.rpc("reasignar_mesas_de_mesero", {
+        p_mesero: targetId,
+      });
       if (reasErr) throw new Error(reasErr.message);
     }
 

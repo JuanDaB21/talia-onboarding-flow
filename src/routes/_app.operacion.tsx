@@ -3,7 +3,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, ExternalLink, UserX } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Users,
+  ExternalLink,
+  UserX,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +26,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RoleGate } from "@/components/admin/role-gate";
-import { getAlertasOperacion, getMesasOperacion, getPersonalEnTurno, type StaffEnTurno } from "@/lib/admin.functions";
+import {
+  getAlertasOperacion,
+  getMesasOperacion,
+  getPersonalEnTurno,
+  type StaffEnTurno,
+} from "@/lib/admin.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { inhabilitarStaff } from "@/lib/usuarios.functions";
 import { useMiStaff } from "@/hooks/use-mi-staff";
@@ -30,7 +43,7 @@ import { POLL } from "@/lib/query-config";
 export const Route = createFileRoute("/_app/operacion")({
   head: () => ({ meta: [{ title: "Operación en vivo — Talia" }] }),
   component: () => (
-    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
+    <RoleGate roles={["ADMIN", "SUPERADMIN", "CAJERO"]}>
       <OperacionPage />
     </RoleGate>
   ),
@@ -113,12 +126,7 @@ function PagosPendientes() {
                 </div>
               </div>
               {p.url_comprobante && (
-                <a
-                  href={p.url_comprobante}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="shrink-0"
-                >
+                <a href={p.url_comprobante} target="_blank" rel="noreferrer" className="shrink-0">
                   <img
                     src={p.url_comprobante}
                     alt="Comprobante"
@@ -165,10 +173,9 @@ function PagosPendientes() {
 }
 
 function Alertas() {
-  const fn = useServerFn(getAlertasOperacion);
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-operacion"],
-    queryFn: () => fn(),
+    queryFn: () => getAlertasOperacion(),
     ...POLL.LIVE,
   });
   const alertas = data?.alertas ?? [];
@@ -194,7 +201,8 @@ function Alertas() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">
-                    {a.producto} <span className="text-muted-foreground">· Mesa {a.identificador_mesa}</span>
+                    {a.producto}{" "}
+                    <span className="text-muted-foreground">· Mesa {a.identificador_mesa}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {a.destino ?? "—"} · {a.estado_preparacion}
@@ -227,12 +235,11 @@ function Alertas() {
 }
 
 function PersonalTurno() {
-  const fn = useServerFn(getPersonalEnTurno);
   const qc = useQueryClient();
   const { staff: yo } = useMiStaff();
   const { data, isLoading } = useQuery({
     queryKey: ["personal-turno"],
-    queryFn: () => fn(),
+    queryFn: () => getPersonalEnTurno(),
     ...POLL.NORMAL,
   });
   const staff = data?.staff ?? [];
@@ -274,7 +281,10 @@ function PersonalTurno() {
           const esYo = yo?.id_usuario === s.id_usuario;
           const esSuper = s.rol === "SUPERADMIN";
           return (
-            <div key={s.id_usuario} className="flex items-center justify-between gap-2 rounded-md border p-2">
+            <div
+              key={s.id_usuario}
+              className="flex items-center justify-between gap-2 rounded-md border p-2"
+            >
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium">{s.nombre}</div>
                 <div className="text-xs text-muted-foreground">
@@ -309,12 +319,10 @@ function PersonalTurno() {
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              ¿Inhabilitar a {target?.nombre}?
-            </AlertDialogTitle>
+            <AlertDialogTitle>¿Inhabilitar a {target?.nombre}?</AlertDialogTitle>
             <AlertDialogDescription>
-              La cuenta quedará INACTIVA y se cerrará su turno. Un administrador
-              deberá reactivarla desde Configuración para volver a ingresar.
+              La cuenta quedará INACTIVA y se cerrará su turno. Un administrador deberá reactivarla
+              desde Configuración para volver a ingresar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -337,10 +345,9 @@ function PersonalTurno() {
 }
 
 function MesasGrid() {
-  const fn = useServerFn(getMesasOperacion);
   const { data, isLoading } = useQuery({
     queryKey: ["mesas-operacion"],
-    queryFn: () => fn(),
+    queryFn: () => getMesasOperacion(),
     ...POLL.LIVE,
   });
   const mesas = data?.mesas ?? [];

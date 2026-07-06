@@ -140,9 +140,7 @@ export const guardarVariantesReceta = createServerFn({ method: "POST" })
         precio_delta: Number(o.precio_delta ?? 0),
         orden: oi,
       }));
-      const { error: oInsErr } = await supabase
-        .from("producto_variante_opciones")
-        .insert(rows);
+      const { error: oInsErr } = await supabase.from("producto_variante_opciones").insert(rows);
       if (oInsErr) throw new Error(oInsErr.message);
     }
 

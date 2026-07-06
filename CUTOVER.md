@@ -41,19 +41,22 @@ Por cada módulo (empezar por `servicio` o `caja`):
 ## Estado del cutover
 
 **Ya en REST (`@/lib/api-client`):** `servicio` (incl. catálogo/opciones/sesión), `pagos`
-(incl. pendientes/resumen-turno), `turno`, `caja` (incl. getCierre), `negocio` (config/apariencia),
-`reservas`, `preparacion` (+ realtime por `@/lib/realtime-client`).
+(incl. pendientes/resumen-turno), `turno`, `caja` (incl. getCierre), `negocio` (config/apariencia
++ **propinas**), `reservas`, `preparacion` (+ realtime por `@/lib/realtime-client`),
+`propinas`, `espacios`, `bodegas` (gestión), `bonos`, `admin`/analítica, `metodos-pago`,
+`mesas` (configuración, + realtime), `impresión`. **Storage** helper `src/lib/storage.ts`
+(subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
 **Aún en Supabase** (con su razón):
-- `admin`/analítica, `bonos`, `metodos-pago`, `espacios`, `propinas`, `variantes` — backend **no los
-  expone todavía**.
-- `bodegas` (gestión) — backend no expone crear/renombrar/toggle bodega y `GET /bodega/bodegas` no
-  agrega `espacios_principales`; se dejó entero en Supabase para no degradar `listarBodegas`.
-- `prepedido` — flujo público con `supabaseAdmin` + excepción de "prepedido en vivo de la mesa".
-- `negocio.updateNegocioPropinas` — única excepción del módulo negocio (backend `PATCH /negocio` no
-  acepta `porcentaje_retencion_propina`).
-- **Menú inline** (categorías/subcategorías/productos), **mesas** (configuración), **Storage** de
-  imágenes (`producto-imagenes`, `negocio-logos`, `qr-metodos-pago`), **Auth shim** y **impresión**.
+- **Menú inline** (categorías/subcategorías/productos, recetas, receta-builder, recetas-table) —
+  usa `crear_receta`/`actualizar_receta` (ya existen) + CRUD cat/subcat/productos (`/menu/*` ya en
+  backend §2); falta el repunte del front + subida de imágenes de producto por `/storage`.
+- `variantes` — el backend **no expone** endpoints (no está en §1–§11).
+- **Storage** de imágenes de **producto** (`producto-imagenes`→`producto`) y **logo**
+  (`negocio-logos`→`logo`) en `producto-form` y `configuracion/apariencia` — falta migrar a `/storage`.
+- `menu-publico` y flujo público de `prepedido` (`supabaseAdmin`) — el backend ya cubre carta/prepedido
+  (`/carta/*`, `/prepedido/*`, incl. `GET /prepedido/mesas/:id` en vivo); falta repuntar el front.
+- **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.
 
 ## Pendiente para llegar a 0% Supabase
 
@@ -64,26 +67,25 @@ Por cada módulo (empezar por `servicio` o `caja`):
 Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versión Supabase por la REST
 (mismo patrón que caja/reservas/preparación), quitar `useServerFn`, y actualizar consumidores.
 
-- [ ] **propinas** → `getPropinasPorUsuario` a `GET /propinas/por-usuario`; `updateNegocioPropinas`
+- [x] **propinas** → `getPropinasPorUsuario` a `GET /propinas/por-usuario`; `updateNegocioPropinas`
       a `PATCH /negocio` (backend §6). Elimina la última excepción de `negocio`.
-- [ ] **espacios** → `/espacios` CRUD (backend §3).
-- [ ] **metodos-pago** → `/metodos-pago` CRUD + subir QR por `/storage/upload-url` (backend §4).
+- [x] **espacios** → `/espacios` CRUD (backend §3).
+- [x] **metodos-pago** → `/metodos-pago` CRUD + subir QR por `/storage/upload-url` (backend §4).
 - [ ] **menú (categorías/subcategorías/productos)** → mover el inline `supabase.from` de
       `categorias-master-detail`, `productos-tab`, `producto-form`, `receta-builder`, `recetas-table`
-      a `/menu/*` (recetas/extras/destino ya existen; faltan cat/subcat/productos CRUD, backend §2).
-- [ ] **bodegas (gestión)** → `/bodega/bodegas` (crear/renombrar/toggle) + `espacios_principales`
+      a `/menu/*` (recetas/extras/destino ya existen; cat/subcat/productos CRUD ya en backend §2).
+- [x] **bodegas (gestión)** → `/bodega/bodegas` (crear/renombrar/toggle) + `espacios_principales`
       en el listado (backend §1).
-- [ ] **bonos** → `/bonos` CRUD + previsualizar + historial (backend §5).
-- [ ] **admin/analítica** → `/analytics/*` (backend §7).
-- [ ] **mesas (configuración)** → `/mesas` CRUD (backend §8).
-- [ ] **carta pública / menu-publico** → endpoints públicos de menú (backend §9).
-- [ ] **prepedido** → confirmar cobertura pública + `aceptar_prepedido_mesa` + endpoint autenticado
-      de prepedido en vivo de la mesa (backend §10).
-- [ ] **impresión** → config `espacio_impresora` por REST (backend §11).
-- [ ] **Storage de imágenes** → cambiar `supabase.storage.upload/getPublicUrl/remove` por el flujo
-      `POST /storage/upload-url` (PUT prefirmado) y guardar la `path` que devuelve. Buckets → scopes:
-      `producto-imagenes`→`producto`, `negocio-logos`→`logo`, `qr-metodos-pago`→`qr`,
-      comprobantes→`comprobante`. (**No requiere backend**, ya existe `/api/storage/*`.)
+- [x] **bonos** → `/bonos` CRUD + previsualizar + historial (backend §5).
+- [x] **admin/analítica** → `/analytics/*` (backend §7).
+- [x] **mesas (configuración)** → `/mesas` CRUD (backend §8).
+- [ ] **carta pública / menu-publico** → repuntar a `/carta/:idMesa/state` y `/cuenta` (backend §9, ya vivo).
+- [ ] **prepedido** → repuntar público a `/prepedido/public/*` y `getPrepedidoMesa` a
+      `GET /prepedido/mesas/:id` (backend §10, ya vivo).
+- [x] **impresión** → config `espacio_impresora` por REST (backend §11).
+- [~] **Storage de imágenes** → helper `src/lib/storage.ts` creado; **hecho** para QR (`qr`) y
+      comprobantes (`comprobante`). **Falta** producto (`producto-imagenes`→`producto`) en `producto-form`
+      y logo (`negocio-logos`→`logo`) en `configuracion/apariencia`.
 
 ### Cierre final (cuando no quede ningún `supabase.*`)
 

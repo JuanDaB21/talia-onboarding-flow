@@ -1,18 +1,12 @@
 import { useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Camera, Loader2, QrCode, Trash2, Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadToStorage, usePrivImage } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   listarMetodosPagoQr,
   guardarMetodoPagoQr,
@@ -30,16 +24,14 @@ const FIJAS: Plataforma[] = ["Nequi", "Daviplata", "Bancolombia"];
 
 export function MetodosPagoTab({ idNegocio }: Props) {
   const qc = useQueryClient();
-  const listar = useServerFn(listarMetodosPagoQr);
-  const eliminar = useServerFn(eliminarMetodoPagoQr);
 
   const q = useQuery({
     queryKey: ["metodosPagoQr"],
-    queryFn: () => listar(),
+    queryFn: () => listarMetodosPagoQr(),
   });
 
   const elimMut = useMutation({
-    mutationFn: (idQr: string) => eliminar({ data: { idQr } }),
+    mutationFn: (idQr: string) => eliminarMetodoPagoQr({ idQr }),
     onSuccess: () => {
       toast.success("QR eliminado");
       qc.invalidateQueries({ queryKey: ["metodosPagoQr"] });
@@ -50,10 +42,10 @@ export function MetodosPagoTab({ idNegocio }: Props) {
       }),
   });
 
-  const [edit, setEdit] = useState<
-    | { plataforma: Plataforma; registro: MetodoPagoQr | null }
-    | null
-  >(null);
+  const [edit, setEdit] = useState<{
+    plataforma: Plataforma;
+    registro: MetodoPagoQr | null;
+  } | null>(null);
 
   const all = q.data ?? [];
   const otras = all.filter((m) => m.plataforma === "Otra");
@@ -61,8 +53,7 @@ export function MetodosPagoTab({ idNegocio }: Props) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Sube el QR de cada plataforma. El mesero podrá mostrarlo al cliente al
-        cobrar.
+        Sube el QR de cada plataforma. El mesero podrá mostrarlo al cliente al cobrar.
       </p>
 
       {q.isLoading ? (
@@ -136,19 +127,15 @@ function QrCard({
   onDelete: () => void;
   deleting: boolean;
 }) {
-  const titulo =
-    plataforma === "Otra" && registro?.etiqueta
-      ? registro.etiqueta
-      : plataforma;
+  const titulo = plataforma === "Otra" && registro?.etiqueta ? registro.etiqueta : plataforma;
+  const qrUrl = usePrivImage(registro?.signed_url);
   return (
     <div className="rounded-xl border bg-card p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{titulo}</h3>
           {registro?.titular && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {registro.titular}
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{registro.titular}</p>
           )}
         </div>
         {registro && (
@@ -164,22 +151,13 @@ function QrCard({
         )}
       </div>
       <div className="aspect-square rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-        {registro?.signed_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={registro.signed_url}
-            alt={`QR ${titulo}`}
-            className="h-full w-full object-contain bg-white"
-          />
+        {qrUrl ? (
+          <img src={qrUrl} alt={`QR ${titulo}`} className="h-full w-full object-contain bg-white" />
         ) : (
           <QrCode className="h-12 w-12 text-muted-foreground/50" />
         )}
       </div>
-      <Button
-        variant={registro ? "outline" : "default"}
-        size="sm"
-        onClick={onEdit}
-      >
+      <Button variant={registro ? "outline" : "default"} size="sm" onClick={onEdit}>
         {registro ? "Cambiar QR" : "Subir QR"}
       </Button>
     </div>
@@ -199,13 +177,12 @@ function EditarQrDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const guardar = useServerFn(guardarMetodoPagoQr);
   const [etiqueta, setEtiqueta] = useState(registro?.etiqueta ?? "");
   const [titular, setTitular] = useState(registro?.titular ?? "");
   const [path, setPath] = useState<string | null>(registro?.url_qr ?? null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    registro?.signed_url ?? null,
-  );
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const existingUrl = usePrivImage(registro?.signed_url);
+  const previewUrl = localPreview ?? existingUrl;
   const [subiendo, setSubiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -219,14 +196,9 @@ function EditarQrDialog({
     }
     setSubiendo(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "png";
-      const newPath = `${idNegocio}/${plataforma.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage
-        .from("qr-metodos-pago")
-        .upload(newPath, file, { contentType: file.type, upsert: false });
-      if (error) throw error;
+      const { path: newPath } = await uploadToStorage("qr", file);
       setPath(newPath);
-      setPreviewUrl(URL.createObjectURL(file));
+      setLocalPreview(URL.createObjectURL(file));
     } catch (err) {
       toast.error("No se pudo subir", {
         description: err instanceof Error ? err.message : undefined,
@@ -248,14 +220,12 @@ function EditarQrDialog({
     }
     setGuardando(true);
     try {
-      await guardar({
-        data: {
-          idQr: registro?.id_qr,
-          plataforma,
-          etiqueta: plataforma === "Otra" ? etiqueta.trim() : null,
-          titular: titular.trim() || null,
-          path,
-        },
+      await guardarMetodoPagoQr({
+        idQr: registro?.id_qr,
+        plataforma,
+        etiqueta: plataforma === "Otra" ? etiqueta.trim() : null,
+        titular: titular.trim() || null,
+        path,
       });
       toast.success("QR guardado");
       onSaved();
