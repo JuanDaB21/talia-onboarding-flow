@@ -37,7 +37,6 @@ interface Props {
 
 export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: Props) {
   const qc = useQueryClient();
-  const getOps = useServerFn(getOpcionesProductoPublico);
   const editFn = useServerFn(editarItemPrepedidoStaff);
 
   const [cantidad, setCantidad] = useState(1);
@@ -49,8 +48,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesPublico", idMesa, item?.id_producto],
-    queryFn: () =>
-      getOps({ data: { idMesa, idProducto: item!.id_producto } }),
+    queryFn: () => getOpcionesProductoPublico({ idMesa, idProducto: item!.id_producto }),
     enabled: !!item && open,
   });
 
@@ -84,7 +82,9 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
     const varSum = (ops?.variantes ?? []).reduce((acc, g) => {
       const sel = variantes.get(g.id_grupo);
       if (!sel) return acc;
-      return acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0);
+      return (
+        acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0)
+      );
     }, 0);
     return cantidad * (item.precio_unitario + extrasSum + varSum);
   }, [ops, extras, variantes, cantidad, item]);
@@ -174,9 +174,7 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
               >
                 <Minus className="h-4 w-4" />
               </Button>
-              <span className="text-2xl font-bold tabular-nums w-10 text-center">
-                {cantidad}
-              </span>
+              <span className="text-2xl font-bold tabular-nums w-10 text-center">{cantidad}</span>
               <Button
                 type="button"
                 size="icon"
@@ -249,10 +247,9 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
                   </Label>
                   <div className="space-y-1.5">
                     {ops!.extras.map((e) => {
-                      const id = e.id_insumo_extra as string;
+                      const id = e.id_insumo_extra;
                       const checked = extras.has(id);
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const nombre = ((e as any).insumos?.nombre_insumo as string) ?? "Extra";
+                      const nombre = e.nombre_insumo ?? "Extra";
                       return (
                         <button
                           key={id}
@@ -282,10 +279,9 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
                   </Label>
                   <div className="flex flex-wrap gap-1.5">
                     {ops!.ingredientes.map((ing) => {
-                      const id = ing.id_insumo as string;
+                      const id = ing.id_insumo;
                       const off = exclus.has(id);
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const nombre = ((ing as any).insumos?.nombre_insumo as string) ?? "—";
+                      const nombre = ing.nombre_insumo ?? "—";
                       return (
                         <Badge
                           key={id}
@@ -304,7 +300,10 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="nota-staff" className="text-xs uppercase tracking-wide text-muted-foreground">
+            <Label
+              htmlFor="nota-staff"
+              className="text-xs uppercase tracking-wide text-muted-foreground"
+            >
               Nota para el chef
             </Label>
             <Textarea

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Minus, Plus } from "lucide-react";
@@ -55,9 +54,6 @@ export function PrepedidoItemEditor({
 }: Props) {
   void theme;
   const qc = useQueryClient();
-  const getOps = useServerFn(getOpcionesProductoPublico);
-  const addFn = useServerFn(agregarItemPrepedido);
-  const editFn = useServerFn(editarItemPrepedido);
 
   const idProducto = editing?.id_producto ?? producto?.id_producto ?? null;
   const precioBase = editing?.precio_unitario ?? producto?.precio_venta ?? 0;
@@ -73,8 +69,7 @@ export function PrepedidoItemEditor({
 
   const { data: ops, isLoading } = useQuery({
     queryKey: ["opcionesPublico", idMesa, idProducto],
-    queryFn: () =>
-      getOps({ data: { idMesa, idProducto: idProducto! } }),
+    queryFn: () => getOpcionesProductoPublico({ idMesa, idProducto: idProducto! }),
     enabled: !!idProducto && open,
   });
 
@@ -118,44 +113,38 @@ export function PrepedidoItemEditor({
       const sel = variantes.get(g.id_grupo);
       if (!sel) return acc;
       return (
-        acc +
-        g.opciones
-          .filter((o) => sel.has(o.id_opcion))
-          .reduce((a, o) => a + o.precio_delta, 0)
+        acc + g.opciones.filter((o) => sel.has(o.id_opcion)).reduce((a, o) => a + o.precio_delta, 0)
       );
     }, 0);
     return cantidad * (precioBase + extrasSum + variantesSum);
   }, [ops, extras, variantes, cantidad, precioBase]);
 
   const mut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (editing) {
-        return editFn({
-          data: {
-            idItem: editing.id_prepedido_item,
-            idCliente,
-            cantidad,
-            tieneAlergia: alergia,
-            nota,
-            extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
-            exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
-            variantes: variantesArr,
-          },
-        });
-      }
-      return addFn({
-        data: {
-          idMesa,
-          idSesion,
+        await editarItemPrepedido({
+          idItem: editing.id_prepedido_item,
           idCliente,
-          idProducto: idProducto!,
           cantidad,
           tieneAlergia: alergia,
           nota,
           extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
           exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
           variantes: variantesArr,
-        },
+        });
+        return;
+      }
+      await agregarItemPrepedido({
+        idMesa,
+        idSesion,
+        idCliente,
+        idProducto: idProducto!,
+        cantidad,
+        tieneAlergia: alergia,
+        nota,
+        extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
+        exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+        variantes: variantesArr,
       });
     },
     onSuccess: () => {
@@ -233,8 +222,10 @@ export function PrepedidoItemEditor({
         <div className="px-5 py-5 space-y-6">
           {/* Cantidad */}
           <section className="space-y-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider"
-              style={{ color: "var(--menu-muted)" }}>
+            <h3
+              className="text-sm font-semibold uppercase tracking-wider"
+              style={{ color: "var(--menu-muted)" }}
+            >
               Cantidad
             </h3>
             <div className="flex items-center gap-3">
@@ -250,9 +241,7 @@ export function PrepedidoItemEditor({
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="text-2xl font-bold tabular-nums w-10 text-center">
-                {cantidad}
-              </span>
+              <span className="text-2xl font-bold tabular-nums w-10 text-center">{cantidad}</span>
               <button
                 type="button"
                 onClick={() => setCantidad((c) => Math.min(50, c + 1))}
@@ -340,9 +329,7 @@ export function PrepedidoItemEditor({
                             }}
                           >
                             <span className="min-w-0 flex-1">
-                              <span className="block font-medium text-sm">
-                                {o.nombre_opcion}
-                              </span>
+                              <span className="block font-medium text-sm">{o.nombre_opcion}</span>
                               {o.cantidad_porcion > 0 && (
                                 <span
                                   className="block text-xs mt-0.5"
@@ -370,18 +357,18 @@ export function PrepedidoItemEditor({
 
               {(ops?.extras?.length ?? 0) > 0 && (
                 <section className="space-y-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider"
-                    style={{ color: "var(--menu-muted)" }}>
+                  <h3
+                    className="text-sm font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--menu-muted)" }}
+                  >
                     Extras
                   </h3>
                   <div className="space-y-2">
                     {ops!.extras.map((e) => {
-                      const id = e.id_insumo_extra as string;
+                      const id = e.id_insumo_extra;
                       const checked = extras.has(id);
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const insumo = (e as any).insumos ?? {};
-                      const nombre = (insumo.nombre_insumo as string) ?? "Extra";
-                      const unidad = (insumo.unidad_receta as string) ?? "";
+                      const nombre = e.nombre_insumo ?? "Extra";
+                      const unidad = e.unidad_receta ?? "";
                       const cantidad = Number(e.cantidad_porcion ?? 0);
                       const precio = Number(e.precio_extra);
                       return (
@@ -428,16 +415,17 @@ export function PrepedidoItemEditor({
 
               {(ops?.ingredientes?.length ?? 0) > 0 && (
                 <section className="space-y-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider"
-                    style={{ color: "var(--menu-muted)" }}>
+                  <h3
+                    className="text-sm font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--menu-muted)" }}
+                  >
                     Quitar ingredientes
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {ops!.ingredientes.map((ing) => {
-                      const id = ing.id_insumo as string;
+                      const id = ing.id_insumo;
                       const off = exclus.has(id);
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const nombre = ((ing as any).insumos?.nombre_insumo as string) ?? "—";
+                      const nombre = ing.nombre_insumo ?? "—";
                       return (
                         <button
                           key={id}
@@ -446,7 +434,9 @@ export function PrepedidoItemEditor({
                           className="px-3 py-1.5 text-sm transition-colors"
                           style={{
                             background: off ? "var(--menu-primary)" : "var(--menu-surface)",
-                            color: off ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+                            color: off
+                              ? "var(--menu-primary-foreground)"
+                              : "var(--menu-foreground)",
                             border: `1px solid ${off ? "var(--menu-primary)" : "var(--menu-border)"}`,
                             borderRadius: "999px",
                             textDecoration: off ? "line-through" : "none",
@@ -464,8 +454,10 @@ export function PrepedidoItemEditor({
 
           {/* Nota */}
           <section className="space-y-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider"
-              style={{ color: "var(--menu-muted)" }}>
+            <h3
+              className="text-sm font-semibold uppercase tracking-wider"
+              style={{ color: "var(--menu-muted)" }}
+            >
               Nota para el chef
             </h3>
             <textarea

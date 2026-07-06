@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -17,7 +16,6 @@ import {
 } from "@/lib/prepedido.functions";
 import { solicitarAccionCliente } from "@/lib/menu-publico.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
-
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -53,11 +51,9 @@ export function PrepedidoSheet({
   void theme;
   void idSesion;
   const qc = useQueryClient();
-  const delFn = useServerFn(eliminarItemPrepedido);
-  const solicitarFn = useServerFn(solicitarAccionCliente);
 
   const delMut = useMutation({
-    mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
+    mutationFn: (idItem: string) => eliminarItemPrepedido({ idItem, idCliente }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prepedido", idMesa] });
       toast.success("Eliminado");
@@ -69,8 +65,7 @@ export function PrepedidoSheet({
   });
 
   const completarMut = useMutation({
-    mutationFn: () =>
-      solicitarFn({ data: { idMesa, tipo: "TOMAR_PEDIDO" as const } }),
+    mutationFn: () => solicitarAccionCliente({ idMesa, tipo: "TOMAR_PEDIDO" }),
     onSuccess: () => {
       toast.success("¡Listo! Le avisamos a tu mesero 🛎️", {
         description: "Va en camino para tomar tu pedido.",
@@ -82,7 +77,6 @@ export function PrepedidoSheet({
         description: e instanceof Error ? e.message : undefined,
       }),
   });
-
 
   const grupos = useMemo(() => {
     if (!data) return [];
@@ -132,14 +126,10 @@ export function PrepedidoSheet({
           <div className="px-5 py-4 pb-40 space-y-5">
             {loading && !data ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-5 w-5 animate-spin"
-                  style={{ color: "var(--menu-muted)" }} />
+                <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--menu-muted)" }} />
               </div>
             ) : grupos.length === 0 ? (
-              <div
-                className="text-center py-12 px-4"
-                style={{ color: "var(--menu-muted)" }}
-              >
+              <div className="text-center py-12 px-4" style={{ color: "var(--menu-muted)" }}>
                 <p className="text-sm">
                   Aún no hay nada en el carrito. Toca un producto del menú para agregarlo.
                 </p>
@@ -154,9 +144,7 @@ export function PrepedidoSheet({
                       <div
                         className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold"
                         style={{
-                          background: propio
-                            ? "var(--menu-primary)"
-                            : "var(--menu-surface-2)",
+                          background: propio ? "var(--menu-primary)" : "var(--menu-surface-2)",
                           color: propio
                             ? "var(--menu-primary-foreground)"
                             : "var(--menu-foreground)",
@@ -165,9 +153,12 @@ export function PrepedidoSheet({
                         {inicial}
                       </div>
                       <p className="text-sm font-semibold">
-                        {sesion.nombre} {propio && (
-                          <span className="text-xs font-normal"
-                            style={{ color: "var(--menu-muted)" }}>
+                        {sesion.nombre}{" "}
+                        {propio && (
+                          <span
+                            className="text-xs font-normal"
+                            style={{ color: "var(--menu-muted)" }}
+                          >
                             (tú)
                           </span>
                         )}
@@ -191,26 +182,28 @@ export function PrepedidoSheet({
                                 {it.nombre_producto}
                               </p>
                               {it.tiene_alergia && (
-                                <p className="text-xs mt-1 inline-flex items-center gap-1"
-                                  style={{ color: "var(--menu-primary)" }}>
+                                <p
+                                  className="text-xs mt-1 inline-flex items-center gap-1"
+                                  style={{ color: "var(--menu-primary)" }}
+                                >
                                   <AlertTriangle className="h-3 w-3" /> alergia
                                 </p>
                               )}
                               {it.extras.length > 0 && (
-                                <p className="text-xs mt-1"
-                                  style={{ color: "var(--menu-muted)" }}>
+                                <p className="text-xs mt-1" style={{ color: "var(--menu-muted)" }}>
                                   + {it.extras.map((e) => e.nombre).join(", ")}
                                 </p>
                               )}
                               {it.exclusiones.length > 0 && (
-                                <p className="text-xs mt-1"
-                                  style={{ color: "var(--menu-muted)" }}>
+                                <p className="text-xs mt-1" style={{ color: "var(--menu-muted)" }}>
                                   Sin: {it.exclusiones.map((x) => x.nombre).join(", ")}
                                 </p>
                               )}
                               {it.nota && (
-                                <p className="text-xs mt-1 italic"
-                                  style={{ color: "var(--menu-muted)" }}>
+                                <p
+                                  className="text-xs mt-1 italic"
+                                  style={{ color: "var(--menu-muted)" }}
+                                >
                                   “{it.nota}”
                                 </p>
                               )}
@@ -266,13 +259,10 @@ export function PrepedidoSheet({
               }}
             >
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium"
-                  style={{ color: "var(--menu-muted)" }}>
+                <span className="text-sm font-medium" style={{ color: "var(--menu-muted)" }}>
                   Total parcial
                 </span>
-                <span className="text-2xl font-bold tabular-nums">
-                  {fmt.format(data.total)}
-                </span>
+                <span className="text-2xl font-bold tabular-nums">{fmt.format(data.total)}</span>
               </div>
               <button
                 type="button"
@@ -292,13 +282,11 @@ export function PrepedidoSheet({
                 )}
                 Pedido completado
               </button>
-              <p className="text-xs mt-2 text-center"
-                style={{ color: "var(--menu-muted)" }}>
+              <p className="text-xs mt-2 text-center" style={{ color: "var(--menu-muted)" }}>
                 Avisaremos al mesero para que venga a tomar tu pedido.
               </p>
             </div>
           )}
-
         </SheetContent>
       </Sheet>
     </>

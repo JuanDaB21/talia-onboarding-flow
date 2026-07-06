@@ -1,13 +1,7 @@
 // Data-access de servicio (mesero) vía REST del backend Talia.
 // Mismas firmas que el original (Supabase) para minimizar cambios en los componentes.
-//
-// Excepción: getPrepedidoMesa sigue como server function Supabase hasta que el backend
-// exponga un endpoint autenticado de "prepedido en vivo de la mesa" (vista mesero).
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { api } from "@/lib/api-client";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { cargarPrepedido, type PrepedidoData } from "@/lib/prepedido.functions";
+import type { PrepedidoData } from "@/lib/prepedido.functions";
 
 export interface MesaServicio {
   id_mesa: string;
@@ -230,19 +224,7 @@ export function obtenerMesaSesion(idMesa: string) {
   return api.post<MesaSesion>(`/servicio/mesas/${idMesa}/sesion`);
 }
 
-// ── Pre-pedido en vivo (vista mesero) — AÚN Supabase (falta endpoint autenticado) ──
-const prepedidoMesaInput = z.object({ idMesa: z.string().uuid() });
-export const getPrepedidoMesa = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => prepedidoMesaInput.parse(input))
-  .handler(async ({ data, context }): Promise<PrepedidoData> => {
-    const { supabase } = context;
-    const { data: mesa, error } = await supabase
-      .from("mesas")
-      .select("id_mesa")
-      .eq("id_mesa", data.idMesa)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!mesa) throw new Error("Mesa no encontrada");
-    return cargarPrepedido(data.idMesa);
-  });
+// ── Pre-pedido en vivo (vista mesero) — GET /prepedido/mesas/:id (autenticado) ──
+export function getPrepedidoMesa(idMesa: string): Promise<PrepedidoData> {
+  return api.get<PrepedidoData>(`/prepedido/mesas/${idMesa}`);
+}

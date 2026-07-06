@@ -5,7 +5,8 @@ import { Check, ImageIcon, Loader2, Trash2, Upload, ExternalLink } from "lucide-
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { listarMesas } from "@/lib/mesas.functions";
+import { publicUrl, uploadToStorage } from "@/lib/storage";
 import { getNegocioConfig, updateNegocioApariencia } from "@/lib/negocio.functions";
 import { MENU_THEMES, MENU_THEME_IDS, type MenuThemeId } from "@/lib/menu-themes";
 import { AdminGate } from "@/components/admin/admin-gate";
@@ -59,12 +60,16 @@ function AparienciaPage() {
   };
 
   const openPreview = async () => {
-    const { data: mesa } = await supabase
-      .from("mesas")
-      .select("id_mesa")
-      .eq("id_negocio", data.id_negocio)
-      .limit(1)
-      .maybeSingle();
+    let mesa: { id_mesa: string } | undefined;
+    try {
+      const mesas = await listarMesas();
+      mesa = mesas[0];
+    } catch (e) {
+      toast.error("No se pudo abrir la vista previa", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+      return;
+    }
     if (!mesa) {
       toast.info("Crea al menos una mesa para abrir la vista previa");
       return;
@@ -145,14 +150,8 @@ function LogoCard({
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "png";
-      const path = `${idNegocio}/logo-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("negocio-logos")
-        .upload(path, file, { upsert: false, cacheControl: "3600" });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("negocio-logos").getPublicUrl(path);
-      onUpload(pub.publicUrl);
+      const { path } = await uploadToStorage("logo", file);
+      onUpload(path);
     } catch (e) {
       toast.error("No se pudo subir el logo", {
         description: e instanceof Error ? e.message : undefined,
@@ -168,7 +167,11 @@ function LogoCard({
       <div className="flex flex-col sm:flex-row sm:items-center gap-5">
         <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted">
           {urlLogo ? (
-            <img src={urlLogo} alt="Logo" className="h-full w-full object-contain" />
+            <img
+              src={publicUrl(urlLogo) ?? undefined}
+              alt="Logo"
+              className="h-full w-full object-contain"
+            />
           ) : (
             <ImageIcon className="h-8 w-8 text-muted-foreground" />
           )}
