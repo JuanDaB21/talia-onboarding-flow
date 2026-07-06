@@ -21,7 +21,21 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  type Categoria,
+  type Subcategoria,
+  crearCategoria,
+  crearSubcategoria,
+  eliminarCategoria,
+  eliminarSubcategoria,
+  listarCategorias,
+  listarSubcategorias,
+  renombrarCategoria,
+  renombrarSubcategoria,
+  reordenarCategorias,
+  reordenarSubcategorias,
+  setCategoriaDestino,
+} from "@/lib/menu.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +58,6 @@ import {
   type SubcategoriaInput,
 } from "@/lib/menu-schemas";
 
-interface Categoria { id_categoria: string; nombre: string; destino: string; orden: number }
-interface Subcategoria { id_subcategoria: string; nombre: string; id_categoria: string; orden: number }
-
 export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const [cats, setCats] = useState<Categoria[]>([]);
   const [subs, setSubs] = useState<Subcategoria[]>([]);
@@ -54,23 +65,28 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
   const [loading, setLoading] = useState(true);
 
   const [catSheet, setCatSheet] = useState<{ open: boolean; editing?: Categoria }>({ open: false });
-  const [subSheet, setSubSheet] = useState<{ open: boolean; editing?: Subcategoria }>({ open: false });
+  const [subSheet, setSubSheet] = useState<{ open: boolean; editing?: Subcategoria }>({
+    open: false,
+  });
   const [delCat, setDelCat] = useState<Categoria | null>(null);
   const [delSub, setDelSub] = useState<Subcategoria | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: cData }, { data: sData }] = await Promise.all([
-      supabase.from("categorias").select("id_categoria, nombre, destino, orden").order("orden").order("nombre"),
-      supabase.from("subcategorias").select("id_subcategoria, nombre, id_categoria, orden").order("orden").order("nombre"),
-    ]);
-    setCats((cData as Categoria[]) ?? []);
-    setSubs((sData as Subcategoria[]) ?? []);
-    setLoading(false);
+    try {
+      const [cData, sData] = await Promise.all([listarCategorias(), listarSubcategorias()]);
+      setCats(cData ?? []);
+      setSubs(sData ?? []);
+    } catch (e) {
+      toast.error("Error al cargar", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const autoSelected = useRef(false);
   useEffect(() => {
@@ -99,20 +115,16 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
     kind: "categorias" | "subcategorias",
     items: Array<{ id: string; orden: number }>,
   ) => {
-    const results = await Promise.all(
-      items.map((it) =>
-        kind === "categorias"
-          ? supabase.from("categorias").update({ orden: it.orden }).eq("id_categoria", it.id)
-          : supabase.from("subcategorias").update({ orden: it.orden }).eq("id_subcategoria", it.id),
-      ),
-    );
-    const err = results.find((r) => r.error)?.error;
-    if (err) {
-      toast.error("No se pudo guardar el orden", { description: err.message });
+    try {
+      if (kind === "categorias") await reordenarCategorias(items);
+      else await reordenarSubcategorias(items);
+    } catch (e) {
+      toast.error("No se pudo guardar el orden", {
+        description: e instanceof Error ? e.message : undefined,
+      });
       load();
     }
   };
-
 
   const handleCatDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -126,7 +138,6 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
       "categorias",
       next.map((c) => ({ id: c.id_categoria, orden: c.orden })),
     );
-
   };
 
   const handleSubDragEnd = (e: DragEndEvent) => {
@@ -136,15 +147,11 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
     const newIdx = subsOf.findIndex((s) => s.id_subcategoria === over.id);
     if (oldIdx < 0 || newIdx < 0) return;
     const nextSubsOf = arrayMove(subsOf, oldIdx, newIdx).map((s, i) => ({ ...s, orden: i }));
-    setSubs((prev) => [
-      ...prev.filter((s) => s.id_categoria !== selected),
-      ...nextSubsOf,
-    ]);
+    setSubs((prev) => [...prev.filter((s) => s.id_categoria !== selected), ...nextSubsOf]);
     persistOrden(
       "subcategorias",
       nextSubsOf.map((s) => ({ id: s.id_subcategoria, orden: s.orden })),
     );
-
   };
 
   return (
@@ -163,8 +170,15 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           ) : cats.length === 0 ? (
             <p className="p-4 text-sm text-muted-foreground">Aún no hay categorías.</p>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCatDragEnd}>
-              <SortableContext items={cats.map((c) => c.id_categoria)} strategy={verticalListSortingStrategy}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCatDragEnd}
+            >
+              <SortableContext
+                items={cats.map((c) => c.id_categoria)}
+                strategy={verticalListSortingStrategy}
+              >
                 {cats.map((c) => (
                   <SortableCategoria
                     key={c.id_categoria}
@@ -197,13 +211,28 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           </div>
           {selectedCat && (
             <div className="flex shrink-0 items-center gap-0.5">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCatSheet({ open: true, editing: selectedCat })}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => setCatSheet({ open: true, editing: selectedCat })}
+              >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDelCat(selectedCat)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive"
+                onClick={() => setDelCat(selectedCat)}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-              <Button size="icon" className="h-8 w-8" onClick={() => setSubSheet({ open: true })} aria-label="Agregar subcategoría">
+              <Button
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSubSheet({ open: true })}
+                aria-label="Agregar subcategoría"
+              >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -211,12 +240,23 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
         </div>
         <div className="divide-y">
           {!selectedCat ? (
-            <p className="p-6 text-sm text-muted-foreground text-center">Selecciona una categoría para ver sus subcategorías.</p>
+            <p className="p-6 text-sm text-muted-foreground text-center">
+              Selecciona una categoría para ver sus subcategorías.
+            </p>
           ) : subsOf.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground text-center">Esta categoría aún no tiene subcategorías.</p>
+            <p className="p-6 text-sm text-muted-foreground text-center">
+              Esta categoría aún no tiene subcategorías.
+            </p>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubDragEnd}>
-              <SortableContext items={subsOf.map((s) => s.id_subcategoria)} strategy={verticalListSortingStrategy}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSubDragEnd}
+            >
+              <SortableContext
+                items={subsOf.map((s) => s.id_subcategoria)}
+                strategy={verticalListSortingStrategy}
+              >
                 {subsOf.map((s) => (
                   <SortableSubcategoria
                     key={s.id_subcategoria}
@@ -231,7 +271,6 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
         </div>
       </div>
 
-
       <ResponsiveSheet
         open={catSheet.open}
         onOpenChange={(o) => setCatSheet({ open: o, editing: o ? catSheet.editing : undefined })}
@@ -241,7 +280,10 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
           key={catSheet.editing?.id_categoria ?? "new"}
           idNegocio={idNegocio}
           initial={catSheet.editing}
-          onDone={() => { setCatSheet({ open: false }); load(); }}
+          onDone={() => {
+            setCatSheet({ open: false });
+            load();
+          }}
           onCancel={() => setCatSheet({ open: false })}
         />
       </ResponsiveSheet>
@@ -257,7 +299,10 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
             idNegocio={idNegocio}
             idCategoria={selected}
             initial={subSheet.editing}
-            onDone={() => { setSubSheet({ open: false }); load(); }}
+            onDone={() => {
+              setSubSheet({ open: false });
+              load();
+            }}
             onCancel={() => setSubSheet({ open: false })}
           />
         )}
@@ -276,12 +321,20 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
             <AlertDialogAction
               onClick={async () => {
                 if (!delCat) return;
-                const { error } = await supabase.from("categorias").delete().eq("id_categoria", delCat.id_categoria);
-                if (error) toast.error("No se pudo eliminar", { description: error.message });
-                else { toast.success("Categoría eliminada"); load(); }
+                try {
+                  await eliminarCategoria({ id_categoria: delCat.id_categoria });
+                  toast.success("Categoría eliminada");
+                  load();
+                } catch (e) {
+                  toast.error("No se pudo eliminar", {
+                    description: e instanceof Error ? e.message : undefined,
+                  });
+                }
                 setDelCat(null);
               }}
-            >Eliminar</AlertDialogAction>
+            >
+              Eliminar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -290,19 +343,29 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar subcategoría?</AlertDialogTitle>
-            <AlertDialogDescription>No se podrá eliminar si tiene recetas asociadas.</AlertDialogDescription>
+            <AlertDialogDescription>
+              No se podrá eliminar si tiene recetas asociadas.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (!delSub) return;
-                const { error } = await supabase.from("subcategorias").delete().eq("id_subcategoria", delSub.id_subcategoria);
-                if (error) toast.error("No se pudo eliminar", { description: error.message });
-                else { toast.success("Subcategoría eliminada"); load(); }
+                try {
+                  await eliminarSubcategoria({ id_subcategoria: delSub.id_subcategoria });
+                  toast.success("Subcategoría eliminada");
+                  load();
+                } catch (e) {
+                  toast.error("No se pudo eliminar", {
+                    description: e instanceof Error ? e.message : undefined,
+                  });
+                }
                 setDelSub(null);
               }}
-            >Eliminar</AlertDialogAction>
+            >
+              Eliminar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -311,9 +374,21 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
 }
 
 function CategoriaFormInline({
-  idNegocio, initial, onDone, onCancel,
-}: { idNegocio: string; initial?: Categoria; onDone: () => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CategoriaInput>({
+  idNegocio,
+  initial,
+  onDone,
+  onCancel,
+}: {
+  idNegocio: string;
+  initial?: Categoria;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CategoriaInput>({
     resolver: zodResolver(categoriaSchema),
     defaultValues: { nombre: initial?.nombre ?? "" },
   });
@@ -328,157 +403,206 @@ function CategoriaFormInline({
   const [confirmMove, setConfirmMove] = useState<null | { nombreEspacio: string }>(null);
 
   const doSave = async (v: CategoriaInput) => {
-    if (initial) {
-      const nombreChanged = v.nombre !== initial.nombre;
-      const destinoChanged = destino !== (initial.destino ?? "").toUpperCase();
-      if (nombreChanged) {
-        const { error } = await supabase.from("categorias").update({ nombre: v.nombre }).eq("id_categoria", initial.id_categoria);
-        if (error) return toast.error("No se pudo actualizar", { description: error.message });
-      }
-      if (destinoChanged) {
-        const { data, error } = await supabase.rpc("set_categoria_destino", {
-          p_id_categoria: initial.id_categoria,
-          p_destino: destino,
-        });
-        if (error) return toast.error("No se pudo mover la categoría", { description: error.message });
-        const updated = (data as { updated_items?: number } | null)?.updated_items ?? 0;
-        toast.success("Categoría movida", {
-          description: updated > 0 ? `Se actualizaron ${updated} pedido(s) pendiente(s).` : undefined,
-        });
-      } else if (nombreChanged) {
-        toast.success("Categoría actualizada");
+    try {
+      if (initial) {
+        const nombreChanged = v.nombre !== initial.nombre;
+        const destinoChanged = destino !== (initial.destino ?? "").toUpperCase();
+        if (nombreChanged) {
+          await renombrarCategoria({ id_categoria: initial.id_categoria, nombre: v.nombre });
+        }
+        if (destinoChanged) {
+          const data = await setCategoriaDestino({ id_categoria: initial.id_categoria, destino });
+          const updated = data?.updated_items ?? 0;
+          toast.success("Categoría movida", {
+            description:
+              updated > 0 ? `Se actualizaron ${updated} pedido(s) pendiente(s).` : undefined,
+          });
+        } else if (nombreChanged) {
+          toast.success("Categoría actualizada");
+        } else {
+          toast.info("Sin cambios");
+        }
       } else {
-        toast.info("Sin cambios");
+        await crearCategoria({ nombre: v.nombre, destino });
+        toast.success("Categoría creada");
       }
-    } else {
-      const { data: maxRow } = await supabase.from("categorias").select("orden").eq("id_negocio", idNegocio).order("orden", { ascending: false }).limit(1).maybeSingle();
-      const nextOrden = (maxRow?.orden ?? -1) + 1;
-      const { error } = await supabase.from("categorias").insert({ id_negocio: idNegocio, nombre: v.nombre, destino, orden: nextOrden });
-      if (error) return toast.error("No se pudo crear", { description: error.message });
-      toast.success("Categoría creada");
+    } catch (e) {
+      return toast.error("No se pudo guardar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
     onDone();
   };
 
   return (
     <>
-    <form onSubmit={handleSubmit(async (v) => {
-      const destinoChanged = !!initial && destino !== (initial.destino ?? "").toUpperCase();
-      if (destinoChanged) {
-        const esp = espacios.find((e) => e.slug === destino);
-        setConfirmMove({ nombreEspacio: esp?.nombre ?? destino });
-        // guardar pendiente hasta confirmar
-        (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = () => doSave(v);
-        return;
-      }
-      await doSave(v);
-    })} className="space-y-4">
-
-      <div className="space-y-1.5">
-        <Label htmlFor="nombre">Nombre</Label>
-        <Input id="nombre" {...register("nombre")} placeholder="Ej. Bebidas" autoFocus />
-        {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label>Espacio de trabajo (ruteo de comandas)</Label>
-        {loadingEsp ? (
-          <p className="text-sm text-muted-foreground">Cargando espacios…</p>
-        ) : espacios.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay espacios activos.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {espacios.map((esp) => (
-              <button
-                key={esp.id_espacio}
-                type="button"
-                onClick={() => setDestino(esp.slug)}
-                className={cn(
-                  "rounded-md border px-3 py-2 text-sm transition-colors text-left",
-                  destino === esp.slug ? "border-primary bg-primary/10 font-medium" : "hover:bg-muted",
-                )}
-              >
-                {esp.slug === "COCINA" ? "🍳 " : esp.slug === "BARRA" ? "🍷 " : "🍽️ "}
-                {esp.nombre}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
-      </div>
-    </form>
-    <AlertDialog open={!!confirmMove} onOpenChange={(o) => !o && setConfirmMove(null)}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Mover categoría a {confirmMove?.nombreEspacio}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Todos los productos y recetas de esta categoría, y los pedidos aún no iniciados,
-            pasarán a la estación <strong>{confirmMove?.nombreEspacio}</strong>. Los pedidos ya
-            en preparación no se modifican.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => {
-            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
-          }}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={async () => {
-            const fn = (window as unknown as { __pendingCatSave?: () => Promise<void> | void }).__pendingCatSave;
-            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = undefined;
-            setConfirmMove(null);
-            if (fn) await fn();
-          }}>Confirmar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <form
+        onSubmit={handleSubmit(async (v) => {
+          const destinoChanged = !!initial && destino !== (initial.destino ?? "").toUpperCase();
+          if (destinoChanged) {
+            const esp = espacios.find((e) => e.slug === destino);
+            setConfirmMove({ nombreEspacio: esp?.nombre ?? destino });
+            // guardar pendiente hasta confirmar
+            (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave = () =>
+              doSave(v);
+            return;
+          }
+          await doSave(v);
+        })}
+        className="space-y-4"
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="nombre">Nombre</Label>
+          <Input id="nombre" {...register("nombre")} placeholder="Ej. Bebidas" autoFocus />
+          {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label>Espacio de trabajo (ruteo de comandas)</Label>
+          {loadingEsp ? (
+            <p className="text-sm text-muted-foreground">Cargando espacios…</p>
+          ) : espacios.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay espacios activos.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {espacios.map((esp) => (
+                <button
+                  key={esp.id_espacio}
+                  type="button"
+                  onClick={() => setDestino(esp.slug)}
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-sm transition-colors text-left",
+                    destino === esp.slug
+                      ? "border-primary bg-primary/10 font-medium"
+                      : "hover:bg-muted",
+                  )}
+                >
+                  {esp.slug === "COCINA" ? "🍳 " : esp.slug === "BARRA" ? "🍷 " : "🍽️ "}
+                  {esp.nombre}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" className="flex-1" disabled={isSubmitting}>
+            {isSubmitting ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </form>
+      <AlertDialog open={!!confirmMove} onOpenChange={(o) => !o && setConfirmMove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Mover categoría a {confirmMove?.nombreEspacio}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos los productos y recetas de esta categoría, y los pedidos aún no iniciados,
+              pasarán a la estación <strong>{confirmMove?.nombreEspacio}</strong>. Los pedidos ya en
+              preparación no se modifican.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave =
+                  undefined;
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const fn = (window as unknown as { __pendingCatSave?: () => Promise<void> | void })
+                  .__pendingCatSave;
+                (window as unknown as { __pendingCatSave?: () => void }).__pendingCatSave =
+                  undefined;
+                setConfirmMove(null);
+                if (fn) await fn();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
-
 function SubcategoriaFormInline({
-  idNegocio, idCategoria, initial, onDone, onCancel,
-}: { idNegocio: string; idCategoria: string; initial?: Subcategoria; onDone: () => void; onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SubcategoriaInput>({
+  idNegocio,
+  idCategoria,
+  initial,
+  onDone,
+  onCancel,
+}: {
+  idNegocio: string;
+  idCategoria: string;
+  initial?: Subcategoria;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SubcategoriaInput>({
     resolver: zodResolver(subcategoriaSchema),
     defaultValues: { nombre: initial?.nombre ?? "", id_categoria: idCategoria },
   });
   return (
-    <form onSubmit={handleSubmit(async (v) => {
-      if (initial) {
-        const { error } = await supabase.from("subcategorias").update({ nombre: v.nombre }).eq("id_subcategoria", initial.id_subcategoria);
-        if (error) return toast.error("No se pudo actualizar", { description: error.message });
-        toast.success("Subcategoría actualizada");
-      } else {
-        const { data: maxRow } = await supabase.from("subcategorias").select("orden").eq("id_categoria", idCategoria).order("orden", { ascending: false }).limit(1).maybeSingle();
-        const nextOrden = (maxRow?.orden ?? -1) + 1;
-        const { error } = await supabase.from("subcategorias").insert({
-          id_negocio: idNegocio, id_categoria: idCategoria, nombre: v.nombre, orden: nextOrden,
-        });
-
-        if (error) return toast.error("No se pudo crear", { description: error.message });
-        toast.success("Subcategoría creada");
-      }
-      onDone();
-    })} className="space-y-4">
+    <form
+      onSubmit={handleSubmit(async (v) => {
+        try {
+          if (initial) {
+            await renombrarSubcategoria({
+              id_subcategoria: initial.id_subcategoria,
+              nombre: v.nombre,
+            });
+            toast.success("Subcategoría actualizada");
+          } else {
+            await crearSubcategoria({ id_categoria: idCategoria, nombre: v.nombre });
+            toast.success("Subcategoría creada");
+          }
+        } catch (e) {
+          return toast.error("No se pudo guardar", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+        onDone();
+      })}
+      className="space-y-4"
+    >
       <div className="space-y-1.5">
         <Label htmlFor="snombre">Nombre</Label>
         <Input id="snombre" {...register("nombre")} placeholder="Ej. Frías" autoFocus />
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
       </div>
       <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="flex-1" disabled={isSubmitting}>{isSubmitting ? "Guardando…" : "Guardar"}</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          {isSubmitting ? "Guardando…" : "Guardar"}
+        </Button>
       </div>
     </form>
   );
 }
 
 function SortableCategoria({
-  cat, selected, onSelect,
-}: { cat: Categoria; selected: boolean; onSelect: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id_categoria });
+  cat,
+  selected,
+  onSelect,
+}: {
+  cat: Categoria;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: cat.id_categoria,
+  });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -515,9 +639,17 @@ function SortableCategoria({
 }
 
 function SortableSubcategoria({
-  sub, onEdit, onDelete,
-}: { sub: Subcategoria; onEdit: () => void; onDelete: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id_subcategoria });
+  sub,
+  onEdit,
+  onDelete,
+}: {
+  sub: Subcategoria;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sub.id_subcategoria,
+  });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,

@@ -42,7 +42,7 @@ export class ApiError extends Error {
 }
 
 interface Options {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   auth?: boolean; // default true
   signal?: AbortSignal;
@@ -113,11 +113,15 @@ async function request<T>(path: string, opts: Options = {}, retry = true): Promi
 }
 
 export const api = {
-  get: <T>(path: string, opts?: Omit<Options, "method" | "body">) => request<T>(path, { ...opts, method: "GET" }),
+  get: <T>(path: string, opts?: Omit<Options, "method" | "body">) =>
+    request<T>(path, { ...opts, method: "GET" }),
   post: <T>(path: string, body?: unknown, opts?: Omit<Options, "method" | "body">) =>
     request<T>(path, { ...opts, method: "POST", body }),
+  put: <T>(path: string, body?: unknown, opts?: Omit<Options, "method" | "body">) =>
+    request<T>(path, { ...opts, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, opts?: Omit<Options, "method" | "body">) =>
     request<T>(path, { ...opts, method: "PATCH", body }),
-  del: <T>(path: string, opts?: Omit<Options, "method" | "body">) => request<T>(path, { ...opts, method: "DELETE" }),
+  del: <T>(path: string, opts?: Omit<Options, "method" | "body">) =>
+    request<T>(path, { ...opts, method: "DELETE" }),
   url: API_URL,
 };

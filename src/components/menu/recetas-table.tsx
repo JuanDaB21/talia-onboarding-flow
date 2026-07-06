@@ -2,24 +2,35 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Copy, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  type RecetaConNombres,
+  duplicarReceta,
+  eliminarReceta,
+  listarRecetasConNombres,
+} from "@/lib/menu.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface RecetaRow {
-  id_receta: string;
-  nombre_receta: string;
-  categorias: { nombre: string } | null;
-  subcategorias: { nombre: string } | null;
-}
+type RecetaRow = RecetaConNombres;
 
 export function RecetasTable() {
   const navigate = useNavigate();
@@ -30,33 +41,46 @@ export function RecetasTable() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("receta_master")
-      .select("id_receta, nombre_receta, categorias(nombre), subcategorias(nombre)")
-      .order("created_at", { ascending: false });
-    if (error) toast.error("Error al cargar", { description: error.message });
-    setRows((data as unknown as RecetaRow[]) ?? []);
-    setLoading(false);
+    try {
+      const data = await listarRecetasConNombres();
+      setRows(data ?? []);
+    } catch (e) {
+      toast.error("Error al cargar", { description: e instanceof Error ? e.message : undefined });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const filtered = rows.filter((r) =>
-    !q.trim() || r.nombre_receta.toLowerCase().includes(q.trim().toLowerCase())
+  const filtered = rows.filter(
+    (r) => !q.trim() || r.nombre_receta.toLowerCase().includes(q.trim().toLowerCase()),
   );
 
   const duplicar = async (id: string) => {
-    const { error } = await supabase.rpc("duplicar_receta", { p_id_receta: id });
-    if (error) return toast.error("No se pudo duplicar", { description: error.message });
-    toast.success("Receta duplicada");
-    load();
+    try {
+      await duplicarReceta({ id_receta: id });
+      toast.success("Receta duplicada");
+      load();
+    } catch (e) {
+      toast.error("No se pudo duplicar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
   };
 
   const eliminar = async () => {
     if (!toDelete) return;
-    const { error } = await supabase.rpc("eliminar_receta", { p_id_receta: toDelete.id_receta });
-    if (error) toast.error("No se pudo eliminar", { description: error.message });
-    else toast.success("Receta eliminada");
+    try {
+      await eliminarReceta({ id_receta: toDelete.id_receta });
+      toast.success("Receta eliminada");
+    } catch (e) {
+      toast.error("No se pudo eliminar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
     setToDelete(null);
     load();
   };
@@ -65,7 +89,12 @@ export function RecetasTable() {
     <div className="space-y-4">
       <div className="relative">
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar receta…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+        <Input
+          placeholder="Buscar receta…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Desktop table */}
@@ -81,23 +110,51 @@ export function RecetasTable() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">Cargando…</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
+                  Cargando…
+                </TableCell>
+              </TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">Sin recetas. Crea la primera.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
+                  Sin recetas. Crea la primera.
+                </TableCell>
+              </TableRow>
             ) : (
               filtered.map((r) => (
-                <TableRow key={r.id_receta} className="cursor-pointer" onClick={() => navigate({ to: "/menu/recetas/$id", params: { id: r.id_receta } })}>
+                <TableRow
+                  key={r.id_receta}
+                  className="cursor-pointer"
+                  onClick={() => navigate({ to: "/menu/recetas/$id", params: { id: r.id_receta } })}
+                >
                   <TableCell className="font-medium">{r.nombre_receta}</TableCell>
-                  <TableCell><Badge variant="secondary">{r.categorias?.nombre ?? "—"}</Badge></TableCell>
-                  <TableCell><Badge variant="outline">{r.subcategorias?.nombre ?? "—"}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{r.categorias?.nombre ?? "—"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{r.subcategorias?.nombre ?? "—"}</Badge>
+                  </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
-                      <Link to="/menu/recetas/$id" params={{ id: r.id_receta }}><Pencil className="h-3.5 w-3.5" /></Link>
+                      <Link to="/menu/recetas/$id" params={{ id: r.id_receta }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => duplicar(r.id_receta)}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => duplicar(r.id_receta)}
+                    >
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setToDelete(r)}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => setToDelete(r)}
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </TableCell>
@@ -120,18 +177,29 @@ export function RecetasTable() {
               <Link to="/menu/recetas/$id" params={{ id: r.id_receta }} className="block">
                 <p className="font-medium">{r.nombre_receta}</p>
                 <div className="flex gap-1.5 mt-1">
-                  <Badge variant="secondary" className="text-xs">{r.categorias?.nombre ?? "—"}</Badge>
-                  <Badge variant="outline" className="text-xs">{r.subcategorias?.nombre ?? "—"}</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {r.categorias?.nombre ?? "—"}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {r.subcategorias?.nombre ?? "—"}
+                  </Badge>
                 </div>
               </Link>
               <div className="flex gap-2 mt-3 pt-3 border-t">
                 <Button size="sm" variant="outline" className="flex-1" asChild>
-                  <Link to="/menu/recetas/$id" params={{ id: r.id_receta }}><Pencil className="h-3.5 w-3.5 mr-1" /> Editar</Link>
+                  <Link to="/menu/recetas/$id" params={{ id: r.id_receta }}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                  </Link>
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => duplicar(r.id_receta)}>
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => setToDelete(r)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive"
+                  onClick={() => setToDelete(r)}
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -145,7 +213,8 @@ export function RecetasTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar receta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará también el producto asociado y todos los extras configurados. Esta acción no se puede deshacer.
+              Se eliminará también el producto asociado y todos los extras configurados. Esta acción
+              no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

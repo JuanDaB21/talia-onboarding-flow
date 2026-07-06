@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ImagePlus, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { actualizarProducto } from "@/lib/menu.functions";
+import { publicUrl, uploadToStorage } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,24 +15,38 @@ import { productoSchema, type ProductoInput } from "@/lib/menu-schemas";
 import type { Producto } from "./productos-tab";
 
 export function ProductoForm({
-  idNegocio, producto, onSuccess, onCancel,
-}: { idNegocio: string; producto: Producto; onSuccess: () => void; onCancel: () => void }) {
+  idNegocio,
+  producto,
+  onSuccess,
+  onCancel,
+}: {
+  idNegocio: string;
+  producto: Producto;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [imagenFile, setImagenFile] = useState<File | null>(null);
+  // imagenUrl guarda la `path` relativa que va en la fila; preview es la URL absoluta a mostrar.
   const [imagenUrl, setImagenUrl] = useState<string | null>(producto.url_imagen ?? null);
-  const [preview, setPreview] = useState<string | null>(producto.url_imagen ?? null);
+  const [preview, setPreview] = useState<string | null>(publicUrl(producto.url_imagen));
   const [uploading, setUploading] = useState(false);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } =
-    useForm<ProductoInput>({
-      resolver: zodResolver(productoSchema),
-      defaultValues: {
-        descripcion_producto: producto.descripcion_producto ?? "",
-        precio_venta: Number(producto.precio_venta),
-        activo: producto.activo,
-        facturable: producto.facturable ?? true,
-      },
-    });
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<ProductoInput>({
+    resolver: zodResolver(productoSchema),
+    defaultValues: {
+      descripcion_producto: producto.descripcion_producto ?? "",
+      precio_venta: Number(producto.precio_venta),
+      activo: producto.activo,
+      facturable: producto.facturable ?? true,
+    },
+  });
 
   const activo = watch("activo");
   const facturable = watch("facturable");
@@ -56,25 +71,32 @@ export function ProductoForm({
 
     if (imagenFile) {
       setUploading(true);
-      const ext = imagenFile.name.split(".").pop() || "jpg";
-      const path = `${idNegocio}/${producto.id_producto}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("producto-imagenes")
-        .upload(path, imagenFile, { upsert: true, contentType: imagenFile.type });
+      try {
+        const { path } = await uploadToStorage("producto", imagenFile);
+        finalUrl = path;
+      } catch (e) {
+        setUploading(false);
+        return toast.error("No se pudo subir la imagen", {
+          description: e instanceof Error ? e.message : undefined,
+        });
+      }
       setUploading(false);
-      if (upErr) return toast.error("No se pudo subir la imagen", { description: upErr.message });
-      const { data } = supabase.storage.from("producto-imagenes").getPublicUrl(path);
-      finalUrl = data.publicUrl;
     }
 
-    const { error } = await supabase.from("productos").update({
-      descripcion_producto: v.descripcion_producto || null,
-      precio_venta: v.precio_venta,
-      url_imagen: finalUrl,
-      activo: v.activo,
-      facturable: v.facturable,
-    }).eq("id_producto", producto.id_producto);
-    if (error) return toast.error("No se pudo guardar", { description: error.message });
+    try {
+      await actualizarProducto({
+        id_producto: producto.id_producto,
+        descripcion_producto: v.descripcion_producto || null,
+        precio_venta: v.precio_venta,
+        url_imagen: finalUrl,
+        activo: v.activo,
+        facturable: v.facturable,
+      });
+    } catch (e) {
+      return toast.error("No se pudo guardar", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    }
 
     toast.success("Producto actualizado");
     onSuccess();
@@ -127,36 +149,56 @@ export function ProductoForm({
       <div className="space-y-1.5">
         <Label htmlFor="precio">Precio de venta</Label>
         <Input id="precio" type="number" step="any" min={0} {...register("precio_venta")} />
-        {errors.precio_venta && <p className="text-xs text-destructive">{errors.precio_venta.message}</p>}
+        {errors.precio_venta && (
+          <p className="text-xs text-destructive">{errors.precio_venta.message}</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="desc">Descripción</Label>
-        <Textarea id="desc" rows={3} {...register("descripcion_producto")} placeholder="Cómo se sirve, alérgenos, etc." />
+        <Textarea
+          id="desc"
+          rows={3}
+          {...register("descripcion_producto")}
+          placeholder="Cómo se sirve, alérgenos, etc."
+        />
       </div>
 
       <div className="flex items-center justify-between rounded-md border p-3">
         <div>
           <Label htmlFor="act">Producto activo</Label>
-          <p className="text-xs text-muted-foreground">Visible en el menú público para los clientes.</p>
+          <p className="text-xs text-muted-foreground">
+            Visible en el menú público para los clientes.
+          </p>
         </div>
-        <Switch id="act" checked={activo} onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })} />
+        <Switch
+          id="act"
+          checked={activo}
+          onCheckedChange={(v) => setValue("activo", v, { shouldDirty: true })}
+        />
       </div>
 
       <div className="flex items-center justify-between rounded-md border p-3">
         <div>
           <Label htmlFor="fac">Disponible para facturar</Label>
           <p className="text-xs text-muted-foreground">
-            El mesero o administrador puede agregarlo y facturarlo aunque no aparezca en el menú público.
+            El mesero o administrador puede agregarlo y facturarlo aunque no aparezca en el menú
+            público.
           </p>
         </div>
-        <Switch id="fac" checked={facturable} onCheckedChange={(v) => setValue("facturable", v, { shouldDirty: true })} />
+        <Switch
+          id="fac"
+          checked={facturable}
+          onCheckedChange={(v) => setValue("facturable", v, { shouldDirty: true })}
+        />
       </div>
 
       {/* Las variantes se editan desde la receta asociada. */}
 
       <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+          Cancelar
+        </Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting || uploading}>
           {uploading ? "Subiendo imagen…" : isSubmitting ? "Guardando…" : "Guardar cambios"}
         </Button>
