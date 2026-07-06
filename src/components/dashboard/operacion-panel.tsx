@@ -1,4 +1,3 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +7,9 @@ import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
 export function OperacionPanel({ desde, hasta }: { desde: string; hasta: string }) {
-  const fn = useServerFn(getEficienciaOperativa);
   const { data, isLoading } = useQuery({
     queryKey: ["eficiencia-operativa", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getEficienciaOperativa({ desde, hasta }),
     ...POLL.SLOW,
   });
 

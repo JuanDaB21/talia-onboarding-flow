@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, LogIn, UserX } from "lucide-react";
@@ -31,7 +30,6 @@ function formatDuracion(ms: number) {
 }
 
 export function CajaTurnoCard() {
-  const inhabilitar = useServerFn(inhabilitarStaff);
   const navigate = useNavigate();
   const { data } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
@@ -61,7 +59,7 @@ export function CajaTurnoCard() {
   const handleInhabilitar = async () => {
     setBusy(true);
     try {
-      await inhabilitar({ data: {} });
+      await inhabilitarStaff();
       toast.success("Tu cuenta fue inhabilitada");
       await logout();
       setAuthUser(null);

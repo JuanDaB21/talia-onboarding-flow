@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { UsuarioForm } from "./usuario-form";
-import { eliminarUsuarioStaff } from "@/lib/usuarios.functions";
+import { eliminarUsuarioStaff, listarUsuariosStaff } from "@/lib/usuarios.functions";
 
 interface Usuario {
   id_usuario: string;
@@ -32,17 +30,17 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
   const [selected, setSelected] = useState<Usuario | null>(null);
   const [items, setItems] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
-  const eliminar = useServerFn(eliminarUsuarioStaff);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("usuarios_staff")
-      .select("id_usuario, nombre, correo, rol, estado, recibe_propinas, id_espacio_asignado")
-      .neq("rol", "SUPERADMIN")
-      .order("created_at", { ascending: false });
-    setItems((data as Usuario[]) ?? []);
-    setLoading(false);
+    try {
+      const data = await listarUsuariosStaff();
+      setItems((data ?? []).filter((u) => u.rol !== "SUPERADMIN") as Usuario[]);
+    } catch (e) {
+      toast.error("No se pudieron cargar los usuarios", { description: (e as Error).message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -157,7 +155,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
             selected
               ? async () => {
                   try {
-                    await eliminar({ data: { id_usuario: selected.id_usuario } });
+                    await eliminarUsuarioStaff({ id_usuario: selected.id_usuario });
                     toast.success("Usuario eliminado");
                     handleOpenChange(false);
                     load();

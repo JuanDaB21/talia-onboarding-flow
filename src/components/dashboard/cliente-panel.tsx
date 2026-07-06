@@ -1,4 +1,3 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getComportamientoCliente } from "@/lib/analytics.functions";
@@ -7,10 +6,9 @@ import { Heatmap } from "./heatmap";
 import { POLL } from "@/lib/query-config";
 
 export function ClientePanel({ desde, hasta }: { desde: string; hasta: string }) {
-  const fn = useServerFn(getComportamientoCliente);
   const { data, isLoading } = useQuery({
     queryKey: ["comportamiento-cliente", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getComportamientoCliente({ desde, hasta }),
     ...POLL.SLOW,
   });
 
