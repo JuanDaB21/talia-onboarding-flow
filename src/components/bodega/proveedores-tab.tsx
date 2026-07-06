@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { listarProveedores, eliminarProveedor } from "@/lib/bodega.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,11 +32,8 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("proveedores")
-      .select("id_proveedor, razon_social, documento_tributario, nombre_contacto, telefono, estado")
-      .order("created_at", { ascending: false });
-    setItems((data as Proveedor[]) ?? []);
+    const data = await listarProveedores().catch(() => []);
+    setItems((data as unknown as Proveedor[]) ?? []);
     setLoading(false);
   };
 
@@ -153,12 +150,12 @@ export function ProveedoresTab({ idNegocio }: { idNegocio: string }) {
           onDelete={
             selected
               ? async () => {
-                  const { error } = await supabase
-                    .from("proveedores")
-                    .delete()
-                    .eq("id_proveedor", selected.id_proveedor);
-                  if (error) {
-                    toast.error("No se pudo eliminar", { description: error.message });
+                  try {
+                    await eliminarProveedor(selected.id_proveedor);
+                  } catch (err) {
+                    toast.error("No se pudo eliminar", {
+                      description: err instanceof Error ? err.message : undefined,
+                    });
                     return;
                   }
                   toast.success("Proveedor eliminado");

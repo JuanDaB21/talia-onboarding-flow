@@ -125,3 +125,6 @@ export function crearProveedor(input: ProveedorInput) {
 export function actualizarProveedor(idProveedor: string, patch: Partial<ProveedorInput>) {
   return api.patch<{ ok: true }>(`/bodega/proveedores/${idProveedor}`, patch);
 }
+export function eliminarProveedor(idProveedor: string) {
+  return api.del<{ ok: true }>(`/bodega/proveedores/${idProveedor}`);
+}

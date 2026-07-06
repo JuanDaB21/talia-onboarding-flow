@@ -48,14 +48,6 @@ Por cada módulo (empezar por `servicio` o `caja`):
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
 **Aún en Supabase** (con su razón):
-- **Bodega — inventario** — repunte a REST **en progreso**. Ya migrados a `@/lib/bodega.functions`
-  (+ realtime por `@/lib/realtime-client`): `ajustar-stock-form`, `compra-form`, `insumo-form`,
-  `proveedor-form`, `inventario-tab`, `historial-inventario-tab`, `insumos-tab`,
-  `_app.bodega.inventario.$id`. **Faltan** (casi todo endpoint ya existe, solo repunte):
-  `proveedores-tab` (listar con `GET /bodega/proveedores` ✓, pero **falta backend**
-  `DELETE /bodega/proveedores/:id`), `compra-detail-sheet` (`GET /bodega/compras/:id` ✓),
-  `_app.bodega.compras` (`GET /bodega/compras` ✓), `_app.bodega.bodegas` (revisar supabase inline;
-  usa `bodegas.functions`).
 - **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — **bloqueado por backend**:
   `/usuarios` no cubre `id_espacio_asignado`, `recibe_propinas`, roles BARRA/ESTACION, password
   elegido, delete ni inhabilitar. Extender backend antes de repuntar (ver CUTOVER-BACKEND §B).
@@ -100,6 +92,10 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
       `editarItemPrepedidoStaff` → `PATCH /prepedido/items/:id`, `eliminarItemPrepedidoStaff` →
       `POST /prepedido/items/:id/eliminar` (backend 0006, SECURITY DEFINER valida negocio de la mesa).
       `prepedido-en-vivo-card.tsx` / `prepedido-item-editor-staff.tsx` sin `useServerFn`.
+- [x] **bodega — inventario** → todo `src/components/bodega/*` + `_app.bodega.*` a
+      `@/lib/bodega.functions` (+ realtime por `@/lib/realtime-client`). Backend agregó lecturas de
+      detalle (`/bodega/inventario-bodega`, `/bodega/insumos/:id[/stock-por-bodega|/compras|/movimientos]`),
+      `DELETE /bodega/insumos/:id` y `/bodega/proveedores/:id`, y realtime de `inventario_bodega` (0007).
 - [x] **impresión** → config `espacio_impresora` por REST (backend §11).
 - [x] **Storage de imágenes** → `src/lib/storage.ts` usado por QR, comprobantes, **producto**
       (`producto-form`) y **logo** (`configuracion/apariencia`).

@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { listarInventarioBodega } from "@/lib/bodega.functions";
 import { useBodegas, type Bodega } from "@/hooks/use-bodegas";
 import { useEspacios } from "@/hooks/use-espacios";
 import {
@@ -49,7 +49,12 @@ interface InvRow {
   id_bodega: string;
   id_insumo: string;
   cantidad_actual: number;
-  insumos: { nombre_insumo: string; unidad_compra: string; unidad_receta: string };
+  insumos: {
+    id_insumo: string;
+    nombre_insumo: string;
+    unidad_compra: string;
+    unidad_receta: string;
+  };
 }
 
 function BodegasPage() {
@@ -68,13 +73,11 @@ function BodegasPage() {
   const invQuery = useQuery({
     queryKey: ["inventario-bodegas-resumen"],
     queryFn: async (): Promise<InvRow[]> => {
-      const { data, error } = await supabase
-        .from("inventario_bodega")
-        .select(
-          "id_bodega, id_insumo, cantidad_actual, insumos!inner(nombre_insumo, unidad_compra, unidad_receta)",
-        );
-      if (error) throw new Error(error.message);
-      return (data as unknown as InvRow[]) ?? [];
+      const data = await listarInventarioBodega();
+      return (data as unknown as Array<Omit<InvRow, "id_insumo">>).map((r) => ({
+        ...r,
+        id_insumo: r.insumos?.id_insumo,
+      })) as InvRow[];
     },
     staleTime: 10_000,
   });
