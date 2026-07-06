@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, History, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
+import { listarMovimientos } from "@/lib/bodega.functions";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { labelDe } from "@/lib/unidades";
 import { cn } from "@/lib/utils";
@@ -88,16 +89,9 @@ export function HistorialInventarioTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("movimientos_inventario")
-      .select(
-        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, id_insumo, id_usuario, insumos:id_insumo(id_insumo, nombre_insumo, unidad_receta), usuarios_staff:id_usuario(id_usuario, nombre)"
-      )
-      .order("created_at", { ascending: false })
-      .limit(limit + 1);
-    const all = (data as unknown as MovRow[]) ?? [];
-    setHasMore(all.length > limit);
-    setRows(all.slice(0, limit));
+    const res = await listarMovimientos(limit).catch(() => ({ movimientos: [], hasMore: false }));
+    setHasMore(res.hasMore);
+    setRows((res.movimientos as unknown as MovRow[]) ?? []);
     setLoading(false);
   }, [limit]);
 
@@ -107,23 +101,18 @@ export function HistorialInventarioTab() {
 
   useEffect(() => {
     if (!idNegocio) return;
-    const channel = supabase
+    const channel = realtime
       .channel(`mov-global-${idNegocio}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "movimientos_inventario",
-          filter: `id_negocio=eq.${idNegocio}`,
-        },
+        { event: "*", schema: "public", table: "movimientos_inventario" },
         () => {
           load();
-        }
+        },
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
   }, [idNegocio, load]);
 
@@ -156,7 +145,8 @@ export function HistorialInventarioTab() {
         const motivo = (r.motivo ?? "").toLowerCase();
         const nombre = (r.insumos?.nombre_insumo ?? "").toLowerCase();
         const responsable = (r.usuarios_staff?.nombre ?? "").toLowerCase();
-        if (!motivo.includes(term) && !nombre.includes(term) && !responsable.includes(term)) return false;
+        if (!motivo.includes(term) && !nombre.includes(term) && !responsable.includes(term))
+          return false;
       }
       return true;
     });
@@ -219,9 +209,7 @@ export function HistorialInventarioTab() {
                 <TableHead>Insumo</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Cantidad</TableHead>
-                <TableHead className="hidden md:table-cell text-right">
-                  Anterior → Nuevo
-                </TableHead>
+                <TableHead className="hidden md:table-cell text-right">Anterior → Nuevo</TableHead>
                 <TableHead className="hidden sm:table-cell">Motivo</TableHead>
                 <TableHead className="hidden sm:table-cell">Responsable</TableHead>
               </TableRow>
@@ -243,14 +231,12 @@ export function HistorialInventarioTab() {
                     <TableCell className="whitespace-nowrap text-sm">
                       {formatFecha(r.created_at)}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {r.insumos?.nombre_insumo ?? "—"}
-                    </TableCell>
+                    <TableCell className="font-medium">{r.insumos?.nombre_insumo ?? "—"}</TableCell>
                     <TableCell>{tipoBadge(r.tipo_movimiento, cantidad)}</TableCell>
                     <TableCell
                       className={cn(
                         "text-right tabular-nums font-medium",
-                        isEntrada ? "text-emerald-600" : "text-destructive"
+                        isEntrada ? "text-emerald-600" : "text-destructive",
                       )}
                     >
                       {isEntrada ? "+" : ""}

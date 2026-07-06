@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { crearInsumo, actualizarInsumo } from "@/lib/bodega.functions";
 import { insumoSchema, type InsumoInput } from "@/lib/bodega-schemas";
 import {
   UNIDADES,
@@ -66,14 +66,7 @@ const FAMILIA_LABEL: Record<(typeof FAMILIAS)[number], string> = {
   UNIDAD: "Unidad",
 };
 
-export function InsumoForm({
-  idNegocio,
-  idInsumo,
-  initialValues,
-  onSuccess,
-  onCancel,
-  onDelete,
-}: Props) {
+export function InsumoForm({ idInsumo, initialValues, onSuccess, onCancel, onDelete }: Props) {
   const isEdit = Boolean(idInsumo);
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
@@ -98,16 +91,12 @@ export function InsumoForm({
   const unidadReceta = watch("unidad_receta");
   const familiaCompra = getFamilia(unidadCompra);
 
-  const recetaOptions = useMemo(
-    () => unidadesPermitidasParaReceta(unidadCompra),
-    [unidadCompra]
-  );
+  const recetaOptions = useMemo(() => unidadesPermitidasParaReceta(unidadCompra), [unidadCompra]);
 
   const manual = requiereFactorManual(unidadCompra, unidadReceta);
   const factorAuto = !manual ? calcularFactor(unidadCompra, unidadReceta) : null;
   const familiaReceta = getFamilia(unidadReceta);
-  const crossFamily =
-    !!familiaCompra && !!familiaReceta && familiaCompra !== familiaReceta;
+  const crossFamily = !!familiaCompra && !!familiaReceta && familiaCompra !== familiaReceta;
   const crossFamilyAUnidad = crossFamily && familiaReceta === "UNIDAD";
 
   // Si la combinación deja de ser válida, autosetear receta a la base de la familia de compra.
@@ -152,22 +141,22 @@ export function InsumoForm({
 
   const onSubmit = async (values: InsumoInput) => {
     if (isEdit && idInsumo) {
-      const { error } = await supabase
-        .from("insumos")
-        .update(values)
-        .eq("id_insumo", idInsumo);
-      if (error) {
-        toast.error("No se pudo actualizar", { description: error.message });
+      try {
+        await actualizarInsumo(idInsumo, values);
+      } catch (err) {
+        toast.error("No se pudo actualizar", {
+          description: err instanceof Error ? err.message : undefined,
+        });
         return;
       }
       toast.success("Insumo actualizado");
     } else {
-      const { error } = await supabase.from("insumos").insert({
-        id_negocio: idNegocio,
-        ...values,
-      });
-      if (error) {
-        toast.error("No se pudo crear el insumo", { description: error.message });
+      try {
+        await crearInsumo(values);
+      } catch (err) {
+        toast.error("No se pudo crear el insumo", {
+          description: err instanceof Error ? err.message : undefined,
+        });
         return;
       }
       toast.success("Insumo creado");
@@ -214,12 +203,7 @@ export function InsumoForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="costo_promedio">Costo promedio</Label>
-          <Input
-            id="costo_promedio"
-            type="number"
-            step="0.0001"
-            {...register("costo_promedio")}
-          />
+          <Input id="costo_promedio" type="number" step="0.0001" {...register("costo_promedio")} />
           {errors.costo_promedio && (
             <p className="text-xs text-destructive">{errors.costo_promedio.message}</p>
           )}
@@ -228,12 +212,7 @@ export function InsumoForm({
           <Label htmlFor="stock_minimo">
             Stock mínimo{unidadCompra ? ` (en ${labelDe(unidadCompra)})` : ""}
           </Label>
-          <Input
-            id="stock_minimo"
-            type="number"
-            step="0.0001"
-            {...register("stock_minimo")}
-          />
+          <Input id="stock_minimo" type="number" step="0.0001" {...register("stock_minimo")} />
           <p className="text-xs text-muted-foreground">
             Se generará alerta cuando el inventario disponible sea ≤ este valor
             {unidadCompra ? ` (en ${labelDe(unidadCompra)})` : ""}.
@@ -294,9 +273,7 @@ export function InsumoForm({
               </Select>
             )}
           />
-          <p className="text-xs text-muted-foreground">
-            Unidad usada en recetas e inventario.
-          </p>
+          <p className="text-xs text-muted-foreground">Unidad usada en recetas e inventario.</p>
           {errors.unidad_receta && (
             <p className="text-xs text-destructive">{errors.unidad_receta.message}</p>
           )}
@@ -309,7 +286,7 @@ export function InsumoForm({
           id="factor_conversion"
           type="number"
           step="0.0001"
-          
+
           {...register("factor_conversion")}
         />
         <p className="text-xs text-muted-foreground">{factorHelp}</p>
@@ -322,11 +299,7 @@ export function InsumoForm({
         <Button type="button" variant="outline" className="w-full" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isSubmitting || (isEdit && !isDirty)}
-        >
+        <Button type="submit" className="w-full" disabled={isSubmitting || (isEdit && !isDirty)}>
           {isSubmitting ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
         </Button>
         {isEdit && idInsumo && (
@@ -345,12 +318,7 @@ export function InsumoForm({
         {isEdit && onDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="destructive"
-                className="w-full"
-                disabled={deleting}
-              >
+              <Button type="button" variant="destructive" className="w-full" disabled={deleting}>
                 <Trash2 className="h-4 w-4 mr-1" /> Eliminar
               </Button>
             </AlertDialogTrigger>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
+import { listarInventarioBodega } from "@/lib/bodega.functions";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { labelDe, formatStockInteligente } from "@/lib/unidades";
@@ -61,11 +62,7 @@ export function InventarioTab() {
   const [bodegaFilter, setBodegaFilter] = useState<string>("all");
 
   const fetchRows = useCallback(async () => {
-    const { data } = await supabase
-      .from("inventario_bodega")
-      .select(
-        "id_bodega, cantidad_actual, insumos!inner(id_insumo, nombre_insumo, unidad_receta, unidad_compra, factor_conversion, stock_minimo)",
-      );
+    const data = await listarInventarioBodega().catch(() => []);
     setRows((data as unknown as InvRow[]) ?? []);
     setLoading(false);
   }, []);
@@ -77,23 +74,14 @@ export function InventarioTab() {
 
   useEffect(() => {
     if (!idNegocio) return;
-    const channel = supabase
+    const channel = realtime
       .channel(`inventario-bodega-${idNegocio}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "inventario_bodega",
-          filter: `id_negocio=eq.${idNegocio}`,
-        },
-        () => {
-          fetchRows();
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventario_bodega" }, () => {
+        fetchRows();
+      })
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
   }, [idNegocio, fetchRows]);
 
@@ -124,15 +112,11 @@ export function InventarioTab() {
           factor_conversion: Number(r.insumos.factor_conversion),
           stock_minimo: Number(r.insumos.stock_minimo),
           total: cantidad,
-          por_bodega: [
-            { id_bodega: r.id_bodega, nombre: nombreBodega, cantidad },
-          ],
+          por_bodega: [{ id_bodega: r.id_bodega, nombre: nombreBodega, cantidad }],
         });
       }
     }
-    return Array.from(map.values()).sort((a, b) =>
-      a.nombre_insumo.localeCompare(b.nombre_insumo),
-    );
+    return Array.from(map.values()).sort((a, b) => a.nombre_insumo.localeCompare(b.nombre_insumo));
   }, [rows, bodegaFilter, bodegaNombre]);
 
   const unidades = useMemo(() => {

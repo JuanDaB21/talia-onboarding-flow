@@ -48,11 +48,20 @@ Por cada módulo (empezar por `servicio` o `caja`):
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
 **Aún en Supabase** (con su razón):
-- **Bodega — inventario** (fuera del alcance de este cutover-config): `insumos`, `compras`,
-  `proveedores`, `ajustar-stock`, `movimientos`, `inventario`. Los endpoints ya existen (`/bodega/*`,
-  ver CUTOVER-BACKEND §0), pero los componentes `src/components/bodega/*` + `_app.bodega.*` siguen con
-  `supabase.from/rpc` inline. Pendiente de repunte.
-- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — pendiente de repunte.
+- **Bodega — inventario** — repunte a REST **en progreso**. Ya migrados a `@/lib/bodega.functions`
+  (+ realtime por `@/lib/realtime-client`): `ajustar-stock-form`, `compra-form`, `insumo-form`,
+  `proveedor-form`, `inventario-tab`, `historial-inventario-tab`, `insumos-tab`,
+  `_app.bodega.inventario.$id`. **Faltan** (casi todo endpoint ya existe, solo repunte):
+  `proveedores-tab` (listar con `GET /bodega/proveedores` ✓, pero **falta backend**
+  `DELETE /bodega/proveedores/:id`), `compra-detail-sheet` (`GET /bodega/compras/:id` ✓),
+  `_app.bodega.compras` (`GET /bodega/compras` ✓), `_app.bodega.bodegas` (revisar supabase inline;
+  usa `bodegas.functions`).
+- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — **bloqueado por backend**:
+  `/usuarios` no cubre `id_espacio_asignado`, `recibe_propinas`, roles BARRA/ESTACION, password
+  elegido, delete ni inhabilitar. Extender backend antes de repuntar (ver CUTOVER-BACKEND §B).
+- **Analítica avanzada** (`analytics.functions.ts`: ingeniería de menú / comportamiento / eficiencia /
+  fugas) — **bloqueado por backend**: no hay endpoints `/analytics/*` para esas 4 agregaciones
+  (ver CUTOVER-BACKEND §C).
 - Residuos: `analytics.functions.ts`, `preparacion/comanda-print.ts` importan `supabase` (revisar si
   es tipo/uso real).
 - **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.

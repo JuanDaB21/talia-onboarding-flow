@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { crearProveedor, actualizarProveedor } from "@/lib/bodega.functions";
 import { proveedorSchema, type ProveedorInput } from "@/lib/bodega-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,6 @@ const EMPTY: ProveedorInput = {
 };
 
 export function ProveedorForm({
-  idNegocio,
   idProveedor,
   initialValues,
   onSuccess,
@@ -68,22 +67,22 @@ export function ProveedorForm({
 
   const onSubmit = async (values: ProveedorInput) => {
     if (isEdit && idProveedor) {
-      const { error } = await supabase
-        .from("proveedores")
-        .update(values)
-        .eq("id_proveedor", idProveedor);
-      if (error) {
-        toast.error("No se pudo actualizar", { description: error.message });
+      try {
+        await actualizarProveedor(idProveedor, values);
+      } catch (err) {
+        toast.error("No se pudo actualizar", {
+          description: err instanceof Error ? err.message : undefined,
+        });
         return;
       }
       toast.success("Proveedor actualizado");
     } else {
-      const { error } = await supabase.from("proveedores").insert({
-        id_negocio: idNegocio,
-        ...values,
-      });
-      if (error) {
-        toast.error("No se pudo crear el proveedor", { description: error.message });
+      try {
+        await crearProveedor(values);
+      } catch (err) {
+        toast.error("No se pudo crear el proveedor", {
+          description: err instanceof Error ? err.message : undefined,
+        });
         return;
       }
       toast.success("Proveedor creado");
@@ -127,9 +126,7 @@ export function ProveedorForm({
       <div className="space-y-1.5">
         <Label htmlFor="telefono">Teléfono</Label>
         <Input id="telefono" inputMode="tel" {...register("telefono")} />
-        {errors.telefono && (
-          <p className="text-xs text-destructive">{errors.telefono.message}</p>
-        )}
+        {errors.telefono && <p className="text-xs text-destructive">{errors.telefono.message}</p>}
       </div>
       <div className="flex items-center justify-between rounded-md border p-3">
         <div>

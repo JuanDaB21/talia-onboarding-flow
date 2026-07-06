@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Pencil, SlidersHorizontal } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
+import {
+  getInsumo,
+  getComprasDeInsumo,
+  getMovimientosDeInsumo,
+  eliminarInsumo,
+} from "@/lib/bodega.functions";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,33 +61,15 @@ function InventarioDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: ins } = await supabase
-      .from("insumos")
-      .select(
-        "id_insumo, nombre_insumo, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
-      )
-      .eq("id_insumo", id)
-      .maybeSingle();
-    setInsumo((ins as unknown as Insumo) ?? null);
-
-    const { data: inv } = await supabase
-      .from("inventario_actual")
-      .select("cantidad_actual")
-      .eq("id_insumo", id)
-      .maybeSingle();
-    setCantidad(Number(inv?.cantidad_actual ?? 0));
+    const data = await getInsumo(id).catch(() => null);
+    setInsumo((data?.insumo as unknown as Insumo) ?? null);
+    setCantidad(Number(data?.cantidad_actual ?? 0));
     setLoading(false);
   }, [id]);
 
   const loadHistorial = useCallback(async () => {
     setLoadingHist(true);
-    const { data } = await supabase
-      .from("detalle_compra")
-      .select(
-        "id_detalle, cantidad, precio_unitario_compra, compras:id_compra!inner(id_compra, fecha_compra, numero_factura, proveedores:id_proveedor(razon_social))"
-      )
-      .eq("id_insumo", id)
-      .order("created_at", { ascending: false });
+    const data = await getComprasDeInsumo(id).catch(() => []);
     const rows = ((data as unknown as HistorialRow[]) ?? []).sort((a, b) => {
       const fa = a.compras?.fecha_compra ?? "";
       const fb = b.compras?.fecha_compra ?? "";
@@ -93,13 +81,7 @@ function InventarioDetailPage() {
 
   const loadMovimientos = useCallback(async () => {
     setLoadingMov(true);
-    const { data } = await supabase
-      .from("movimientos_inventario")
-      .select(
-        "id_movimiento, created_at, tipo_movimiento, cantidad, cantidad_anterior, cantidad_nueva, motivo, referencia_id, id_bodega_origen, id_bodega_destino, usuarios_staff:id_usuario(nombre), bodega_origen:id_bodega_origen(nombre), bodega_destino:id_bodega_destino(nombre)"
-      )
-      .eq("id_insumo", id)
-      .order("created_at", { ascending: false });
+    const data = await getMovimientosDeInsumo(id).catch(() => []);
     setMovimientos((data as unknown as MovimientoRow[]) ?? []);
     setLoadingMov(false);
   }, [id]);
@@ -111,24 +93,19 @@ function InventarioDetailPage() {
   }, [load, loadHistorial, loadMovimientos]);
 
   useEffect(() => {
-    const channel = supabase
+    const channel = realtime
       .channel(`mov-insumo-${id}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "movimientos_inventario",
-          filter: `id_insumo=eq.${id}`,
-        },
+        { event: "*", schema: "public", table: "movimientos_inventario" },
         () => {
           loadMovimientos();
           load();
-        }
+        },
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
   }, [id, loadMovimientos, load]);
 
@@ -152,11 +129,7 @@ function InventarioDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate({ to: "/bodega/inventario" })}
-        >
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/bodega/inventario" })}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Inventario
         </Button>
         <span className="text-sm text-muted-foreground">/</span>
@@ -166,7 +139,8 @@ function InventarioDetailPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">{insumo.nombre_insumo}</h1>
         <p className="text-sm text-muted-foreground">
-          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()} {labelDe(insumo.unidad_compra)}
+          Stock mínimo: {Number(insumo.stock_minimo).toLocaleString()}{" "}
+          {labelDe(insumo.unidad_compra)}
         </p>
       </header>
 
@@ -257,12 +231,12 @@ function InventarioDetailPage() {
             }}
             onCancel={() => setEditOpen(false)}
             onDelete={async () => {
-              const { error } = await supabase
-                .from("insumos")
-                .delete()
-                .eq("id_insumo", insumo.id_insumo);
-              if (error) {
-                toast.error("No se pudo eliminar", { description: error.message });
+              try {
+                await eliminarInsumo(insumo.id_insumo);
+              } catch (err) {
+                toast.error("No se pudo eliminar", {
+                  description: err instanceof Error ? err.message : undefined,
+                });
                 return;
               }
               toast.success("Insumo eliminado");

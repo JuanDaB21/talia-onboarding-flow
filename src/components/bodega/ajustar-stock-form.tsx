@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { ajustarStock, getStockPorBodega } from "@/lib/bodega.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,13 +52,9 @@ export function AjustarStockForm({
     if (!idBodega) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("inventario_bodega")
-        .select("cantidad_actual")
-        .eq("id_insumo", idInsumo)
-        .eq("id_bodega", idBodega)
-        .maybeSingle();
-      if (!cancelled) setStockBodega(Number(data?.cantidad_actual ?? 0));
+      const rows = await getStockPorBodega(idInsumo).catch(() => []);
+      const row = rows.find((r) => r.id_bodega === idBodega);
+      if (!cancelled) setStockBodega(Number(row?.cantidad_actual ?? 0));
     })();
     return () => {
       cancelled = true;
@@ -88,17 +84,21 @@ export function AjustarStockForm({
       return;
     }
     setSaving(true);
-    const { error } = await supabase.rpc("ajustar_stock_manual", {
-      p_id_insumo: idInsumo,
-      p_nueva_cantidad: nuevaCantidad,
-      p_motivo: motivo.trim(),
-      p_id_bodega: idBodega,
-    } as never);
-    setSaving(false);
-    if (error) {
-      toast.error("No se pudo ajustar el stock", { description: error.message });
+    try {
+      await ajustarStock({
+        idInsumo,
+        nuevaCantidad,
+        motivo: motivo.trim(),
+        idBodega,
+      });
+    } catch (err) {
+      setSaving(false);
+      toast.error("No se pudo ajustar el stock", {
+        description: err instanceof Error ? err.message : undefined,
+      });
       return;
     }
+    setSaving(false);
     toast.success("Stock actualizado");
     onSuccess();
   };
@@ -147,9 +147,7 @@ export function AjustarStockForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="valor">
-          {modo === "nueva" ? "Nueva cantidad" : "Diferencial (+/-)"}
-        </Label>
+        <Label htmlFor="valor">{modo === "nueva" ? "Nueva cantidad" : "Diferencial (+/-)"}</Label>
         <Input
           id="valor"
           type="number"

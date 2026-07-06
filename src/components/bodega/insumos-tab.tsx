@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { listarInsumos, eliminarInsumo } from "@/lib/bodega.functions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,12 +33,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("insumos")
-      .select(
-        "id_insumo, nombre_insumo, costo_promedio, stock_minimo, unidad_compra, unidad_receta, factor_conversion"
-      )
-      .order("created_at", { ascending: false });
+    const data = await listarInsumos().catch(() => []);
     setItems((data as unknown as Insumo[]) ?? []);
     setLoading(false);
   };
@@ -103,11 +98,7 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
               </TableRow>
             ) : (
               items.map((i) => (
-                <TableRow
-                  key={i.id_insumo}
-                  className="cursor-pointer"
-                  onClick={() => openEdit(i)}
-                >
+                <TableRow key={i.id_insumo} className="cursor-pointer" onClick={() => openEdit(i)}>
                   <TableCell className="font-medium">{i.nombre_insumo}</TableCell>
                   <TableCell className="hidden sm:table-cell">{labelDe(i.unidad_receta)}</TableCell>
                   <TableCell className="text-right">
@@ -163,12 +154,12 @@ export function InsumosTab({ idNegocio }: { idNegocio: string }) {
           onDelete={
             selected
               ? async () => {
-                  const { error } = await supabase
-                    .from("insumos")
-                    .delete()
-                    .eq("id_insumo", selected.id_insumo);
-                  if (error) {
-                    toast.error("No se pudo eliminar", { description: error.message });
+                  try {
+                    await eliminarInsumo(selected.id_insumo);
+                  } catch (err) {
+                    toast.error("No se pudo eliminar", {
+                      description: err instanceof Error ? err.message : undefined,
+                    });
                     return;
                   }
                   toast.success("Insumo eliminado");
