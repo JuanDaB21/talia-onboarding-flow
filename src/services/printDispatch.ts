@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { listarEspacios } from "@/lib/espacios.functions";
+import { getImpresionConfigs } from "@/lib/impresion.functions";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 import { imprimirComandas, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 import {
   isWebUSBSupported,
@@ -20,39 +22,26 @@ interface EspacioBasico {
 }
 
 async function loadEspaciosMap(): Promise<Map<string, EspacioBasico>> {
-  const [{ data: esp }, { data: cfg }] = await Promise.all([
-    supabase.from("espacios_trabajo").select("slug, nombre"),
-    supabase.from("espacio_impresora").select("id_espacio, ancho_papel_mm"),
-  ]);
+  const [espacios, cfg] = await Promise.all([listarEspacios(), getImpresionConfigs()]);
   const map = new Map<string, EspacioBasico>();
   const anchoPorEspacio = new Map<string, number>();
-  for (const c of ((cfg ?? []) as Array<{ id_espacio: string; ancho_papel_mm: number }>)) {
+  for (const c of cfg) {
     anchoPorEspacio.set(c.id_espacio, c.ancho_papel_mm);
   }
-  // Necesitamos también el id → slug para cruzar; hacemos una segunda query si hace falta.
-  const withIds = await supabase
-    .from("espacios_trabajo")
-    .select("id_espacio, slug, nombre");
-  for (const e of (withIds.data ?? []) as Array<{ id_espacio: string; slug: string; nombre: string }>) {
+  for (const e of espacios) {
     map.set(e.slug.toUpperCase(), {
       slug: e.slug.toUpperCase(),
       nombre: e.nombre,
       ancho_papel_mm: anchoPorEspacio.get(e.id_espacio) ?? 80,
     });
   }
-  // silencio warnings si esp está sin usar
-  void esp;
   return map;
 }
 
 async function loadNegocio(): Promise<string> {
   try {
-    const { data } = await supabase
-      .from("negocio")
-      .select("nombre_comercial")
-      .limit(1)
-      .maybeSingle();
-    return (data?.nombre_comercial as string) ?? "";
+    const n = await getNegocioConfig();
+    return n.nombre_comercial ?? "";
   } catch {
     return "";
   }

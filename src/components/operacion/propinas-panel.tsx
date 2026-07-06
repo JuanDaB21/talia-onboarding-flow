@@ -53,13 +53,16 @@ export function PropinasPanel() {
           <Badge variant="secondary">{formatMoney(total)}</Badge>
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          El negocio retiene {retencion}% · se reparte {(100 - retencion).toFixed(retencion % 1 ? 2 : 0)}% entre meseros en turno.
+          El negocio retiene {retencion}% · se reparte{" "}
+          {(100 - retencion).toFixed(retencion % 1 ? 2 : 0)}% entre meseros en turno.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label htmlFor="prop-desde" className="text-xs">Desde</Label>
+            <Label htmlFor="prop-desde" className="text-xs">
+              Desde
+            </Label>
             <Input
               id="prop-desde"
               type="date"
@@ -69,7 +72,9 @@ export function PropinasPanel() {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="prop-hasta" className="text-xs">Hasta</Label>
+            <Label htmlFor="prop-hasta" className="text-xs">
+              Hasta
+            </Label>
             <Input
               id="prop-hasta"
               type="date"

@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { crearMesa } from "@/lib/mesas.functions";
 import { mesaSchema, type MesaInput } from "@/lib/mesas-schemas";
 import {
   Dialog,
@@ -33,12 +33,12 @@ export function NuevaMesaDialog({ idNegocio, open, onOpenChange, onCreated }: Pr
   });
 
   const onSubmit = async (values: MesaInput) => {
-    const { error } = await supabase.from("mesas").insert({
-      id_negocio: idNegocio,
-      identificador: values.identificador,
-    });
-    if (error) {
-      toast.error("No se pudo crear la mesa", { description: error.message });
+    try {
+      await crearMesa({ identificador: values.identificador });
+    } catch (e) {
+      toast.error("No se pudo crear la mesa", {
+        description: e instanceof Error ? e.message : undefined,
+      });
       return;
     }
     toast.success("Mesa creada");
@@ -58,9 +58,7 @@ export function NuevaMesaDialog({ idNegocio, open, onOpenChange, onCreated }: Pr
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Nueva mesa</DialogTitle>
-          <DialogDescription>
-            El QR se generará automáticamente al guardar.
-          </DialogDescription>
+          <DialogDescription>El QR se generará automáticamente al guardar.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
@@ -72,9 +70,7 @@ export function NuevaMesaDialog({ idNegocio, open, onOpenChange, onCreated }: Pr
               {...register("identificador")}
             />
             {errors.identificador && (
-              <p className="text-xs text-destructive">
-                {errors.identificador.message}
-              </p>
+              <p className="text-xs text-destructive">{errors.identificador.message}</p>
             )}
           </div>
           <div className="flex gap-2">

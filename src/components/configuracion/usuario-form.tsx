@@ -33,10 +33,7 @@ import {
   type UsuarioCreateInput,
   type UsuarioUpdateInput,
 } from "@/lib/configuracion-schemas";
-import {
-  crearUsuarioStaff,
-  actualizarUsuarioStaff,
-} from "@/lib/usuarios.functions";
+import { crearUsuarioStaff, actualizarUsuarioStaff } from "@/lib/usuarios.functions";
 import { useEspacios } from "@/hooks/use-espacios";
 
 interface ExistingUsuario {
@@ -104,7 +101,14 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
   // Internamente: COCINA/BARRA siguen su rol homónimo; otros espacios → rol=ESTACION + id_espacio.
   type RolOption =
     | { kind: "base"; value: RolStaffUi; label: string }
-    | { kind: "espacio"; value: string; label: string; slug: string; idEspacio: string; rol: RolStaffUi };
+    | {
+        kind: "espacio";
+        value: string;
+        label: string;
+        slug: string;
+        idEspacio: string;
+        rol: RolStaffUi;
+      };
 
   const opciones: RolOption[] = [
     ...ROLES_BASE.map((r) => ({ kind: "base" as const, value: r, label: r })),
@@ -114,19 +118,23 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
       label: `Estación · ${e.nombre}`,
       slug: e.slug,
       idEspacio: e.id_espacio,
-      rol: (e.slug === "COCINA" ? "COCINA" : e.slug === "BARRA" ? "BARRA" : "ESTACION") as RolStaffUi,
+      rol: (e.slug === "COCINA"
+        ? "COCINA"
+        : e.slug === "BARRA"
+          ? "BARRA"
+          : "ESTACION") as RolStaffUi,
     })),
   ];
 
   const currentValue: string = (() => {
     if (rol === "COCINA" || rol === "BARRA" || rol === "ESTACION") {
-      const match = opciones.find(
-        (o) => o.kind === "espacio" && o.idEspacio === idEspacio,
-      );
+      const match = opciones.find((o) => o.kind === "espacio" && o.idEspacio === idEspacio);
       if (match) return match.value;
       // Fallback por slug si no se ha cargado el espacio
       const bySlug = opciones.find(
-        (o) => o.kind === "espacio" && o.slug === (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : ""),
+        (o) =>
+          o.kind === "espacio" &&
+          o.slug === (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : ""),
       );
       if (bySlug) return bySlug.value;
     }
@@ -271,9 +279,7 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
         <Switch
           id="recibe_propinas"
           checked={recibePropinas}
-          onCheckedChange={(v) =>
-            setValue("recibe_propinas", v, { shouldDirty: true })
-          }
+          onCheckedChange={(v) => setValue("recibe_propinas", v, { shouldDirty: true })}
         />
       </div>
 
@@ -297,8 +303,8 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. La cuenta y el acceso del usuario
-                  serán eliminados de forma permanente.
+                  Esta acción no se puede deshacer. La cuenta y el acceso del usuario serán
+                  eliminados de forma permanente.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

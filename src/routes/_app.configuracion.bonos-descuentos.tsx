@@ -2,23 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Info,
-  Loader2,
-  Pencil,
-  Plus,
-  Ticket,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, Info, Loader2, Pencil, Plus, Ticket, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,12 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
   listarBonos,
@@ -191,8 +172,7 @@ function BonosTab() {
       ) : bonos.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Aún no hay bonos. Crea el primero para que los meseros lo puedan
-            aplicar al cobrar.
+            Aún no hay bonos. Crea el primero para que los meseros lo puedan aplicar al cobrar.
           </CardContent>
         </Card>
       ) : (
@@ -205,20 +185,14 @@ function BonosTab() {
                   {!b.activo && <Badge variant="secondary">Inactivo</Badge>}
                 </div>
                 <CardDescription className="text-2xl font-bold text-primary">
-                  {b.tipo === "PORCENTAJE"
-                    ? `${b.porcentaje ?? 0}%`
-                    : fmt.format(b.valor)}
+                  {b.tipo === "PORCENTAJE" ? `${b.porcentaje ?? 0}%` : fmt.format(b.valor)}
                 </CardDescription>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {b.tipo === "PORCENTAJE" ? "Porcentaje" : "Valor fijo"}
                 </p>
               </CardHeader>
               <CardContent className="flex gap-2 pt-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditar(b)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setEditar(b)}>
                   <Pencil className="h-3.5 w-3.5 mr-1" />
                   Editar
                 </Button>
@@ -276,7 +250,6 @@ function BonosTab() {
   );
 }
 
-
 function BonoDialog({
   open,
   onOpenChange,
@@ -301,9 +274,7 @@ function BonoDialog({
   showActivo?: boolean;
 }) {
   const [nombre, setNombre] = useState(initial?.nombre ?? "");
-  const [tipo, setTipo] = useState<"PORCENTAJE" | "VALOR">(
-    initial?.tipo ?? "PORCENTAJE",
-  );
+  const [tipo, setTipo] = useState<"PORCENTAJE" | "VALOR">(initial?.tipo ?? "PORCENTAJE");
   const [porcentaje, setPorcentaje] = useState<string>(
     initial?.porcentaje != null ? String(initial.porcentaje) : "",
   );
@@ -316,9 +287,7 @@ function BonoDialog({
     if (open) {
       setNombre(initial?.nombre ?? "");
       setTipo(initial?.tipo ?? "PORCENTAJE");
-      setPorcentaje(
-        initial?.porcentaje != null ? String(initial.porcentaje) : "",
-      );
+      setPorcentaje(initial?.porcentaje != null ? String(initial.porcentaje) : "");
       setValor(initial && initial.tipo === "VALOR" ? String(initial.valor) : "");
       setActivo(initial?.activo ?? true);
     }
@@ -351,10 +320,7 @@ function BonoDialog({
           </div>
           <div>
             <Label>Tipo de descuento</Label>
-            <Select
-              value={tipo}
-              onValueChange={(v) => setTipo(v as "PORCENTAJE" | "VALOR")}
-            >
+            <Select value={tipo} onValueChange={(v) => setTipo(v as "PORCENTAJE" | "VALOR")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -372,9 +338,7 @@ function BonoDialog({
                   id="bono-pct"
                   inputMode="decimal"
                   value={porcentaje}
-                  onChange={(e) =>
-                    setPorcentaje(e.target.value.replace(/[^\d.]/g, ""))
-                  }
+                  onChange={(e) => setPorcentaje(e.target.value.replace(/[^\d.]/g, ""))}
                   placeholder="10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -394,9 +358,7 @@ function BonoDialog({
                   inputMode="numeric"
                   className="pl-7"
                   value={valor}
-                  onChange={(e) =>
-                    setValor(e.target.value.replace(/[^\d]/g, ""))
-                  }
+                  onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
                   placeholder="5000"
                 />
               </div>
@@ -405,11 +367,7 @@ function BonoDialog({
           {showActivo && (
             <div className="flex items-center justify-between">
               <Label htmlFor="bono-activo">Activo</Label>
-              <Switch
-                id="bono-activo"
-                checked={activo}
-                onCheckedChange={setActivo}
-              />
+              <Switch id="bono-activo" checked={activo} onCheckedChange={setActivo} />
             </div>
           )}
         </div>
@@ -438,14 +396,11 @@ function BonoDialog({
   );
 }
 
-
 function HistorialTab() {
   const hoy = new Date();
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-  const [desde, setDesde] = useState<string>(
-    inicioMes.toISOString().slice(0, 10),
-  );
+  const [desde, setDesde] = useState<string>(inicioMes.toISOString().slice(0, 10));
   const [hasta, setHasta] = useState<string>(hoy.toISOString().slice(0, 10));
   const [idMesero, setIdMesero] = useState<string>("todos");
 
@@ -548,10 +503,7 @@ function HistorialTab() {
                   </thead>
                   <tbody>
                     {data!.aplicaciones.map((a) => (
-                      <tr
-                        key={a.id_aplicacion}
-                        className="border-t hover:bg-muted/20"
-                      >
+                      <tr key={a.id_aplicacion} className="border-t hover:bg-muted/20">
                         <td className="p-3 text-xs text-muted-foreground">
                           {new Date(a.created_at).toLocaleString("es-CO", {
                             dateStyle: "short",
@@ -561,9 +513,7 @@ function HistorialTab() {
                         <td className="p-3">{a.identificador_mesa ?? "—"}</td>
                         <td className="p-3">{a.mesero_nombre ?? "—"}</td>
                         <td className="p-3">{a.nombre_bono}</td>
-                        <td className="p-3 text-right tabular-nums">
-                          {a.porcentaje_aplicado}%
-                        </td>
+                        <td className="p-3 text-right tabular-nums">{a.porcentaje_aplicado}%</td>
                         <td className="p-3 text-right tabular-nums font-medium">
                           {fmt.format(a.monto_descuento)}
                         </td>
@@ -605,9 +555,7 @@ function KpiCard({
                 <Info className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">
-              {tooltip}
-            </TooltipContent>
+            <TooltipContent className="max-w-xs text-xs">{tooltip}</TooltipContent>
           </Tooltip>
         </div>
         <div className="text-2xl font-bold tabular-nums">{value}</div>

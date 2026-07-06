@@ -12,9 +12,7 @@ function MetodosPagoPage() {
   if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   if (!idNegocio)
     return (
-      <p className="text-sm text-destructive">
-        No se encontró un negocio asociado a tu usuario.
-      </p>
+      <p className="text-sm text-destructive">No se encontró un negocio asociado a tu usuario.</p>
     );
   return (
     <div className="space-y-6">

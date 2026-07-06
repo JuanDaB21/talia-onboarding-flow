@@ -15,9 +15,7 @@ function MesasPage() {
   }
   if (!idNegocio) {
     return (
-      <p className="text-sm text-destructive">
-        No se encontró un negocio asociado a tu usuario.
-      </p>
+      <p className="text-sm text-destructive">No se encontró un negocio asociado a tu usuario.</p>
     );
   }
 

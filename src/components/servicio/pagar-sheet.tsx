@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -29,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadToStorage, usePrivImage } from "@/lib/storage";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import {
   listarItemsCobrables,
@@ -37,15 +36,8 @@ import {
   registrarPagoDividido,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
-import {
-  listarMetodosPagoQr,
-  type MetodoPagoQr,
-} from "@/lib/metodos-pago.functions";
-import {
-  listarBonos,
-  previsualizarBono,
-  type Bono,
-} from "@/lib/bonos.functions";
+import { listarMetodosPagoQr, type MetodoPagoQr } from "@/lib/metodos-pago.functions";
+import { listarBonos, previsualizarBono, type Bono } from "@/lib/bonos.functions";
 import {
   listarReservasAplicablesHoy,
   aplicarAbonoEnCheckout,
@@ -124,19 +116,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
 
   // Reserva (abono) seleccionado
   const reservasAplicables = reservasAplicablesQ.data ?? [];
-  const reservaSel = reservasAplicables.find(
-    (r) => r.id_reserva === idReservaAbono,
-  ) ?? null;
+  const reservaSel = reservasAplicables.find((r) => r.id_reserva === idReservaAbono) ?? null;
   // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
   // No permitimos mezclar bono + abono de reserva por simplicidad.
   const abonoActivo = !!reservaSel && !idBono;
-  const descuentoReserva = abonoActivo
-    ? Math.min(reservaSel.monto_abonado, totalSeleccionado)
-    : 0;
-  const subtotalConDescuentos = Math.max(
-    0,
-    totalSeleccionado - descuentoBono - descuentoReserva,
-  );
+  const descuentoReserva = abonoActivo ? Math.min(reservaSel.monto_abonado, totalSeleccionado) : 0;
+  const subtotalConDescuentos = Math.max(0, totalSeleccionado - descuentoBono - descuentoReserva);
   const reservaCubreTodo =
     abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const propina =
@@ -172,9 +157,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     onSuccess: (_res, vars) => {
       const esTransfer = vars.metodo === "TRANSFERENCIA";
       toast.success(
-        esTransfer
-          ? "Pago registrado · esperando confirmación del admin"
-          : "Pago registrado",
+        esTransfer ? "Pago registrado · esperando confirmación del admin" : "Pago registrado",
         { icon: <CheckCircle2 className="h-4 w-4" /> },
       );
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
@@ -256,7 +239,6 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
-
   const abonoMut = useMutation({
     mutationFn: () =>
       aplicarAbonoEnCheckout({
@@ -291,10 +273,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
-  const tituloPaso =
-    paso === "items"
-      ? "Selecciona los productos a cobrar"
-      : "Método de pago";
+  const tituloPaso = paso === "items" ? "Selecciona los productos a cobrar" : "Método de pago";
 
   const backTo: Paso | null = paso === "metodo" ? "items" : null;
 
@@ -419,9 +398,7 @@ function PropinaResumenRow({
   }, [propinaCustom]);
 
   const etiqueta =
-    propinaCustom !== null
-      ? "monto fijo"
-      : `${Math.round((propinaPct ?? 0) * 100)}%`;
+    propinaCustom !== null ? "monto fijo" : `${Math.round((propinaPct ?? 0) * 100)}%`;
 
   const opciones = [0, 0.05, 0.1, 0.15];
   const montosFijos = [2000, 5000, 10000, 20000];
@@ -446,16 +423,12 @@ function PropinaResumenRow({
         <DialogContent className="top-auto bottom-0 max-h-[88dvh] translate-y-0 rounded-t-2xl p-5 sm:top-[50%] sm:bottom-auto sm:max-w-sm sm:translate-y-[-50%] sm:rounded-lg">
           <DialogHeader>
             <DialogTitle>Propina</DialogTitle>
-            <DialogDescription>
-              Selecciona un porcentaje o define un monto fijo.
-            </DialogDescription>
+            <DialogDescription>Selecciona un porcentaje o define un monto fijo.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 overflow-y-auto">
             <section className="space-y-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Porcentaje
-              </p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Porcentaje</p>
               <div className="grid grid-cols-4 gap-2">
                 {opciones.map((pct) => {
                   const active = propinaCustom === null && propinaPct === pct;
@@ -478,9 +451,7 @@ function PropinaResumenRow({
             </section>
 
             <section className="space-y-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Montos fijos
-              </p>
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Montos fijos</p>
               <div className="grid grid-cols-2 gap-2">
                 {montosFijos.map((monto) => {
                   const active = propinaCustom === monto;
@@ -628,9 +599,7 @@ function BonoRow({
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
-                      {b.tipo === "VALOR"
-                        ? `-${fmt.format(b.valor)}`
-                        : `-${b.porcentaje ?? 0}%`}
+                      {b.tipo === "VALOR" ? `-${fmt.format(b.valor)}` : `-${b.porcentaje ?? 0}%`}
                     </span>
                   </button>
                 ))}
@@ -674,7 +643,6 @@ type BonoPreview = {
   descuento: number;
   descuento_neto: number;
 };
-
 
 function PasoItems({
   items,
@@ -750,9 +718,7 @@ function PasoItems({
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
             Pendiente por pagar:{" "}
-            <span className="font-semibold text-foreground">
-              {fmt.format(totalPendiente)}
-            </span>
+            <span className="font-semibold text-foreground">{fmt.format(totalPendiente)}</span>
           </span>
           <div className="flex gap-1">
             <Button
@@ -848,9 +814,7 @@ function PasoItems({
                     {it.cantidad > 1 ? `${it.cantidad}× ` : ""}
                     {it.nombre_producto}
                   </span>
-                  <span className="tabular-nums shrink-0">
-                    {fmt.format(it.subtotal)}
-                  </span>
+                  <span className="tabular-nums shrink-0">{fmt.format(it.subtotal)}</span>
                 </li>
               ))}
             </ul>
@@ -883,9 +847,7 @@ function PasoItems({
             totalSeleccionado={totalSeleccionado}
             disabled={!!idBono || !hayPendientes}
           />
-          {!reservaCubreTodo && (
-            <PropinaResumenRow propina={propina} propinaProps={propinaProps} />
-          )}
+          {!reservaCubreTodo && <PropinaResumenRow propina={propina} propinaProps={propinaProps} />}
           <div className="flex items-baseline justify-between pt-1">
             <span className="text-sm text-muted-foreground">Total a cobrar</span>
             <span className="text-2xl font-bold tabular-nums text-primary">
@@ -894,12 +856,7 @@ function PasoItems({
           </div>
         </div>
         {reservaCubreTodo ? (
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={aplicandoAbono}
-            onClick={onPagarConAbono}
-          >
+          <Button size="lg" className="w-full" disabled={aplicandoAbono} onClick={onPagarConAbono}>
             {aplicandoAbono ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
@@ -908,12 +865,7 @@ function PasoItems({
             Aplicar abono de reserva
           </Button>
         ) : (
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={selected.size === 0}
-            onClick={onContinue}
-          >
+          <Button size="lg" className="w-full" disabled={selected.size === 0} onClick={onContinue}>
             Continuar al método de pago
           </Button>
         )}
@@ -942,9 +894,7 @@ function ReservaAbonoRow({
   const sel = reservas.find((r) => r.id_reserva === idReserva) ?? null;
   const cubre = sel && sel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
   const visibles = reservas.filter((r) =>
-    `${r.codigo_reserva} ${r.customer_name}`
-      .toLowerCase()
-      .includes(search.trim().toLowerCase()),
+    `${r.codigo_reserva} ${r.customer_name}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
   if (!idReserva) {
@@ -959,9 +909,7 @@ function ReservaAbonoRow({
           <span className="flex min-w-0 items-center gap-2">
             <CalendarCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-foreground">
-                Abono de reserva
-              </span>
+              <span className="block text-sm font-medium text-foreground">Abono de reserva</span>
               <span className="block text-xs text-muted-foreground">
                 {disabled ? "No disponible" : "Seleccionar reserva"}
               </span>
@@ -1027,9 +975,7 @@ function ReservaAbonoRow({
       <div className="flex min-h-8 items-center justify-between gap-3 text-sm">
         <div className="flex min-w-0 items-center gap-2 text-emerald-700 dark:text-emerald-400">
           <CalendarCheck className="h-4 w-4 shrink-0" />
-          <span>
-            Abono{sel ? ` · ${sel.codigo_reserva}` : ""}
-          </span>
+          <span>Abono{sel ? ` · ${sel.codigo_reserva}` : ""}</span>
           <Button
             type="button"
             variant="ghost"
@@ -1046,8 +992,8 @@ function ReservaAbonoRow({
       </div>
       {sel && !cubre && (
         <p className="text-[11px] text-amber-700 dark:text-amber-400 pl-1">
-          El abono cubre {fmt.format(sel.monto_abonado)}. El saldo se cobra con el
-          método de pago que elijas.
+          El abono cubre {fmt.format(sel.monto_abonado)}. El saldo se cobra con el método de pago
+          que elijas.
         </p>
       )}
     </div>
@@ -1081,11 +1027,7 @@ function PasoMetodo({
   descuentoReserva: number;
   bonoInfo: BonoPreview | null;
   reservaInfo: ReservaAplicable | null;
-  onPagar: (extras: {
-    subtipo?: string;
-    voucher?: string;
-    urlComprobante?: string;
-  }) => void;
+  onPagar: (extras: { subtipo?: string; voucher?: string; urlComprobante?: string }) => void;
   isLoading: boolean;
   onPagarDividido: (
     partes: Array<{
@@ -1134,12 +1076,7 @@ function PasoMetodo({
     }
     setSubiendo(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const path = `${idNegocio}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage
-        .from("comprobantes-pago")
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw error;
+      const { path } = await uploadToStorage("comprobante", file);
       setUrlComprobante(path);
       toast.success("Comprobante subido");
     } catch (err) {
@@ -1169,9 +1106,7 @@ function PasoMetodo({
           </div>
           {descuentoBono > 0 && (
             <div className="flex items-center justify-between text-sm text-emerald-700 dark:text-emerald-400">
-              <span className="truncate">
-                Bono{bonoInfo ? ` · ${bonoInfo.nombre}` : ""}
-              </span>
+              <span className="truncate">Bono{bonoInfo ? ` · ${bonoInfo.nombre}` : ""}</span>
               <span className="shrink-0 tabular-nums font-medium">
                 -{fmt.format(descuentoBono)}
               </span>
@@ -1244,18 +1179,14 @@ function PasoMetodo({
                     id="recibido"
                     inputMode="numeric"
                     value={recibido}
-                    onChange={(e) =>
-                      setRecibido(e.target.value.replace(/[^\d]/g, ""))
-                    }
+                    onChange={(e) => setRecibido(e.target.value.replace(/[^\d]/g, ""))}
                     placeholder="0"
                   />
                 </div>
                 {cambio !== null && (
                   <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Cambio</span>
-                    <span className="text-lg font-bold tabular-nums">
-                      {fmt.format(cambio)}
-                    </span>
+                    <span className="text-lg font-bold tabular-nums">{fmt.format(cambio)}</span>
                   </div>
                 )}
               </div>
@@ -1385,13 +1316,13 @@ function TransferenciaSection({
   fileRef: React.MutableRefObject<HTMLInputElement | null>;
   handleFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
-  const listar = useServerFn(listarMetodosPagoQr);
   const qrQ = useQuery({
     queryKey: ["metodosPagoQr"],
-    queryFn: () => listar(),
+    queryFn: () => listarMetodosPagoQr(),
   });
   const qrs = qrQ.data ?? [];
   const [qrOpen, setQrOpen] = useState<MetodoPagoQr | null>(null);
+  const qrModalUrl = usePrivImage(qrOpen?.signed_url);
 
   const plataformasFijas: Array<"Nequi" | "Daviplata" | "Bancolombia"> = [
     "Nequi",
@@ -1445,13 +1376,10 @@ function TransferenciaSection({
         </div>
         {subtipo &&
           !qrs.find(
-            (q) =>
-              q.plataforma === subtipo ||
-              (q.plataforma === "Otra" && q.etiqueta === subtipo),
+            (q) => q.plataforma === subtipo || (q.plataforma === "Otra" && q.etiqueta === subtipo),
           )?.signed_url && (
             <p className="text-[11px] text-muted-foreground mt-1.5">
-              Sin QR configurado. Pídele al admin que lo cargue en Configuración
-              → Métodos de pago.
+              Sin QR configurado. Pídele al admin que lo cargue en Configuración → Métodos de pago.
             </p>
           )}
       </div>
@@ -1477,9 +1405,7 @@ function TransferenciaSection({
           ) : (
             <Camera className="h-4 w-4 mr-2" />
           )}
-          {urlComprobante
-            ? "Comprobante subido — cambiar"
-            : "Tomar / subir foto"}
+          {urlComprobante ? "Comprobante subido — cambiar" : "Tomar / subir foto"}
         </Button>
         <p className="text-[11px] text-muted-foreground mt-1">
           Se enviará al administrador para que confirme la recepción.
@@ -1489,20 +1415,16 @@ function TransferenciaSection({
       <Dialog open={!!qrOpen} onOpenChange={(o) => !o && setQrOpen(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Escanea con {qrOpen?.etiqueta || qrOpen?.plataforma}
-            </DialogTitle>
+            <DialogTitle>Escanea con {qrOpen?.etiqueta || qrOpen?.plataforma}</DialogTitle>
           </DialogHeader>
           {qrOpen?.titular && (
-            <p className="text-sm text-muted-foreground -mt-2">
-              {qrOpen.titular}
-            </p>
+            <p className="text-sm text-muted-foreground -mt-2">{qrOpen.titular}</p>
           )}
-          {qrOpen?.signed_url && (
+          {qrModalUrl && (
             <div className="rounded-xl bg-white p-4 flex items-center justify-center">
               <img
-                src={qrOpen.signed_url}
-                alt={`QR ${qrOpen.plataforma}`}
+                src={qrModalUrl}
+                alt={`QR ${qrOpen?.plataforma}`}
                 className="w-full max-w-sm aspect-square object-contain"
               />
             </div>
@@ -1532,9 +1454,7 @@ function PlataformaBtn({
       type="button"
       onClick={onClick}
       className={`relative rounded-lg border px-3 py-2 text-sm transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card hover:bg-muted"
+        active ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"
       }`}
     >
       {label}
@@ -1599,8 +1519,7 @@ function PartesEditor({
     setPartes((ps) => ps.map((p) => (p.key === key ? { ...p, ...patch } : p)));
   const removeParte = (key: string) =>
     setPartes((ps) => (ps.length <= 2 ? ps : ps.filter((p) => p.key !== key)));
-  const addParte = () =>
-    setPartes((ps) => (ps.length >= 10 ? ps : [...ps, nuevaParte()]));
+  const addParte = () => setPartes((ps) => (ps.length >= 10 ? ps : [...ps, nuevaParte()]));
 
   const sumaPartes = useMemo(
     () => partes.reduce((a, b) => a + (Number(b.monto) || 0), 0),
@@ -1624,8 +1543,7 @@ function PartesEditor({
   };
   const todasValidas = partes.every(parteValida);
   const cuadra = Math.abs(saldo) <= 1;
-  const puedePagar =
-    !isLoading && partes.length >= 2 && todasValidas && cuadra;
+  const puedePagar = !isLoading && partes.length >= 2 && todasValidas && cuadra;
 
   const handleSubmit = () => {
     if (!puedePagar) return;
@@ -1677,21 +1595,15 @@ function PartesEditor({
       <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Total requerido</span>
-          <span className="tabular-nums font-medium">
-            {fmt.format(totalRequerido)}
-          </span>
+          <span className="tabular-nums font-medium">{fmt.format(totalRequerido)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Suma de partes</span>
-          <span className="tabular-nums font-medium">
-            {fmt.format(sumaPartes)}
-          </span>
+          <span className="tabular-nums font-medium">{fmt.format(sumaPartes)}</span>
         </div>
         <div
           className={`flex items-center justify-between font-semibold ${
-            cuadra
-              ? "text-emerald-700 dark:text-emerald-400"
-              : "text-red-600 dark:text-red-400"
+            cuadra ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
           }`}
         >
           <span>Saldo por asignar</span>
@@ -1699,12 +1611,7 @@ function PartesEditor({
         </div>
       </div>
 
-      <Button
-        size="lg"
-        className="w-full"
-        disabled={!puedePagar}
-        onClick={handleSubmit}
-      >
+      <Button size="lg" className="w-full" disabled={!puedePagar} onClick={handleSubmit}>
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
         ) : (
@@ -1745,12 +1652,7 @@ function ParteCard({
     }
     setSubiendo(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const path = `${idNegocio}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage
-        .from("comprobantes-pago")
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw error;
+      const { path } = await uploadToStorage("comprobante", file);
       onChange({ urlComprobante: path });
       toast.success("Comprobante subido");
     } catch (err) {
@@ -1768,13 +1670,7 @@ function ParteCard({
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold">Parte {index + 1}</p>
         {onRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={onRemove}
-          >
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onRemove}>
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -1827,9 +1723,7 @@ function ParteCard({
         <Input
           inputMode="numeric"
           value={parte.monto}
-          onChange={(e) =>
-            onChange({ monto: e.target.value.replace(/[^\d]/g, "") })
-          }
+          onChange={(e) => onChange({ monto: e.target.value.replace(/[^\d]/g, "") })}
           placeholder="0"
           className="h-11 text-base"
         />
@@ -1867,9 +1761,7 @@ function ParteCard({
           </div>
           <Input
             value={parte.voucher}
-            onChange={(e) =>
-              onChange({ voucher: e.target.value.slice(0, 50) })
-            }
+            onChange={(e) => onChange({ voucher: e.target.value.slice(0, 50) })}
             placeholder="N° voucher (opcional)"
           />
         </div>

@@ -102,11 +102,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
               </TableRow>
             ) : (
               items.map((u) => (
-                <TableRow
-                  key={u.id_usuario}
-                  className="cursor-pointer"
-                  onClick={() => openEdit(u)}
-                >
+                <TableRow key={u.id_usuario} className="cursor-pointer" onClick={() => openEdit(u)}>
                   <TableCell className="font-medium">{u.nombre}</TableCell>
                   <TableCell className="hidden sm:table-cell">{u.correo}</TableCell>
                   <TableCell>
@@ -134,9 +130,7 @@ export function UsuariosTab({ idNegocio }: { idNegocio: string }) {
         onOpenChange={handleOpenChange}
         title={selected ? "Editar usuario" : "Nuevo usuario"}
         description={
-          selected
-            ? "Actualiza los datos del usuario."
-            : "Registra a un nuevo miembro del equipo."
+          selected ? "Actualiza los datos del usuario." : "Registra a un nuevo miembro del equipo."
         }
       >
         <UsuarioForm

@@ -57,7 +57,6 @@ function BodegasPage() {
   const { bodegas, loading, invalidate } = useBodegas();
   const { espacios } = useEspacios({ soloActivos: true });
 
-
   const [editSheet, setEditSheet] = useState<{ open: boolean; editing?: Bodega }>({ open: false });
   const [nombre, setNombre] = useState("");
   const [saving, setSaving] = useState(false);
@@ -207,9 +206,7 @@ function BodegasPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {esPrincipal && (
-                          <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
-                        )}
+                        {esPrincipal && <Star className="h-4 w-4 text-amber-500 fill-amber-400" />}
                         <h3 className="font-semibold truncate">{b.nombre}</h3>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -234,10 +231,7 @@ function BodegasPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={b.activa}
-                        onCheckedChange={(v) => handleToggle(b, v)}
-                      />
+                      <Switch checked={b.activa} onCheckedChange={(v) => handleToggle(b, v)} />
                       <span className="text-xs text-muted-foreground">
                         {b.activa ? "Activa" : "Inactiva"}
                       </span>
@@ -267,7 +261,9 @@ function BodegasPage() {
       {/* Crear / editar */}
       <ResponsiveSheet
         open={editSheet.open}
-        onOpenChange={(open) => setEditSheet({ open, editing: open ? editSheet.editing : undefined })}
+        onOpenChange={(open) =>
+          setEditSheet({ open, editing: open ? editSheet.editing : undefined })
+        }
         title={editSheet.editing ? "Editar bodega" : "Nueva bodega"}
         description="Define el nombre con el que aparecerá en el sistema."
       >
@@ -334,7 +330,8 @@ function BodegasPage() {
                                 toast.success(`Asignada como principal de ${e.nombre}`);
                                 await refreshAll();
                                 // Refresh detail
-                                const updated = (await qc.getQueryData<Bodega[]>(["bodegas"])) ?? [];
+                                const updated =
+                                  (await qc.getQueryData<Bodega[]>(["bodegas"])) ?? [];
                                 const next = updated.find((b) => b.id_bodega === detail.id_bodega);
                                 if (next) setDetail(next);
                               } catch (err) {
@@ -363,7 +360,10 @@ function BodegasPage() {
               ) : (
                 <div className="rounded-md border divide-y">
                   {stockDetail.map((s) => (
-                    <div key={s.id_insumo} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <div
+                      key={s.id_insumo}
+                      className="flex items-center justify-between px-3 py-2 text-sm"
+                    >
                       <span className="truncate">{s.nombre}</span>
                       <span className="tabular-nums font-medium">
                         {s.cantidad.toLocaleString()} {s.unidad}
@@ -415,7 +415,14 @@ interface TrasladoDialogProps {
   trasladar: typeof trasladarInventario;
 }
 
-function TrasladoDialog({ open, onOpenChange, bodegas, invRows, onDone, trasladar }: TrasladoDialogProps) {
+function TrasladoDialog({
+  open,
+  onOpenChange,
+  bodegas,
+  invRows,
+  onDone,
+  trasladar,
+}: TrasladoDialogProps) {
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [idInsumo, setIdInsumo] = useState("");
