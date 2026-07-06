@@ -70,8 +70,6 @@ const TIPO_SUGERENCIAS = ["Cumplea√±os", "Aniversario", "Grado", "Cena", "Reuni√
 
 export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const qc = useQueryClient();
-  const crear = useServerFn(crearReserva);
-  const actualizar = useServerFn(actualizarReserva);
   const editing = !!reserva;
 
   const [form, setForm] = useState<FormState>(empty());
@@ -121,9 +119,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
       }
       setErrors({});
       if (editing && reserva) {
-        await actualizar({ data: { id_reserva: reserva.id_reserva, ...parsed.data } });
+        await actualizarReserva(reserva.id_reserva, parsed.data);
       } else {
-        await crear({ data: parsed.data });
+        await crearReserva(parsed.data);
       }
     },
     onSuccess: () => {

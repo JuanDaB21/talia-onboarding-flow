@@ -71,9 +71,6 @@ interface Props {
 export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const reservasFn = useServerFn(listarReservasAplicablesHoy);
-  const aplicarAbonoFn = useServerFn(aplicarAbonoEnCheckout);
-
   const itemsQ = useQuery({
     queryKey: ["pagos", "items", idMesa],
     queryFn: () => listarItemsCobrables(idMesa),
@@ -82,7 +79,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
 
   const reservasAplicablesQ = useQuery({
     queryKey: ["reservas", "aplicables-hoy"],
-    queryFn: () => reservasFn(),
+    queryFn: () => listarReservasAplicablesHoy(),
     enabled: open,
   });
 
@@ -266,12 +263,10 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
 
   const abonoMut = useMutation({
     mutationFn: () =>
-      aplicarAbonoFn({
-        data: {
-          idReserva: idReservaAbono!,
-          idMesa,
-          itemIds: Array.from(selected),
-        },
+      aplicarAbonoEnCheckout({
+        idReserva: idReservaAbono!,
+        idMesa,
+        itemIds: Array.from(selected),
       }),
     onSuccess: () => {
       toast.success("Abono de reserva aplicado", {
