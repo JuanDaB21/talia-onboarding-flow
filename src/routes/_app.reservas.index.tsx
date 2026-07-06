@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Plus, Search, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +28,6 @@ export const Route = createFileRoute("/_app/reservas/")({
 const today = () => new Date().toISOString().slice(0, 10);
 
 function ReservasPage() {
-  const listarFn = useServerFn(listarReservas);
-  const metricasFn = useServerFn(getMetricasReservasHoy);
-
   const [fecha, setFecha] = useState<string>(today());
   const [estado, setEstado] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -41,18 +37,16 @@ function ReservasPage() {
   const reservasQ = useQuery({
     queryKey: ["reservas", { fecha, estado, search }],
     queryFn: () =>
-      listarFn({
-        data: {
-          fecha: fecha || undefined,
-          estado: (estado || undefined) as never,
-          search: search || undefined,
-        },
+      listarReservas({
+        fecha: fecha || undefined,
+        estado: estado || undefined,
+        search: search || undefined,
       }),
   });
 
   const metricasQ = useQuery({
     queryKey: ["reservas", "metricas-hoy"],
-    queryFn: () => metricasFn(),
+    queryFn: () => getMetricasReservasHoy(),
   });
 
   const grupos = useMemo(() => {

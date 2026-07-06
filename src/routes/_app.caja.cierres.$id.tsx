@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,10 +18,9 @@ export const Route = createFileRoute("/_app/caja/cierres/$id")({
 
 function ReportePage() {
   const { id } = Route.useParams();
-  const fn = useServerFn(getCierre);
   const { data, isLoading, error } = useQuery({
     queryKey: ["cierre", id],
-    queryFn: () => fn({ data: { idCaja: id } }),
+    queryFn: () => getCierre(id),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;

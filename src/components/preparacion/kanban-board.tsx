@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { realtime } from "@/lib/realtime-client";
 import {
   avanzarItem,
   iniciarComanda,
@@ -26,9 +25,6 @@ interface Props {
 }
 
 export function KanbanBoard({ destino, titulo }: Props) {
-  const listar = useServerFn(listarComandasEstacion);
-  const avanzar = useServerFn(avanzarItem);
-  const iniciar = useServerFn(iniciarComanda);
   const [comandas, setComandas] = useState<ComandaEstacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -37,7 +33,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
 
   const refrescar = useCallback(async () => {
     try {
-      const res = await listar({ data: { destino } });
+      const res = await listarComandasEstacion(destino);
       setComandas(res.comandas);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error";
@@ -45,11 +41,11 @@ export function KanbanBoard({ destino, titulo }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [listar, destino]);
+  }, [destino]);
 
   useEffect(() => {
     refrescar();
-    const channel = supabase
+    const channel = realtime
       .channel(`estacion-${destino}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "pedido_items" }, () => {
         refrescar();
@@ -59,7 +55,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
       })
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
   }, [refrescar, destino]);
 
@@ -69,7 +65,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
   ) => {
     setBusyId(idItem);
     try {
-      await avanzar({ data: { idItem, nuevoEstado } });
+      await avanzarItem({ idItem, nuevoEstado });
       await refrescar();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error";
@@ -82,7 +78,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
   const handleIniciarTodo = async (idPedido: string) => {
     setIniciandoTodo(true);
     try {
-      const res = await iniciar({ data: { idPedido, destino } });
+      const res = await iniciarComanda({ idPedido, destino });
       toast.success(`${res.iniciados} item${res.iniciados === 1 ? "" : "s"} en preparación`);
       await refrescar();
     } catch (e) {

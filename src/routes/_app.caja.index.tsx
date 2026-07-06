@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -52,11 +51,9 @@ export const Route = createFileRoute("/_app/caja/")({
 });
 
 function CajaPage() {
-  const getEstado = useServerFn(getEstadoCaja);
-  const listar = useServerFn(listarCierres);
   const { data, isLoading } = useQuery({
     queryKey: ["estado-caja"],
-    queryFn: () => getEstado(),
+    queryFn: () => getEstadoCaja(),
     ...POLL.NORMAL,
   });
 
@@ -68,7 +65,7 @@ function CajaPage() {
   );
   const hist = useQuery({
     queryKey: ["cierres", filtros],
-    queryFn: () => listar({ data: filtros }),
+    queryFn: () => listarCierres(filtros),
   });
 
   const setHoy = () => {
@@ -195,7 +192,6 @@ function CajaPage() {
 }
 
 function AbrirCajaForm() {
-  const fn = useServerFn(abrirCaja);
   const qc = useQueryClient();
   const [base, setBase] = useState("0");
   const [busy, setBusy] = useState(false);
@@ -208,7 +204,7 @@ function AbrirCajaForm() {
     }
     setBusy(true);
     try {
-      await fn({ data: { base: n } });
+      await abrirCaja(n);
       toast.success("Caja abierta");
       qc.invalidateQueries({ queryKey: ["estado-caja"] });
     } catch (e) {
@@ -362,14 +358,13 @@ function CajaResumen({
 }
 
 function ReabrirCajaButton() {
-  const fn = useServerFn(reabrirCaja);
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const handle = async () => {
     setBusy(true);
     try {
-      await fn();
+      await reabrirCaja();
       toast.success("Caja reabierta");
       qc.invalidateQueries({ queryKey: ["estado-caja"] });
       qc.invalidateQueries({ queryKey: ["cierres"] });
@@ -437,14 +432,9 @@ function Row({
 
 function AjustesCajaLive() {
   const qc = useQueryClient();
-  const tiposFn = useServerFn(listarTiposAjuste);
-  const listarFn = useServerFn(listarAjustesCajaActual);
-  const crearFn = useServerFn(crearAjusteCaja);
-  const eliminarFn = useServerFn(eliminarAjusteCaja);
-  const crearTipoFn = useServerFn(crearTipoAjuste);
 
-  const tipos = useQuery({ queryKey: ["caja-ajuste-tipos"], queryFn: () => tiposFn() });
-  const ajustes = useQuery({ queryKey: ["caja-ajustes-actual"], queryFn: () => listarFn() });
+  const tipos = useQuery({ queryKey: ["caja-ajuste-tipos"], queryFn: () => listarTiposAjuste() });
+  const ajustes = useQuery({ queryKey: ["caja-ajustes-actual"], queryFn: () => listarAjustesCajaActual() });
 
   const [selTipo, setSelTipo] = useState("");
   const [monto, setMonto] = useState("");
@@ -477,7 +467,7 @@ function AjustesCajaLive() {
     }
     setBusy(true);
     try {
-      await crearFn({ data: { idTipo: selTipo, monto: m, nota: nota || null } });
+      await crearAjusteCaja({ idTipo: selTipo, monto: m, nota: nota || null });
       toast.success("Ajuste registrado");
       setSelTipo("");
       setMonto("");
@@ -494,7 +484,7 @@ function AjustesCajaLive() {
 
   const eliminar = async (idAjuste: string) => {
     try {
-      await eliminarFn({ data: { idAjuste } });
+      await eliminarAjusteCaja(idAjuste);
       qc.invalidateQueries({ queryKey: ["caja-ajustes-actual"] });
     } catch (e) {
       toast.error("No se pudo eliminar", {
@@ -511,7 +501,7 @@ function AjustesCajaLive() {
     }
     setCreandoTipo(true);
     try {
-      const t = await crearTipoFn({ data: { nombre, signo: newSigno } });
+      const t = await crearTipoAjuste({ nombre, signo: newSigno });
       toast.success("Tipo creado");
       setDialogOpen(false);
       setNewNombre("");

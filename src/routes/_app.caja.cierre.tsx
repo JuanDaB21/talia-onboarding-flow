@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -35,23 +34,19 @@ export const Route = createFileRoute("/_app/caja/cierre")({
 });
 
 function CierreWizard() {
-  const fn = useServerFn(getEstadoCaja);
-  const cerrar = useServerFn(cerrarCaja);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["estado-caja"],
-    queryFn: () => fn(),
+    queryFn: () => getEstadoCaja(),
   });
-  const tiposFn = useServerFn(listarTiposAjuste);
   const { data: tipos } = useQuery({
     queryKey: ["caja-ajuste-tipos"],
-    queryFn: () => tiposFn(),
+    queryFn: () => listarTiposAjuste(),
   });
-  const ajustesPreviosFn = useServerFn(listarAjustesCajaActual);
   const { data: ajustesPrevios } = useQuery({
     queryKey: ["caja-ajustes-actual"],
-    queryFn: () => ajustesPreviosFn(),
+    queryFn: () => listarAjustesCajaActual(),
   });
   const [step, setStep] = useState(1);
   const [efectivoFisico, setEfectivoFisico] = useState("0");
@@ -134,13 +129,11 @@ function CierreWizard() {
 
     setBusy(true);
     try {
-      const { idCaja } = await cerrar({
-        data: {
-          efectivoFisico: Number(efectivoFisico),
-          datafonoFisico: Number(datafonoFisico),
-          nota: notaFinal || null,
-          ajustes: ajustes.map((a) => ({ idTipo: a.idTipo, monto: a.monto })),
-        },
+      const { idCaja } = await cerrarCaja({
+        efectivoFisico: Number(efectivoFisico),
+        datafonoFisico: Number(datafonoFisico),
+        nota: notaFinal || null,
+        ajustes: ajustes.map((a) => ({ idTipo: a.idTipo, monto: a.monto })),
       });
       toast.success("Caja cerrada");
       navigate({ to: "/caja/cierres/$id", params: { id: idCaja } });
@@ -406,7 +399,6 @@ function AjustesEditor({
   onChange: (next: AjusteRow[]) => void;
   onTipoCreated: () => void;
 }) {
-  const crearFn = useServerFn(crearTipoAjuste);
   const [selTipo, setSelTipo] = useState<string>("");
   const [monto, setMonto] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -445,7 +437,7 @@ function AjustesEditor({
     }
     setCreando(true);
     try {
-      const t = await crearFn({ data: { nombre, signo: newSigno } });
+      const t = await crearTipoAjuste({ nombre, signo: newSigno });
       toast.success("Tipo creado");
       setDialogOpen(false);
       setNewNombre("");

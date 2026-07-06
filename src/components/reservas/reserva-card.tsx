@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getNegocioConfig } from "@/lib/negocio.functions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,19 +49,16 @@ interface Props {
 
 export function ReservaCard({ reserva, onEdit }: Props) {
   const qc = useQueryClient();
-  const cancelarFn = useServerFn(cancelarReserva);
-  const eliminarFn = useServerFn(eliminarReserva);
-  const getNegocio = useServerFn(getNegocioConfig);
   const negocioQ = useQuery({
     queryKey: ["negocio", "config"],
-    queryFn: () => getNegocio(),
+    queryFn: () => getNegocioConfig(),
     staleTime: 5 * 60 * 1000,
   });
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const cancelarMut = useMutation({
     mutationFn: (devolver: boolean) =>
-      cancelarFn({ data: { id_reserva: reserva.id_reserva, devolver } }),
+      cancelarReserva(reserva.id_reserva, devolver),
     onSuccess: () => {
       toast.success("Reserva cancelada");
       qc.invalidateQueries({ queryKey: ["reservas"] });
@@ -72,7 +68,7 @@ export function ReservaCard({ reserva, onEdit }: Props) {
   });
 
   const eliminarMut = useMutation({
-    mutationFn: () => eliminarFn({ data: { id_reserva: reserva.id_reserva } }),
+    mutationFn: () => eliminarReserva(reserva.id_reserva),
     onSuccess: () => {
       toast.success("Reserva eliminada");
       qc.invalidateQueries({ queryKey: ["reservas"] });
