@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -52,10 +51,9 @@ export function PrepedidoSheet({
   void theme;
   void idSesion;
   const qc = useQueryClient();
-  const delFn = useServerFn(eliminarItemPrepedido);
 
   const delMut = useMutation({
-    mutationFn: (idItem: string) => delFn({ data: { idItem, idCliente } }),
+    mutationFn: (idItem: string) => eliminarItemPrepedido({ idItem, idCliente }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prepedido", idMesa] });
       toast.success("Eliminado");

@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Bell, CreditCard, Loader2, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -67,9 +66,6 @@ function CartaPage() {
     import("@/lib/prepedido.functions").PrepedidoItem | null
   >(null);
 
-  const unirseFn = useServerFn(unirseSesionPrepedido);
-  const getPrep = useServerFn(getPrepedidoPublico);
-
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaPublica | null>(null);
   const [cargandoCuenta, setCargandoCuenta] = useState(false);
@@ -83,9 +79,7 @@ function CartaPage() {
     if (cliente.idSesion) {
       setFase("menu");
       // Re-upsert para garantizar que la sesión existe en la BD
-      unirseFn({
-        data: { idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre },
-      })
+      unirseSesionPrepedido({ idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre })
         .then((res) => {
           if (res.id_sesion !== cliente.idSesion) setSesion(res.id_sesion);
         })
@@ -99,9 +93,7 @@ function CartaPage() {
   const unirseMut = useMutation({
     mutationFn: async (nombre: string) => {
       const c = registrar(nombre);
-      const res = await unirseFn({
-        data: { idMesa, idCliente: c.idCliente, nombre: c.nombre },
-      });
+      const res = await unirseSesionPrepedido({ idMesa, idCliente: c.idCliente, nombre: c.nombre });
       setSesion(res.id_sesion);
       return res;
     },
@@ -112,10 +104,10 @@ function CartaPage() {
       }),
   });
 
-  // Pre-pedido (polling cada 3s; lectura solo por server fn con supabaseAdmin)
+  // Pre-pedido (polling cada 3s; lectura por REST público /prepedido/public)
   const prepedidoQ = useQuery({
     queryKey: ["prepedido", idMesa],
-    queryFn: () => getPrep({ data: { idMesa } }),
+    queryFn: () => getPrepedidoPublico(idMesa),
     enabled: !!cliente?.idSesion,
     refetchInterval: 3000,
   });
@@ -124,12 +116,14 @@ function CartaPage() {
   useEffect(() => {
     if (!cliente?.idSesion) return;
     const id = setInterval(() => {
-      unirseFn({
-        data: { idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre },
+      unirseSesionPrepedido({
+        idMesa,
+        idCliente: cliente.idCliente,
+        nombre: cliente.nombre,
       }).catch(() => undefined);
     }, 60_000);
     return () => clearInterval(id);
-  }, [cliente, idMesa, unirseFn]);
+  }, [cliente, idMesa]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],

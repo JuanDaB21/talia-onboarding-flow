@@ -35,7 +35,6 @@ interface Props {
 
 export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
   const qc = useQueryClient();
-  const aceptarFn = useServerFn(aceptarPrepedido);
   const eliminarFn = useServerFn(eliminarItemPrepedidoStaff);
   const [editing, setEditing] = useState<PrepedidoItem | null>(null);
   const [deleting, setDeleting] = useState<PrepedidoItem | null>(null);
@@ -46,7 +45,7 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
   };
 
   const aceptarMut = useMutation({
-    mutationFn: () => aceptarFn({ data: { idMesa } }),
+    mutationFn: () => aceptarPrepedido({ idMesa }),
     onSuccess: (r) => {
       toast.success(`Pre-pedido aceptado: ${r.aceptados} items pasaron a la comanda`, {
         icon: <CheckCircle2 className="h-4 w-4" />,
@@ -110,9 +109,7 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
         <div className="space-y-3">
           {grupos.map(({ sesion, items }) => (
             <div key={sesion.id_sesion} className="rounded-lg bg-card p-3 border">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">
-                {sesion.nombre}
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{sesion.nombre}</p>
               <ul className="space-y-2">
                 {items.map((it) => (
                   <li
@@ -130,7 +127,10 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
                       {it.variantes.length > 0 && (
                         <p className="text-xs text-muted-foreground">
                           {it.variantes
-                            .map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}${v.precio_delta > 0 ? ` (+${fmt.format(v.precio_delta)})` : ""}`)
+                            .map(
+                              (v) =>
+                                `${v.nombre_grupo}: ${v.nombre_opcion}${v.precio_delta > 0 ? ` (+${fmt.format(v.precio_delta)})` : ""}`,
+                            )
                             .join(" · ")}
                         </p>
                       )}
@@ -145,9 +145,7 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
                         </p>
                       )}
                       {it.nota && (
-                        <p className="text-xs italic text-muted-foreground">
-                          “{it.nota}”
-                        </p>
+                        <p className="text-xs italic text-muted-foreground">“{it.nota}”</p>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -222,9 +220,7 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
                 if (deleting) eliminarMut.mutate(deleting.id_prepedido_item);
               }}
             >
-              {eliminarMut.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
+              {eliminarMut.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
