@@ -52,10 +52,9 @@ export function ReservaCard({ reserva, onEdit }: Props) {
   const qc = useQueryClient();
   const cancelarFn = useServerFn(cancelarReserva);
   const eliminarFn = useServerFn(eliminarReserva);
-  const getNegocio = useServerFn(getNegocioConfig);
   const negocioQ = useQuery({
     queryKey: ["negocio", "config"],
-    queryFn: () => getNegocio(),
+    queryFn: () => getNegocioConfig(),
     staleTime: 5 * 60 * 1000,
   });
   const [cancelOpen, setCancelOpen] = useState(false);

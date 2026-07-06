@@ -29,7 +29,6 @@ function hoyIso() {
 
 export function PropinasPanel() {
   const fn = useServerFn(getPropinasPorUsuario);
-  const cfgFn = useServerFn(getNegocioConfig);
   const [desde, setDesde] = useState(hoyIso());
   const [hasta, setHasta] = useState(hoyIso());
 
@@ -41,7 +40,7 @@ export function PropinasPanel() {
 
   const { data: cfg } = useQuery({
     queryKey: ["negocio-config"],
-    queryFn: () => cfgFn(),
+    queryFn: () => getNegocioConfig(),
   });
 
   const filas = data?.filas ?? [];

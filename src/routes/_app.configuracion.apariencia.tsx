@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ImageIcon, Loader2, Trash2, Upload, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -22,17 +21,15 @@ export const Route = createFileRoute("/_app/configuracion/apariencia")({
 
 function AparienciaPage() {
   const qc = useQueryClient();
-  const getCfg = useServerFn(getNegocioConfig);
-  const updateCfg = useServerFn(updateNegocioApariencia);
 
   const { data, isLoading } = useQuery({
     queryKey: ["negocio-config"],
-    queryFn: () => getCfg(),
+    queryFn: () => getNegocioConfig(),
   });
 
   const mut = useMutation({
     mutationFn: (patch: { tema_menu?: MenuThemeId; url_logo?: string | null }) =>
-      updateCfg({ data: patch }),
+      updateNegocioApariencia(patch),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["negocio-config"] });
     },

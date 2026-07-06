@@ -22,12 +22,11 @@ export const Route = createFileRoute("/_app/configuracion/propinas")({
 
 function PropinasConfigPage() {
   const qc = useQueryClient();
-  const getCfg = useServerFn(getNegocioConfig);
   const updateProp = useServerFn(updateNegocioPropinas);
 
   const { data, isLoading } = useQuery({
     queryKey: ["negocio-config"],
-    queryFn: () => getCfg(),
+    queryFn: () => getNegocioConfig(),
   });
 
   const [valor, setValor] = useState<string>("0");
