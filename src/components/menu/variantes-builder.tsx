@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, ChevronDown, ChevronUp, Loader2, Save } from "lucide-react";
@@ -46,18 +45,15 @@ function fromServer(g: VarianteGrupo): GrupoEditable {
 
 export function VariantesBuilder({ idReceta }: { idReceta: string }) {
   const qc = useQueryClient();
-  const listFn = useServerFn(listarVariantesReceta);
-  const saveFn = useServerFn(guardarVariantesReceta);
-  const insumosFn = useServerFn(listarInsumosParaVariantes);
 
   const variantesQ = useQuery({
     queryKey: ["variantesReceta", idReceta],
-    queryFn: () => listFn({ data: { idReceta } }),
+    queryFn: () => listarVariantesReceta({ idReceta }),
   });
 
   const insumosQ = useQuery({
     queryKey: ["insumosParaVariantes"],
-    queryFn: () => insumosFn(),
+    queryFn: () => listarInsumosParaVariantes(),
   });
 
   const [grupos, setGrupos] = useState<GrupoEditable[]>([]);
@@ -76,21 +72,19 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
 
   const saveMut = useMutation({
     mutationFn: () =>
-      saveFn({
-        data: {
-          idReceta,
-          grupos: grupos.map((g, gi) => ({
-            nombre: g.nombre,
-            seleccion: g.seleccion,
-            orden: gi,
-            opciones: g.opciones.map((o, oi) => ({
-              id_insumo_opcion: o.id_insumo_opcion,
-              cantidad_porcion: o.cantidad_porcion,
-              precio_delta: o.precio_delta,
-              orden: oi,
-            })),
+      guardarVariantesReceta({
+        idReceta,
+        grupos: grupos.map((g, gi) => ({
+          nombre: g.nombre,
+          seleccion: g.seleccion,
+          orden: gi,
+          opciones: g.opciones.map((o, oi) => ({
+            id_insumo_opcion: o.id_insumo_opcion,
+            cantidad_porcion: o.cantidad_porcion,
+            precio_delta: o.precio_delta,
+            orden: oi,
           })),
-        },
+        })),
       }),
     onSuccess: () => {
       toast.success("Variantes guardadas");
@@ -204,9 +198,7 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
                 />
                 <Select
                   value={g.seleccion}
-                  onValueChange={(v) =>
-                    updateGrupo(gi, { seleccion: v as "UNICA" | "MULTIPLE" })
-                  }
+                  onValueChange={(v) => updateGrupo(gi, { seleccion: v as "UNICA" | "MULTIPLE" })}
                 >
                   <SelectTrigger className="w-[130px]">
                     <SelectValue />
@@ -237,14 +229,15 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
                     const ins = insumosById.get(o.id_insumo_opcion);
                     const unidad = ins?.unidad_receta ?? "";
                     return (
-                      <div key={oi} className="grid grid-cols-[1fr_110px_110px_auto] gap-2 items-end">
+                      <div
+                        key={oi}
+                        className="grid grid-cols-[1fr_110px_110px_auto] gap-2 items-end"
+                      >
                         <div className="space-y-1">
                           {oi === 0 && <Label className="text-xs">Insumo</Label>}
                           <Select
                             value={o.id_insumo_opcion || undefined}
-                            onValueChange={(v) =>
-                              updateOpcion(gi, oi, { id_insumo_opcion: v })
-                            }
+                            onValueChange={(v) => updateOpcion(gi, oi, { id_insumo_opcion: v })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecciona un insumo" />
@@ -307,12 +300,7 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
                       </div>
                     );
                   })}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => addOpcion(gi)}
-                  >
+                  <Button type="button" size="sm" variant="outline" onClick={() => addOpcion(gi)}>
                     <Plus className="h-3.5 w-3.5 mr-1" /> Agregar opción
                   </Button>
                 </div>

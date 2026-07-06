@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Minus, Plus, Save } from "lucide-react";
@@ -37,7 +36,6 @@ interface Props {
 
 export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: Props) {
   const qc = useQueryClient();
-  const editFn = useServerFn(editarItemPrepedidoStaff);
 
   const [cantidad, setCantidad] = useState(1);
   const [alergia, setAlergia] = useState(false);
@@ -91,16 +89,14 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
 
   const mut = useMutation({
     mutationFn: () =>
-      editFn({
-        data: {
-          idItem: item!.id_prepedido_item,
-          cantidad,
-          tieneAlergia: alergia,
-          nota,
-          extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
-          exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
-          variantes: variantesArr,
-        },
+      editarItemPrepedidoStaff({
+        idItem: item!.id_prepedido_item,
+        cantidad,
+        tieneAlergia: alergia,
+        nota,
+        extras: Array.from(extras).map((id) => ({ id_insumo_extra: id })),
+        exclusiones: Array.from(exclus).map((id) => ({ id_insumo: id })),
+        variantes: variantesArr,
       }),
     onSuccess: () => {
       toast.success("Item actualizado");
