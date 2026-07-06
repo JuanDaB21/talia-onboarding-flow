@@ -48,14 +48,18 @@ Por cada módulo (empezar por `servicio` o `caja`):
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
 **Aún en Supabase** (con su razón):
-- **Menú inline** (categorías/subcategorías/productos, recetas, receta-builder, recetas-table) —
-  usa `crear_receta`/`actualizar_receta` (ya existen) + CRUD cat/subcat/productos (`/menu/*` ya en
-  backend §2); falta el repunte del front + subida de imágenes de producto por `/storage`.
-- `variantes` — el backend **no expone** endpoints (no está en §1–§11).
-- **Storage** de imágenes de **producto** (`producto-imagenes`→`producto`) y **logo**
-  (`negocio-logos`→`logo`) en `producto-form` y `configuracion/apariencia` — falta migrar a `/storage`.
-- `menu-publico` y flujo público de `prepedido` (`supabaseAdmin`) — el backend ya cubre carta/prepedido
-  (`/carta/*`, `/prepedido/*`, incl. `GET /prepedido/mesas/:id` en vivo); falta repuntar el front.
+- **Variantes** (`variantes-builder`, `variantes.functions.ts`) — el backend **no expone** endpoints
+  (no está en §1–§11). Bloqueado por backend.
+- **Prepedido staff** — `editarItemPrepedidoStaff`/`eliminarItemPrepedidoStaff` (el staff edita/elimina
+  un item de OTRO cliente): las RPC públicas validan `id_cliente`, así que no sirven; no hay endpoint
+  autenticado. Bloqueado por backend.
+- **Bodega — inventario** (fuera del alcance de este cutover-config): `insumos`, `compras`,
+  `proveedores`, `ajustar-stock`, `movimientos`, `inventario`. Los endpoints ya existen (`/bodega/*`,
+  ver CUTOVER-BACKEND §0), pero los componentes `src/components/bodega/*` + `_app.bodega.*` siguen con
+  `supabase.from/rpc` inline. Pendiente de repunte.
+- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — pendiente de repunte.
+- Residuos: `analytics.functions.ts`, `preparacion/comanda-print.ts` importan `supabase` (revisar si
+  es tipo/uso real).
 - **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.
 
 ## Pendiente para llegar a 0% Supabase
@@ -71,21 +75,25 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
       a `PATCH /negocio` (backend §6). Elimina la última excepción de `negocio`.
 - [x] **espacios** → `/espacios` CRUD (backend §3).
 - [x] **metodos-pago** → `/metodos-pago` CRUD + subir QR por `/storage/upload-url` (backend §4).
-- [ ] **menú (categorías/subcategorías/productos)** → mover el inline `supabase.from` de
-      `categorias-master-detail`, `productos-tab`, `producto-form`, `receta-builder`, `recetas-table`
-      a `/menu/*` (recetas/extras/destino ya existen; cat/subcat/productos CRUD ya en backend §2).
+- [x] **menú (categorías/subcategorías/productos)** → migrado a `/menu/*` vía `src/lib/menu.functions.ts`
+      (`categorias-master-detail`, `productos-tab`, `producto-form`, `receta-builder`, `recetas-table`).
+      Imagen de producto por `uploadToStorage("producto")` + `publicUrl`. Backend agregó lecturas
+      `GET /menu/subcategorias`, `GET /menu/recetas/:id` (detalle para editar) y `unidad_receta` en
+      `GET /bodega/insumos`. **Variantes** siguen en Supabase (`variantes-builder`/`variantes.functions.ts`).
 - [x] **bodegas (gestión)** → `/bodega/bodegas` (crear/renombrar/toggle) + `espacios_principales`
       en el listado (backend §1).
 - [x] **bonos** → `/bonos` CRUD + previsualizar + historial (backend §5).
 - [x] **admin/analítica** → `/analytics/*` (backend §7).
 - [x] **mesas (configuración)** → `/mesas` CRUD (backend §8).
-- [ ] **carta pública / menu-publico** → repuntar a `/carta/:idMesa/state` y `/cuenta` (backend §9, ya vivo).
-- [ ] **prepedido** → repuntar público a `/prepedido/public/*` y `getPrepedidoMesa` a
-      `GET /prepedido/mesas/:id` (backend §10, ya vivo).
+- [x] **carta pública / menu-publico** → `menu-publico.functions.ts` repuntado a `/carta/:idMesa/state`
+      y `/cuenta` (+ `llamar-mesero`/`solicitar`). Imágenes con `publicUrl`.
+- [x] **prepedido** → flujo público (`unirse`/`estado`/`opciones`/`agregar`/`editar`/`eliminar`) a
+      `/prepedido/public/*`; `aceptarPrepedido` a `POST /prepedido/mesas/:id/aceptar`; `getPrepedidoMesa`
+      a `GET /prepedido/mesas/:id`. **Falta**: `editarItemPrepedidoStaff`/`eliminarItemPrepedidoStaff`
+      (staff edita item de otro cliente) — el backend no expone endpoint; siguen en Supabase.
 - [x] **impresión** → config `espacio_impresora` por REST (backend §11).
-- [~] **Storage de imágenes** → helper `src/lib/storage.ts` creado; **hecho** para QR (`qr`) y
-      comprobantes (`comprobante`). **Falta** producto (`producto-imagenes`→`producto`) en `producto-form`
-      y logo (`negocio-logos`→`logo`) en `configuracion/apariencia`.
+- [x] **Storage de imágenes** → `src/lib/storage.ts` usado por QR, comprobantes, **producto**
+      (`producto-form`) y **logo** (`configuracion/apariencia`).
 
 ### Cierre final (cuando no quede ningún `supabase.*`)
 
