@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ImageIcon } from "lucide-react";
 import type { CartaProducto } from "@/lib/menu-publico.functions";
+import { publicUrl } from "@/lib/storage";
 import type { MenuTheme } from "@/lib/menu-themes";
 import { PriceTag } from "./price-tag";
 
@@ -34,7 +35,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
         >
           {p.url_imagen ? (
             <img
-              src={p.url_imagen}
+              src={publicUrl(p.url_imagen) ?? undefined}
               alt={p.nombre_producto}
               loading="lazy"
               decoding="async"
@@ -80,7 +81,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
             style={{ background: "var(--menu-surface-2)" }}
           >
             <img
-              src={p.url_imagen}
+              src={publicUrl(p.url_imagen) ?? undefined}
               alt={p.nombre_producto}
               loading="lazy"
               decoding="async"
@@ -139,10 +140,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
             <PriceTag theme={theme} precio={p.precio_venta} />
           </div>
           {p.descripcion_producto && (
-            <p
-              className="mt-1 text-xs line-clamp-2"
-              style={{ color: "var(--menu-muted)" }}
-            >
+            <p className="mt-1 text-xs line-clamp-2" style={{ color: "var(--menu-muted)" }}>
               {p.descripcion_producto}
             </p>
           )}
@@ -156,7 +154,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
             }}
           >
             <img
-              src={p.url_imagen}
+              src={publicUrl(p.url_imagen) ?? undefined}
               alt={p.nombre_producto}
               loading="lazy"
               decoding="async"
@@ -194,7 +192,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
       >
         {p.url_imagen ? (
           <img
-            src={p.url_imagen}
+            src={publicUrl(p.url_imagen) ?? undefined}
             alt={p.nombre_producto}
             loading="lazy"
             decoding="async"
@@ -214,10 +212,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
           {p.nombre_producto}
         </h3>
         {p.descripcion_producto && (
-          <p
-            className="mt-0.5 text-xs line-clamp-2"
-            style={{ color: "var(--menu-muted)" }}
-          >
+          <p className="mt-0.5 text-xs line-clamp-2" style={{ color: "var(--menu-muted)" }}>
             {p.descripcion_producto}
           </p>
         )}
@@ -230,9 +225,5 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
 }
 
 export const ProductoCard = memo(ProductoCardBase, (prev, next) => {
-  return (
-    prev.p === next.p &&
-    prev.theme === next.theme &&
-    prev.onClick === next.onClick
-  );
+  return prev.p === next.p && prev.theme === next.theme && prev.onClick === next.onClick;
 });

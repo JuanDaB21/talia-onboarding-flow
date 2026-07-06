@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -107,7 +106,9 @@ export const Route = createFileRoute("/_app/servicio/$idMesa")({
         {error instanceof Error ? error.message : "No se pudo cargar la mesa"}
       </p>
       <div className="flex gap-2 justify-center">
-        <Link to="/servicio" className="text-sm underline">Volver a mesas</Link>
+        <Link to="/servicio" className="text-sm underline">
+          Volver a mesas
+        </Link>
         <button type="button" onClick={() => reset()} className="text-sm underline">
           Reintentar
         </button>
@@ -173,8 +174,6 @@ function MesaEnServicio() {
   const qc = useQueryClient();
   const bus = useAlertaBus();
 
-  
-
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
     queryFn: () => obtenerMesaSesion(idMesa),
@@ -183,10 +182,9 @@ function MesaEnServicio() {
   });
 
   // Pre-pedido en vivo (clientes armando pedido desde su celular)
-  const getPrep = useServerFn(getPrepedidoMesa);
   const prepQ = useQuery({
     queryKey: ["prepedidoMesa", idMesa],
-    queryFn: () => getPrep({ data: { idMesa } }),
+    queryFn: () => getPrepedidoMesa(idMesa),
     staleTime: 5_000,
   });
 
@@ -194,30 +192,20 @@ function MesaEnServicio() {
   useEffect(() => {
     const ch = realtime
       .channel(`mesa-sesion-${idMesa}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pedido_items" },
-        () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedido_items" }, () =>
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pedidos" },
-        () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () =>
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "mesas" },
-        () => qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "mesas" }, () =>
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_items" },
-        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "prepedido_items" }, () =>
+        qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prepedido_sesiones" },
-        () => qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "prepedido_sesiones" }, () =>
+        qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
       )
       .subscribe();
     return () => {
@@ -247,7 +235,6 @@ function MesaEnServicio() {
     const asig = mesaQ.data?.asignada_at;
     if (asig) bus.ack(`asig:${idMesa}:${asig}`);
   }, [mesaQ.data?.asignada_at, idMesa, bus]);
-
 
   // Tick visual del tiempo de servicio
   const [, setTick] = useState(0);
@@ -398,9 +385,7 @@ function MesaEnServicio() {
           </Link>
         </Button>
         <div className="flex-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Mesa
-          </p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</p>
           <h1 className="text-2xl font-bold">{mesa.identificador}</h1>
         </div>
       </div>
@@ -421,7 +406,6 @@ function MesaEnServicio() {
           solicitudAt={mesa.solicitud_at}
         />
       )}
-
 
       <MesaHeader
         mesa={mesa}
@@ -507,14 +491,12 @@ function MesaEnServicio() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Cerrar y liberar la mesa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción marcará todos los pedidos como pagados y dejará la mesa
-              libre. No se puede deshacer.
+              Esta acción marcará todos los pedidos como pagados y dejará la mesa libre. No se puede
+              deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cerrarMut.isPending}>
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={cerrarMut.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -575,11 +557,7 @@ function MesaHeader({
     <div className="rounded-2xl border bg-card p-4 sm:p-5 shadow-sm">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Stat label="Total mesa" value={fmt.format(mesa.total_mesa)} accent />
-        <Stat
-          label="Tiempo en mesa"
-          value={`${tiempo} min`}
-          icon={<Clock className="h-4 w-4" />}
-        />
+        <Stat label="Tiempo en mesa" value={`${tiempo} min`} icon={<Clock className="h-4 w-4" />} />
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <UserCheck className="h-4 w-4 shrink-0" />
@@ -637,9 +615,7 @@ function MesaHeader({
         </Button>
       </div>
       {!puedeCerrar && estado?.hay_pedidos && motivoCerrar && (
-        <p className="mt-2 text-right text-xs text-muted-foreground">
-          {motivoCerrar}
-        </p>
+        <p className="mt-2 text-right text-xs text-muted-foreground">{motivoCerrar}</p>
       )}
     </div>
   );
@@ -799,12 +775,7 @@ function PedidoConfirmadoCard({
           {vista === "detallado" ? (
             <ul className="space-y-2 divide-y">
               {pedido.items.map((it) => (
-                <ItemRow
-                  key={it.id_item}
-                  item={it}
-                  onEdit={onEditItem}
-                  onDelete={onDeleteItem}
-                />
+                <ItemRow key={it.id_item} item={it} onEdit={onEditItem} onDelete={onDeleteItem} />
               ))}
             </ul>
           ) : (
@@ -842,21 +813,11 @@ function PedidoConfirmadoCard({
 
           <div className="flex flex-wrap gap-2 pt-2 border-t">
             {tieneAlgunEnCola && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onAddMore}
-                className="gap-1"
-              >
+              <Button variant="outline" size="sm" onClick={onAddMore} className="gap-1">
                 <Plus className="h-3.5 w-3.5" /> Agregar producto
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPrint}
-              className="gap-1"
-            >
+            <Button variant="outline" size="sm" onClick={onPrint} className="gap-1">
               <Printer className="h-3.5 w-3.5" /> Imprimir comanda
             </Button>
             {necesitaEntrega && (
@@ -901,7 +862,8 @@ function ItemRow({
               <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
             )}
             <span className="text-sm font-medium break-words min-w-0">
-              {item.cantidad > 1 ? `${item.cantidad}× ` : ""}{item.nombre_producto}
+              {item.cantidad > 1 ? `${item.cantidad}× ` : ""}
+              {item.nombre_producto}
             </span>
 
             <Badge variant="outline" className={cn("text-[10px] h-4 px-1 shrink-0", estado.cls)}>
@@ -909,15 +871,11 @@ function ItemRow({
             </Badge>
           </div>
           {item.tiene_alergia && (
-            <p className="text-[11px] text-destructive font-semibold mt-0.5">
-              🚨 ALERGIA
-            </p>
+            <p className="text-[11px] text-destructive font-semibold mt-0.5">🚨 ALERGIA</p>
           )}
           {item.variantes.length > 0 && (
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {item.variantes
-                .map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`)
-                .join(" · ")}
+              {item.variantes.map((v) => `${v.nombre_grupo}: ${v.nombre_opcion}`).join(" · ")}
             </p>
           )}
           {item.extras.length > 0 && (
@@ -931,9 +889,7 @@ function ItemRow({
             </p>
           )}
           {item.nota && (
-            <p className="text-[11px] italic text-muted-foreground mt-0.5">
-              "{item.nota}"
-            </p>
+            <p className="text-[11px] italic text-muted-foreground mt-0.5">"{item.nota}"</p>
           )}
         </div>
         <div className="text-right shrink-0">
@@ -1075,11 +1031,18 @@ function PedidoAbiertoCard({
 
   const productosFiltrados = useMemo(() => {
     if (!catQ.data) return [];
-    const q = busqueda.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const q = busqueda
+      .trim()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase();
     return catQ.data.productos.filter((p) => {
       if (catActiva && p.id_categoria !== catActiva) return false;
       if (q) {
-        const n = p.nombre_producto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+        const n = p.nombre_producto
+          .normalize("NFD")
+          .replace(/\p{Diacritic}/gu, "")
+          .toLowerCase();
         if (!n.includes(q)) return false;
       }
       return true;
@@ -1095,12 +1058,7 @@ function PedidoAbiertoCard({
       ) : (
         <ul className="space-y-2 divide-y rounded-lg border bg-background p-3">
           {pedido.items.map((it) => (
-            <ItemRow
-              key={it.id_item}
-              item={it}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
+            <ItemRow key={it.id_item} item={it} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </ul>
       )}
@@ -1123,11 +1081,7 @@ function PedidoAbiertoCard({
             setPedidoSheetOpen(false);
           }}
         >
-          {confirmando ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Confirmar orden"
-          )}
+          {confirmando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar orden"}
         </Button>
       </div>
     </>
@@ -1144,7 +1098,9 @@ function PedidoAbiertoCard({
             Catálogo abajo · {pedido.items.length} en el pedido
           </p>
         </div>
-        <Badge variant="secondary" className="shrink-0">Borrador</Badge>
+        <Badge variant="secondary" className="shrink-0">
+          Borrador
+        </Badge>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px] p-4">
@@ -1185,10 +1141,7 @@ function PedidoAbiertoCard({
             <>
               {(catQ.data?.categorias.length ?? 0) > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  <PillBtn
-                    active={catActiva === null}
-                    onClick={() => setCatActiva(null)}
-                  >
+                  <PillBtn active={catActiva === null} onClick={() => setCatActiva(null)}>
                     Todo
                   </PillBtn>
                   {catQ.data!.categorias.map((c) => (
@@ -1228,11 +1181,13 @@ function PedidoAbiertoCard({
                   )}
                 </div>
               ) : (
-                <div className={cn(
-                  "grid grid-cols-1 sm:grid-cols-2 gap-3",
-                  // dejar espacio para la barra sticky en mobile
-                  isMobile && pedido.items.length > 0 && "pb-24",
-                )}>
+                <div
+                  className={cn(
+                    "grid grid-cols-1 sm:grid-cols-2 gap-3",
+                    // dejar espacio para la barra sticky en mobile
+                    isMobile && pedido.items.length > 0 && "pb-24",
+                  )}
+                >
                   {productosFiltrados.map((p) => (
                     <button
                       key={p.id_producto}
@@ -1316,9 +1271,7 @@ function PedidoAbiertoCard({
               {pedido.items.length} items · {fmt.format(pedido.total)}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-4 space-y-3">
-            {pedidoItemsList}
-          </div>
+          <div className="mt-4 space-y-3">{pedidoItemsList}</div>
         </SheetContent>
       </Sheet>
 
@@ -1357,5 +1310,3 @@ function PillBtn({
     </button>
   );
 }
-
-

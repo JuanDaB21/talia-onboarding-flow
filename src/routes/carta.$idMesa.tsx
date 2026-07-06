@@ -23,10 +23,8 @@ import {
   type CartaProducto,
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
-import {
-  unirseSesionPrepedido,
-  getPrepedidoPublico,
-} from "@/lib/prepedido.functions";
+import { unirseSesionPrepedido, getPrepedidoPublico } from "@/lib/prepedido.functions";
+import { publicUrl } from "@/lib/storage";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 import { POLL } from "@/lib/query-config";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
@@ -34,13 +32,10 @@ import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
 import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
 import { useClienteMesa } from "@/hooks/use-cliente-mesa";
 
-
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
   () => import("@/components/menu-publico/producto-detalle-dialog"),
 );
-
-
 
 export const Route = createFileRoute("/carta/$idMesa")({
   head: () => ({
@@ -61,20 +56,17 @@ const fmt = new Intl.NumberFormat("es-CO", {
 
 function CartaPage() {
   const { idMesa } = Route.useParams();
-  
+
   const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
   const [nombreInput, setNombreInput] = useState("");
   const [catActiva, setCatActiva] = useState<string | null>(null);
   const [prepedidoOpen, setPrepedidoOpen] = useState(false);
   const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
-  const [editingItem, setEditingItem] = useState<import("@/lib/prepedido.functions").PrepedidoItem | null>(null);
+  const [editingItem, setEditingItem] = useState<
+    import("@/lib/prepedido.functions").PrepedidoItem | null
+  >(null);
 
-  const getMenu = useServerFn(getMenuPublico);
-  const callMesero = useServerFn(llamarMesero);
-  const getEstado = useServerFn(getEstadoMesaPublico);
-  const solicitar = useServerFn(solicitarAccionCliente);
-  const getCuenta = useServerFn(getCuentaPublica);
   const unirseFn = useServerFn(unirseSesionPrepedido);
   const getPrep = useServerFn(getPrepedidoPublico);
 
@@ -139,24 +131,21 @@ function CartaPage() {
     return () => clearInterval(id);
   }, [cliente, idMesa, unirseFn]);
 
-
-
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["carta", idMesa],
-    queryFn: () => getMenu({ data: { idMesa } }),
+    queryFn: () => getMenuPublico(idMesa),
     retry: false,
   });
 
   const estadoQ = useQuery({
     queryKey: ["estadoMesaPublico", idMesa],
-    queryFn: () => getEstado({ data: { idMesa } }),
+    queryFn: () => getEstadoMesaPublico(idMesa),
     ...POLL.LIVE,
     retry: false,
   });
 
-
   const mut = useMutation({
-    mutationFn: () => callMesero({ data: { idMesa } }),
+    mutationFn: () => llamarMesero(idMesa),
     onSuccess: () => {
       toast.success("¡Tu mesero va en camino!");
       refetch();
@@ -169,8 +158,7 @@ function CartaPage() {
   });
 
   const solicitarMut = useMutation({
-    mutationFn: (tipo: "PEDIR_MAS" | "CUENTA") =>
-      solicitar({ data: { idMesa, tipo } }),
+    mutationFn: (tipo: "PEDIR_MAS" | "CUENTA") => solicitarAccionCliente({ idMesa, tipo }),
     onSuccess: (_, tipo) => {
       toast.success(
         tipo === "CUENTA"
@@ -190,8 +178,8 @@ function CartaPage() {
     setCargandoCuenta(true);
     try {
       const [c] = await Promise.all([
-        getCuenta({ data: { idMesa } }),
-        solicitar({ data: { idMesa, tipo: "CUENTA" } }).catch(() => null),
+        getCuentaPublica(idMesa),
+        solicitarAccionCliente({ idMesa, tipo: "CUENTA" }).catch(() => null),
       ]);
       setCuenta(c);
       toast.success("Pedimos la cuenta a tu mesero 🧾");
@@ -204,7 +192,6 @@ function CartaPage() {
       setCargandoCuenta(false);
     }
   };
-
 
   const productosFiltrados = useMemo(() => {
     if (!data) return [];
@@ -252,13 +239,18 @@ function CartaPage() {
 
   const { mesa, categorias, negocio } = data;
   const ocupada = mesa.estado === "OCUPADA";
-  const logoUrl = negocio?.url_logo ?? null;
+  const logoUrl = publicUrl(negocio?.url_logo ?? null);
   const nombreNegocio = negocio?.nombre_comercial ?? "";
 
   if (fase === "onboarding") {
     return (
       <main
-        style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
+        style={{
+          ...themeStyle,
+          background: "var(--menu-bg)",
+          color: "var(--menu-foreground)",
+          fontFamily: "var(--menu-body-font)",
+        }}
         className="flex min-h-screen items-center justify-center px-6"
       >
         <div
@@ -273,7 +265,9 @@ function CartaPage() {
         >
           {logoUrl && (
             <div className="flex justify-center">
-              <img loading="lazy" decoding="async"
+              <img
+                loading="lazy"
+                decoding="async"
                 src={logoUrl}
                 alt={nombreNegocio}
                 className="h-20 w-20 rounded-full object-contain bg-white/50 p-1"
@@ -297,7 +291,8 @@ function CartaPage() {
             ¡Bienvenido{nombreNegocio ? ` a ${nombreNegocio}` : ""}!
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--menu-muted)" }}>
-            Dinos cómo te llamas para personalizar tu experiencia y armar tu pedido junto a tus acompañantes.
+            Dinos cómo te llamas para personalizar tu experiencia y armar tu pedido junto a tus
+            acompañantes.
           </p>
           <form
             onSubmit={(e) => {
@@ -340,18 +335,21 @@ function CartaPage() {
               )}
             </Button>
           </form>
-
         </div>
       </main>
     );
   }
 
-  const totalItemsPrepedido =
-    prepedidoQ.data?.items.reduce((a, i) => a + i.cantidad, 0) ?? 0;
+  const totalItemsPrepedido = prepedidoQ.data?.items.reduce((a, i) => a + i.cantidad, 0) ?? 0;
 
   return (
     <main
-      style={{ ...themeStyle, background: "var(--menu-bg)", color: "var(--menu-foreground)", fontFamily: "var(--menu-body-font)" }}
+      style={{
+        ...themeStyle,
+        background: "var(--menu-bg)",
+        color: "var(--menu-foreground)",
+        fontFamily: "var(--menu-body-font)",
+      }}
       className="min-h-screen pb-28"
     >
       <button
@@ -412,8 +410,8 @@ function CartaPage() {
           theme.productLayout === "hero-grid"
             ? "px-4 pt-5 grid grid-cols-2 gap-3"
             : theme.productLayout === "lista-densa"
-            ? "px-4 pt-5 divide-y"
-            : "px-4 pt-5 space-y-3"
+              ? "px-4 pt-5 divide-y"
+              : "px-4 pt-5 space-y-3"
         }
         style={
           theme.productLayout === "lista-densa"
@@ -440,7 +438,6 @@ function CartaPage() {
         )}
       </section>
 
-
       <div
         className="fixed inset-x-0 bottom-0 z-30 backdrop-blur"
         style={{
@@ -450,8 +447,6 @@ function CartaPage() {
         }}
       >
         <div className="mx-auto max-w-2xl p-3 space-y-2">
-
-
           {estadoQ.data?.tiene_pedido_activo ? (
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -575,7 +570,6 @@ function CartaPage() {
             setAgregarProducto(p);
           }}
         />
-
       </Suspense>
     </main>
   );
@@ -609,7 +603,9 @@ function ThemedHeader({
         }}
       >
         {logoUrl && (
-          <img loading="lazy" decoding="async"
+          <img
+            loading="lazy"
+            decoding="async"
             src={logoUrl}
             alt={nombreNegocio}
             className="mx-auto h-20 w-20 rounded-full object-contain bg-white/70 p-1 mb-3"
@@ -624,14 +620,14 @@ function ThemedHeader({
         </p>
         <h1
           className="mt-1 font-bold leading-tight line-clamp-2 break-words"
-          style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.25rem, 6vw, 1.875rem)" }}
+          style={{
+            fontFamily: "var(--menu-heading-font)",
+            fontSize: "clamp(1.25rem, 6vw, 1.875rem)",
+          }}
         >
           {nombreNegocio || "Nuestra carta"}
         </h1>
-        <div
-          className="mx-auto mt-3 h-px w-16"
-          style={{ background: "var(--menu-accent)" }}
-        />
+        <div className="mx-auto mt-3 h-px w-16" style={{ background: "var(--menu-accent)" }} />
       </header>
     );
   }
@@ -646,19 +642,22 @@ function ThemedHeader({
         }}
       >
         {logoUrl && (
-          <img loading="lazy" decoding="async"
+          <img
+            loading="lazy"
+            decoding="async"
             src={logoUrl}
             alt={nombreNegocio}
             className="h-16 w-16 shrink-0 rounded-full object-contain bg-white/90 p-1"
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] uppercase tracking-widest opacity-80">
-            Mesa {mesa}
-          </p>
+          <p className="text-[11px] uppercase tracking-widest opacity-80">Mesa {mesa}</p>
           <h1
             className="font-bold leading-tight line-clamp-2 break-words"
-            style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.125rem, 5.5vw, 1.5rem)" }}
+            style={{
+              fontFamily: "var(--menu-heading-font)",
+              fontSize: "clamp(1.125rem, 5.5vw, 1.5rem)",
+            }}
           >
             {nombreNegocio || "Nuestra carta"}
           </h1>
@@ -686,13 +685,18 @@ function ThemedHeader({
             </p>
             <h1
               className="mt-1 font-bold leading-[1.05] italic line-clamp-2 break-words"
-              style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1.5rem, 7vw, 1.875rem)" }}
+              style={{
+                fontFamily: "var(--menu-heading-font)",
+                fontSize: "clamp(1.5rem, 7vw, 1.875rem)",
+              }}
             >
               {nombreNegocio || "Nuestra carta"}
             </h1>
           </div>
           {logoUrl && (
-            <img loading="lazy" decoding="async"
+            <img
+              loading="lazy"
+              decoding="async"
               src={logoUrl}
               alt={nombreNegocio}
               className="h-14 w-14 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
@@ -700,15 +704,9 @@ function ThemedHeader({
             />
           )}
         </div>
-        <div
-          className="mt-3 flex items-center gap-2"
-          aria-hidden
-        >
+        <div className="mt-3 flex items-center gap-2" aria-hidden>
           <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
-          <div
-            className="text-xs tracking-widest"
-            style={{ color: "var(--menu-muted)" }}
-          >
+          <div className="text-xs tracking-widest" style={{ color: "var(--menu-muted)" }}>
             CARTA
           </div>
           <div className="h-px flex-1" style={{ background: "var(--menu-border)" }} />
@@ -727,21 +725,23 @@ function ThemedHeader({
       }}
     >
       <div className="min-w-0 flex-1">
-        <p
-          className="text-[11px] uppercase tracking-wider"
-          style={{ color: "var(--menu-muted)" }}
-        >
+        <p className="text-[11px] uppercase tracking-wider" style={{ color: "var(--menu-muted)" }}>
           Mesa {mesa}
         </p>
         <h1
           className="font-bold leading-tight line-clamp-2 break-words"
-          style={{ fontFamily: "var(--menu-heading-font)", fontSize: "clamp(1rem, 4.5vw, 1.25rem)" }}
+          style={{
+            fontFamily: "var(--menu-heading-font)",
+            fontSize: "clamp(1rem, 4.5vw, 1.25rem)",
+          }}
         >
           {nombreNegocio || "Nuestra carta"}
         </h1>
       </div>
       {logoUrl && (
-        <img loading="lazy" decoding="async"
+        <img
+          loading="lazy"
+          decoding="async"
           src={logoUrl}
           alt={nombreNegocio}
           className="h-12 w-12 shrink-0 rounded-full object-contain bg-white/40 p-0.5"
@@ -785,9 +785,7 @@ function CategoryNav({
               className="shrink-0 pb-1.5 text-sm font-medium whitespace-nowrap transition-colors"
               style={{
                 color: active ? "var(--menu-foreground)" : "var(--menu-muted)",
-                borderBottom: active
-                  ? "2px solid var(--menu-accent)"
-                  : "2px solid transparent",
+                borderBottom: active ? "2px solid var(--menu-accent)" : "2px solid transparent",
                 fontFamily: "var(--menu-body-font)",
               }}
             >
@@ -813,14 +811,10 @@ function CategoryNav({
               style={{
                 borderRadius: "9999px",
                 background: active
-                  ? theme.vars["--menu-gradient"] ?? "var(--menu-primary)"
+                  ? (theme.vars["--menu-gradient"] ?? "var(--menu-primary)")
                   : "var(--menu-surface)",
-                color: active
-                  ? "var(--menu-primary-foreground)"
-                  : "var(--menu-foreground)",
-                boxShadow: active
-                  ? "var(--menu-shadow, 0 6px 18px -8px rgba(0,0,0,0.2))"
-                  : "none",
+                color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+                boxShadow: active ? "var(--menu-shadow, 0 6px 18px -8px rgba(0,0,0,0.2))" : "none",
                 fontFamily: "var(--menu-body-font)",
               }}
             >
@@ -873,9 +867,7 @@ function CategoryNav({
             style={{
               borderRadius: "9999px",
               background: active ? "var(--menu-primary)" : "var(--menu-surface)",
-              color: active
-                ? "var(--menu-primary-foreground)"
-                : "var(--menu-foreground)",
+              color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
               borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
               borderWidth: 1,
               borderStyle: "solid",
@@ -892,8 +884,6 @@ function CategoryNav({
 
 // PriceTag, ProductoCard y ProductoDetalleDialog viven ahora en
 // src/components/menu-publico/ (con memo, lazy y atributos lazy en <img>).
-
-
 
 interface CuentaDialogProps {
   open: boolean;
@@ -925,7 +915,9 @@ function CuentaDialog({
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 text-center items-center border-b border-dashed">
           {logoUrl && (
-            <img loading="lazy" decoding="async"
+            <img
+              loading="lazy"
+              decoding="async"
               src={logoUrl}
               alt={nombreNegocio}
               className="h-14 w-14 rounded-full object-contain bg-muted p-1 mb-2"
@@ -964,9 +956,7 @@ function CuentaDialog({
                     </span>
 
                     <div className="min-w-0">
-                      <p className="font-medium leading-tight break-words">
-                        {it.nombre_producto}
-                      </p>
+                      <p className="font-medium leading-tight break-words">{it.nombre_producto}</p>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {fmt.format(it.precio_unitario)} c/u
                       </p>
@@ -976,9 +966,7 @@ function CuentaDialog({
                             <li key={i} className="flex justify-between gap-2">
                               <span>+ {e.nombre}</span>
                               {e.precio > 0 && (
-                                <span className="tabular-nums">
-                                  {fmt.format(e.precio)}
-                                </span>
+                                <span className="tabular-nums">{fmt.format(e.precio)}</span>
                               )}
                             </li>
                           ))}
@@ -990,9 +978,7 @@ function CuentaDialog({
                         </p>
                       )}
                       {it.nota && (
-                        <p className="text-xs text-muted-foreground italic">
-                          Nota: {it.nota}
-                        </p>
+                        <p className="text-xs text-muted-foreground italic">Nota: {it.nota}</p>
                       )}
                     </div>
                     <span className="tabular-nums font-semibold pt-0.5 text-right">
@@ -1010,14 +996,10 @@ function CuentaDialog({
               </div>
               <div className="flex items-baseline justify-between text-sm">
                 <span className="text-muted-foreground">Propina sugerida (10%)</span>
-                <span className="tabular-nums">
-                  {fmt.format(Math.round(cuenta.total * 0.1))}
-                </span>
+                <span className="tabular-nums">{fmt.format(Math.round(cuenta.total * 0.1))}</span>
               </div>
               <div className="flex items-baseline justify-between pt-2 border-t border-dashed">
-                <span className="text-sm font-semibold uppercase tracking-wider">
-                  Total
-                </span>
+                <span className="text-sm font-semibold uppercase tracking-wider">Total</span>
                 <span className="text-2xl font-extrabold tabular-nums">
                   {fmt.format(cuenta.total + Math.round(cuenta.total * 0.1))}
                 </span>
@@ -1032,11 +1014,7 @@ function CuentaDialog({
         )}
 
         <DialogFooter className="px-6 pb-6 pt-2">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
         </DialogFooter>

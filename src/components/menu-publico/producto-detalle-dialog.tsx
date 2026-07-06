@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { CartaProducto } from "@/lib/menu-publico.functions";
+import { publicUrl } from "@/lib/storage";
 import type { MenuTheme } from "@/lib/menu-themes";
 import { PriceTag } from "./price-tag";
 
@@ -64,17 +65,14 @@ export default function ProductoDetalleDialog({
             >
               {producto.url_imagen ? (
                 <img
-                  src={producto.url_imagen}
+                  src={publicUrl(producto.url_imagen) ?? undefined}
                   alt={producto.nombre_producto}
                   loading="lazy"
                   decoding="async"
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <ImageIcon
-                  className="h-16 w-16"
-                  style={{ color: "var(--menu-muted)" }}
-                />
+                <ImageIcon className="h-16 w-16" style={{ color: "var(--menu-muted)" }} />
               )}
             </div>
 
