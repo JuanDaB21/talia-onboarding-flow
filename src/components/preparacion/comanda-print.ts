@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 
 export type ComandaDestino = string;
 
@@ -185,12 +185,8 @@ const STYLES = `
 
 async function fetchNombreNegocio(): Promise<string> {
   try {
-    const { data } = await supabase
-      .from("negocio")
-      .select("nombre_comercial")
-      .limit(1)
-      .maybeSingle();
-    return (data?.nombre_comercial as string) ?? "";
+    const { nombre_comercial } = await getNegocioConfig();
+    return nombre_comercial ?? "";
   } catch {
     return "";
   }

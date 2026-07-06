@@ -135,13 +135,37 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
         productos_lentos, desviaciones, etc.), así que el componente consumidor no cambia de shape.
       - Con esto se elimina el import de `supabase` en `analytics.functions.ts`.
 
-### Cierre final (cuando no quede ningún `supabase.*`)
+### Cierre final (0% Supabase) — EN CURSO (rama `feat/cutover-usuarios-analytics-front`)
 
-- [ ] Eliminar `src/integrations/supabase/*` (`client`, `client.server`, `auth-middleware`,
-      `auth-attacher`) y todas las server functions restantes.
-- [ ] Quitar la dependencia `@supabase/supabase-js` del `package.json`.
-- [ ] Verificar que `VITE_SUPABASE_*` ya no se usa; borrar de `.env`/`.env.example`.
-- [ ] `grep -r "supabase" src` debe quedar vacío. `npx tsc --noEmit` verde.
+Hecho en esta pasada:
+- [x] **Chat IA** → el backend ya sirve `/api/chat` (mismos tools/auth). `chat-panel.tsx` repuntado
+      a `${api.url}/chat` con `Authorization: Bearer` (ya no usa la ruta local). Borrada la ruta
+      duplicada `src/routes/api/chat.ts`.
+- [x] **Cron cerrar-turnos** → lo corre el backend (`cron/cerrar-turnos.ts`). Borrado el hook
+      duplicado `src/routes/api/public/hooks/cerrar-turnos.ts`.
+- [x] **comanda-print.ts** → `supabase.from("negocio")` → `getNegocioConfig()` (REST).
+- [x] **start.ts** → quitado `attachSupabaseAuth` del `functionMiddleware` (ya no hay server functions).
+- [x] Eliminado `src/integrations/supabase/*` (client, client.server, auth-middleware, auth-attacher, types).
+- [x] Quitado `@supabase/supabase-js` del `package.json` (+ `npm install`, -9 paquetes).
+- [x] Quitado `VITE_SUPABASE_*` de `.env.example`.
+- [x] `grep -r "supabase" src` = **vacío** (solo quedaban comentarios, ya limpiados).
+
+> ⏭️ **PENDIENTE para la próxima sesión (retomar exactamente aquí):**
+> 1. **Regenerar `src/routeTree.gen.ts`** (todavía referencia el borrado `/api/chat` → rompe tsc/build).
+>    Correr `npx vite dev` un momento (el plugin de router lo regenera) o `vite build`, y confirmar que
+>    `grep -c "ApiChat\|api/chat" src/routeTree.gen.ts` = 0.
+> 2. `npx tsc --noEmit` verde.
+> 3. Verificar en la app corriendo (con `VITE_API_URL` al backend de Railway):
+>    - **Chat** admin: abre, responde y usa tools (POST a `${VITE_API_URL}/chat`, 200 stream).
+>    - **Espacios de trabajo**: ya NO deben verse duplicados (arreglado en backend, ver nota abajo).
+> 4. Commit final + marcar este bloque como cerrado.
+
+> 🔒 **Backend — fix de aislamiento por tenant (RLS)** — rama `talia:fix/rls-tenant-isolation` (PR aparte).
+> Causa del bug "espacios duplicados": el backend conectaba como `postgres` (SUPERUSER+BYPASSRLS),
+> anulando RLS → `GET /espacios` (y otras lecturas RLS-only) devolvían filas de **todos** los negocios.
+> Fix: `withTenant` hace `SET LOCAL ROLE authenticated` + migración `0008_grant_authenticated.sql`
+> (completa GRANTs). **Ya aplicado a la DB dev de Railway y validado** (cada negocio ve solo lo suyo).
+> Al desplegar el backend, asegurar que `db:migrate` corre 0008 antes de servir con el código nuevo.
 
 ## Deploy del front en Railway — pendiente de decisión
 
