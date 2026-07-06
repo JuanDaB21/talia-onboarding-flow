@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Star, ArrowLeftRight } from "lucide-react";
@@ -58,12 +57,6 @@ function BodegasPage() {
   const { bodegas, loading, invalidate } = useBodegas();
   const { espacios } = useEspacios({ soloActivos: true });
 
-  const crear = useServerFn(crearBodega);
-  const renombrar = useServerFn(renombrarBodega);
-  const toggle = useServerFn(toggleBodega);
-  const eliminar = useServerFn(eliminarBodega);
-  const setPrincipal = useServerFn(setBodegaPrincipalEspacio);
-  const trasladar = useServerFn(trasladarInventario);
 
   const [editSheet, setEditSheet] = useState<{ open: boolean; editing?: Bodega }>({ open: false });
   const [nombre, setNombre] = useState("");
@@ -132,10 +125,10 @@ function BodegasPage() {
     setSaving(true);
     try {
       if (editSheet.editing) {
-        await renombrar({ data: { id_bodega: editSheet.editing.id_bodega, nombre: trimmed } });
+        await renombrarBodega({ id_bodega: editSheet.editing.id_bodega, nombre: trimmed });
         toast.success("Bodega actualizada");
       } else {
-        await crear({ data: { nombre: trimmed } });
+        await crearBodega({ nombre: trimmed });
         toast.success("Bodega creada");
       }
       setEditSheet({ open: false });
@@ -149,7 +142,7 @@ function BodegasPage() {
 
   const handleToggle = async (b: Bodega, activa: boolean) => {
     try {
-      await toggle({ data: { id_bodega: b.id_bodega, activa } });
+      await toggleBodega({ id_bodega: b.id_bodega, activa });
       await refreshAll();
     } catch (e) {
       toast.error("No se pudo cambiar el estado", {
@@ -161,7 +154,7 @@ function BodegasPage() {
   const handleDelete = async () => {
     if (!delTarget) return;
     try {
-      await eliminar({ data: { id_bodega: delTarget.id_bodega } });
+      await eliminarBodega({ id_bodega: delTarget.id_bodega });
       toast.success("Bodega eliminada");
       setDelTarget(null);
       await refreshAll();
@@ -334,8 +327,9 @@ function BodegasPage() {
                           onCheckedChange={async (v) => {
                             if (v) {
                               try {
-                                await setPrincipal({
-                                  data: { id_espacio: e.id_espacio, id_bodega: detail.id_bodega },
+                                await setBodegaPrincipalEspacio({
+                                  id_espacio: e.id_espacio,
+                                  id_bodega: detail.id_bodega,
                                 });
                                 toast.success(`Asignada como principal de ${e.nombre}`);
                                 await refreshAll();
@@ -390,7 +384,7 @@ function BodegasPage() {
         bodegas={bodegas.filter((b) => b.activa)}
         invRows={invQuery.data ?? []}
         onDone={refreshAll}
-        trasladar={trasladar}
+        trasladar={trasladarInventario}
       />
 
       <AlertDialog open={!!delTarget} onOpenChange={(o) => !o && setDelTarget(null)}>
@@ -418,7 +412,7 @@ interface TrasladoDialogProps {
   bodegas: Bodega[];
   invRows: InvRow[];
   onDone: () => Promise<void> | void;
-  trasladar: ReturnType<typeof useServerFn<typeof trasladarInventario>>;
+  trasladar: typeof trasladarInventario;
 }
 
 function TrasladoDialog({ open, onOpenChange, bodegas, invRows, onDone, trasladar }: TrasladoDialogProps) {
@@ -493,13 +487,11 @@ function TrasladoDialog({ open, onOpenChange, bodegas, invRows, onDone, traslada
     setSaving(true);
     try {
       await trasladar({
-        data: {
-          id_insumo: idInsumo,
-          id_bodega_origen: origen,
-          id_bodega_destino: destino,
-          cantidad: c,
-          motivo: motivo.trim(),
-        },
+        id_insumo: idInsumo,
+        id_bodega_origen: origen,
+        id_bodega_destino: destino,
+        cantidad: c,
+        motivo: motivo.trim(),
       });
       toast.success("Traslado registrado");
       onOpenChange(false);

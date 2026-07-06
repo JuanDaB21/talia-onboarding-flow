@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { DollarSign, Receipt, Users, Timer, ArrowRight } from "lucide-react";
@@ -47,10 +46,9 @@ function DashboardPage() {
   const navigate = Route.useNavigate();
   const range = resolveRange(search);
 
-  const fn = useServerFn(getKpisHoy);
   const { data, isLoading } = useQuery({
     queryKey: ["kpis-hoy"],
-    queryFn: () => fn(),
+    queryFn: () => getKpisHoy(),
     ...POLL.NORMAL,
   });
 

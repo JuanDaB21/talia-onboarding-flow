@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -116,12 +115,8 @@ function BonosDescuentosPage() {
 
 function BonosTab() {
   const qc = useQueryClient();
-  const listar = useServerFn(listarBonos);
-  const crear = useServerFn(crearBono);
-  const actualizar = useServerFn(actualizarBono);
-  const eliminar = useServerFn(eliminarBono);
 
-  const q = useQuery({ queryKey: ["bonos"], queryFn: () => listar() });
+  const q = useQuery({ queryKey: ["bonos"], queryFn: () => listarBonos() });
 
   const [openCrear, setOpenCrear] = useState(false);
   const [editar, setEditar] = useState<Bono | null>(null);
@@ -134,7 +129,7 @@ function BonosTab() {
       tipo: "PORCENTAJE" | "VALOR";
       porcentaje: number | null;
       valor: number | null;
-    }) => crear({ data: input }),
+    }) => crearBono(input),
     onSuccess: () => {
       toast.success("Bono creado");
       setOpenCrear(false);
@@ -154,7 +149,7 @@ function BonosTab() {
       porcentaje: number | null;
       valor: number | null;
       activo: boolean;
-    }) => actualizar({ data: input }),
+    }) => actualizarBono(input),
     onSuccess: () => {
       toast.success("Bono actualizado");
       setEditar(null);
@@ -167,7 +162,7 @@ function BonosTab() {
   });
 
   const eliminarMut = useMutation({
-    mutationFn: (idBono: string) => eliminar({ data: { idBono } }),
+    mutationFn: (idBono: string) => eliminarBono({ idBono }),
     onSuccess: () => {
       toast.success("Bono desactivado");
       invalidate();
@@ -445,7 +440,6 @@ function BonoDialog({
 
 
 function HistorialTab() {
-  const historialFn = useServerFn(historialBonos);
   const hoy = new Date();
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
@@ -458,14 +452,10 @@ function HistorialTab() {
   const q = useQuery({
     queryKey: ["bonos", "historial", desde, hasta, idMesero],
     queryFn: () =>
-      historialFn({
-        data: {
-          desde: desde ? new Date(desde + "T00:00:00").toISOString() : null,
-          hasta: hasta
-            ? new Date(hasta + "T23:59:59").toISOString()
-            : null,
-          idMesero: idMesero === "todos" ? null : idMesero,
-        },
+      historialBonos({
+        desde: desde ? new Date(desde + "T00:00:00").toISOString() : null,
+        hasta: hasta ? new Date(hasta + "T23:59:59").toISOString() : null,
+        idMesero: idMesero === "todos" ? null : idMesero,
       }),
   });
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +27,12 @@ function hoyIso() {
 }
 
 export function PropinasPanel() {
-  const fn = useServerFn(getPropinasPorUsuario);
   const [desde, setDesde] = useState(hoyIso());
   const [hasta, setHasta] = useState(hoyIso());
 
   const { data, isLoading } = useQuery({
     queryKey: ["propinas-por-usuario", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getPropinasPorUsuario({ desde, hasta }),
     ...POLL.NORMAL,
   });
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Pencil, Trash2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,6 @@ import { useEspacios } from "@/hooks/use-espacios";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { setBodegaPrincipalEspacio } from "@/lib/bodegas.functions";
 import { EspacioImpresoraRow } from "@/components/configuracion/espacio-impresora-row";
-import { supabase } from "@/integrations/supabase/client";
 import {
   crearEspacio,
   renombrarEspacio,
@@ -47,30 +45,23 @@ export const Route = createFileRoute("/_app/configuracion/espacios")({
 function EspaciosPage() {
   const { espacios, loading, invalidate } = useEspacios();
   const { bodegas, invalidate: invalidateBodegas } = useBodegas({ soloActivas: true });
-  const crear = useServerFn(crearEspacio);
-  const renombrar = useServerFn(renombrarEspacio);
-  const toggle = useServerFn(toggleEspacio);
-  const eliminar = useServerFn(eliminarEspacio);
-  const setPrincipal = useServerFn(setBodegaPrincipalEspacio);
 
   const [bodegaPorEspacio, setBodegaPorEspacio] = useState<Record<string, string>>({});
 
+  // El mapa espacio→bodega se deriva de `espacios_principales` que ya trae GET /bodega/bodegas.
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("espacio_bodega_principal")
-        .select("id_espacio, id_bodega");
-      const m: Record<string, string> = {};
-      for (const r of (data ?? []) as { id_espacio: string; id_bodega: string }[]) {
-        m[r.id_espacio] = r.id_bodega;
+    const m: Record<string, string> = {};
+    for (const b of bodegas) {
+      for (const ep of b.espacios_principales ?? []) {
+        m[ep.id_espacio] = b.id_bodega;
       }
-      setBodegaPorEspacio(m);
-    })();
-  }, [espacios.length]);
+    }
+    setBodegaPorEspacio(m);
+  }, [bodegas]);
 
   const handleSetBodega = async (id_espacio: string, id_bodega: string) => {
     try {
-      await setPrincipal({ data: { id_espacio, id_bodega } });
+      await setBodegaPrincipalEspacio({ id_espacio, id_bodega });
       setBodegaPorEspacio((prev) => ({ ...prev, [id_espacio]: id_bodega }));
       await invalidateBodegas();
       toast.success("Bodega principal actualizada");
@@ -103,10 +94,10 @@ function EspaciosPage() {
     setSaving(true);
     try {
       if (sheet.editing) {
-        await renombrar({ data: { id_espacio: sheet.editing.id_espacio, nombre: nombre.trim() } });
+        await renombrarEspacio({ id_espacio: sheet.editing.id_espacio, nombre: nombre.trim() });
         toast.success("Espacio actualizado");
       } else {
-        await crear({ data: { nombre: nombre.trim() } });
+        await crearEspacio({ nombre: nombre.trim() });
         toast.success("Espacio creado");
       }
       setSheet({ open: false });
@@ -120,7 +111,7 @@ function EspaciosPage() {
 
   const handleToggle = async (esp: EspacioTrabajo, activo: boolean) => {
     try {
-      await toggle({ data: { id_espacio: esp.id_espacio, activo } });
+      await toggleEspacio({ id_espacio: esp.id_espacio, activo });
       await invalidate();
     } catch (e) {
       toast.error("No se pudo cambiar", { description: (e as Error).message });
@@ -130,7 +121,7 @@ function EspaciosPage() {
   const handleDelete = async () => {
     if (!delTarget) return;
     try {
-      await eliminar({ data: { id_espacio: delTarget.id_espacio } });
+      await eliminarEspacio({ id_espacio: delTarget.id_espacio });
       toast.success("Espacio eliminado");
       setDelTarget(null);
       await invalidate();

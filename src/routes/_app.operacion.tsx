@@ -165,10 +165,9 @@ function PagosPendientes() {
 }
 
 function Alertas() {
-  const fn = useServerFn(getAlertasOperacion);
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-operacion"],
-    queryFn: () => fn(),
+    queryFn: () => getAlertasOperacion(),
     ...POLL.LIVE,
   });
   const alertas = data?.alertas ?? [];
@@ -227,12 +226,11 @@ function Alertas() {
 }
 
 function PersonalTurno() {
-  const fn = useServerFn(getPersonalEnTurno);
   const qc = useQueryClient();
   const { staff: yo } = useMiStaff();
   const { data, isLoading } = useQuery({
     queryKey: ["personal-turno"],
-    queryFn: () => fn(),
+    queryFn: () => getPersonalEnTurno(),
     ...POLL.NORMAL,
   });
   const staff = data?.staff ?? [];
@@ -337,10 +335,9 @@ function PersonalTurno() {
 }
 
 function MesasGrid() {
-  const fn = useServerFn(getMesasOperacion);
   const { data, isLoading } = useQuery({
     queryKey: ["mesas-operacion"],
-    queryFn: () => fn(),
+    queryFn: () => getMesasOperacion(),
     ...POLL.LIVE,
   });
   const mesas = data?.mesas ?? [];

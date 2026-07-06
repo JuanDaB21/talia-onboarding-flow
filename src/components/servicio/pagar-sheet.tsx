@@ -113,14 +113,10 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   );
 
   // Preview del bono según items seleccionados
-  const previewFn = useServerFn(previsualizarBono);
   const itemIdsArr = useMemo(() => Array.from(selected), [selected]);
   const bonoPreviewQ = useQuery({
     queryKey: ["bonoPreview", idBono, itemIdsArr],
-    queryFn: () =>
-      previewFn({
-        data: { idBono: idBono!, itemIds: itemIdsArr },
-      }),
+    queryFn: () => previsualizarBono({ idBono: idBono!, itemIds: itemIdsArr }),
     enabled: !!idBono && itemIdsArr.length > 0,
   });
   const descuentoBono = bonoPreviewQ.data?.descuento ?? 0;
@@ -556,10 +552,9 @@ function BonoRow({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const listFn = useServerFn(listarBonos);
   const bonosQ = useQuery({
     queryKey: ["bonos", "activos"],
-    queryFn: () => listFn({}),
+    queryFn: () => listarBonos(),
   });
   const bonos = (bonosQ.data?.bonos ?? []).filter((b: Bono) => b.activo);
   const visibles = bonos.filter((b) =>
