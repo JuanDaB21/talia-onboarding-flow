@@ -94,6 +94,18 @@ export function AlertasMeseroBanner() {
     }
   }, [asignaciones, bus]);
 
+  // Reconciliar el bus con las alertas vigentes: al resolverse en backend (cerrar mesa,
+  // atender, entregar) la key sale de esta lista y la voz se detiene. Mismas fórmulas de key
+  // que los push de arriba y el array `cards`.
+  useEffect(() => {
+    const liveKeys = [
+      ...solicitudes.map((m) => `sol:${m.id_mesa}:${m.solicitud_at ?? ""}`),
+      ...listos.map((m) => `listo:${m.id_mesa}`),
+      ...asignaciones.map((m) => `asig:${m.id_mesa}:${m.asignada_at ?? ""}`),
+    ];
+    bus.sync(liveKeys);
+  }, [solicitudes, listos, asignaciones, bus]);
+
   const limpiarMut = useMutation({
     mutationFn: (idMesa: string) => limpiarSolicitudCliente({ idMesa }),
     onSuccess: () => {

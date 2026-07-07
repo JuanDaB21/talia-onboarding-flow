@@ -40,7 +40,7 @@ function mensajeDeAlerta(a: AlertaItem): string {
     case "TOMAR_PEDIDO":
       return `La mesa ${mesa} está lista para ordenar`;
     case "LISTO":
-      return `Mesa ${mesa}, pedido listo`;
+      return `Ya puedes ir a recoger el pedido de la mesa ${mesa}`;
     case "ASIGNACION":
       return `Te asignaron la mesa ${mesa}`;
     case "LLAMADO":
@@ -52,6 +52,13 @@ function mensajeDeAlerta(a: AlertaItem): string {
 type BusContext = {
   push: (a: AlertaItem) => void;
   ack: (key: string) => void;
+  /**
+   * Reconcilia el bus con las alertas realmente vigentes: poda del `Map` (y de los
+   * reconocimientos persistidos) toda key que ya no esté en `liveKeys`. Esto para la voz
+   * cuando el backend resuelve la alerta desde cualquier pantalla, y permite que una misma
+   * key (p. ej. `listo:<idMesa>`) vuelva a sonar si su origen reaparece.
+   */
+  sync: (liveKeys: string[]) => void;
   activas: AlertaItem[];
 };
 
@@ -105,6 +112,31 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const sync = useCallback((liveKeys: string[]) => {
+    const live = new Set(liveKeys);
+    // Limpiar reconocimientos cuyo origen ya no existe, para permitir recurrencia futura.
+    let ackedChanged = false;
+    for (const k of ackedRef.current) {
+      if (!live.has(k)) {
+        ackedRef.current.delete(k);
+        ackedChanged = true;
+      }
+    }
+    if (ackedChanged) writeAcked(ackedRef.current);
+    // Podar alertas activas cuyo origen ya fue resuelto por el backend.
+    setItems((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const k of prev.keys()) {
+        if (!live.has(k)) {
+          next.delete(k);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   const activas = useMemo(() => Array.from(items.values()), [items]);
 
   // Mensajes hablados de las alertas vigentes. Se recalcula cuando cambian.
@@ -139,7 +171,10 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
     return () => stopVoiceAlerts();
   }, []);
 
-  const value = useMemo(() => ({ push, ack, activas }), [push, ack, activas]);
+  const value = useMemo(
+    () => ({ push, ack, sync, activas }),
+    [push, ack, sync, activas],
+  );
 
   return (
     <Ctx.Provider value={value}>
@@ -173,6 +208,7 @@ export function useAlertaBus(): BusContext {
     return {
       push: () => {},
       ack: () => {},
+      sync: () => {},
       activas: [],
     };
   }
