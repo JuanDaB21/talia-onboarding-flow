@@ -2,6 +2,7 @@
 // y lectura por proxy del backend (/storage/pub|priv).
 import { useEffect, useState } from "react";
 import { api, getTokens } from "@/lib/api-client";
+import { compressForScope } from "@/lib/image-compress";
 
 export type StorageScope = "producto" | "logo" | "qr" | "comprobante";
 
@@ -28,7 +29,10 @@ export async function uploadToStorage(
   scope: StorageScope,
   file: File | Blob,
 ): Promise<{ path: string; key: string }> {
-  const contentType = (file as File).type || "application/octet-stream";
+  // Comprimir antes de pedir la URL prefirmada: el contentType (y por tanto la
+  // extensión de la key) debe corresponder al blob que realmente se sube.
+  const toUpload = await compressForScope(scope, file);
+  const contentType = (toUpload as File).type || "application/octet-stream";
   const { key, uploadUrl, path } = await api.post<{ key: string; uploadUrl: string; path: string }>(
     "/storage/upload-url",
     { scope, contentType },
@@ -36,7 +40,7 @@ export async function uploadToStorage(
   const put = await fetch(uploadUrl, {
     method: "PUT",
     headers: { "content-type": contentType },
-    body: file,
+    body: toUpload,
   });
   if (!put.ok) throw new Error("No se pudo subir el archivo");
   return { path, key };

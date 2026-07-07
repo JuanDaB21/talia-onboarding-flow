@@ -40,15 +40,11 @@ export function AlertasMeseroBanner() {
   useEffect(() => {
     const ch = realtime
       .channel("alertas-mesero-banner")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "mesas" },
-        () => refetch(),
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "mesas" }, () =>
+        refetch(),
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pedido_items" },
-        () => refetch(),
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedido_items" }, () =>
+        refetch(),
       )
       .subscribe();
     return () => {
@@ -61,9 +57,7 @@ export function AlertasMeseroBanner() {
 
   const solicitudes = misMesas.filter((m) => !!m.solicitud_cliente);
   const listos = misMesas.filter((m) => m.alerta_listo);
-  const asignaciones = misMesas.filter(
-    (m) => !!m.asignada_at && m.id_mesero_asignado === myId,
-  );
+  const asignaciones = misMesas.filter((m) => !!m.asignada_at && m.id_mesero_asignado === myId);
 
   // Empujar al bus
   useEffect(() => {
@@ -73,13 +67,19 @@ export function AlertasMeseroBanner() {
         key,
         tipo: (m.solicitud_cliente ?? "LLAMADO") as AlertaItem["tipo"],
         idMesa: m.id_mesa,
+        identificador: m.identificador,
       });
     }
   }, [solicitudes, bus]);
 
   useEffect(() => {
     for (const m of listos) {
-      bus.push({ key: `listo:${m.id_mesa}`, tipo: "LISTO", idMesa: m.id_mesa });
+      bus.push({
+        key: `listo:${m.id_mesa}`,
+        tipo: "LISTO",
+        idMesa: m.id_mesa,
+        identificador: m.identificador,
+      });
     }
   }, [listos, bus]);
 
@@ -89,6 +89,7 @@ export function AlertasMeseroBanner() {
         key: `asig:${m.id_mesa}:${m.asignada_at ?? ""}`,
         tipo: "ASIGNACION",
         idMesa: m.id_mesa,
+        identificador: m.identificador,
       });
     }
   }, [asignaciones, bus]);
@@ -125,7 +126,8 @@ export function AlertasMeseroBanner() {
     ...asignaciones
       .filter((m) => {
         // Solo mostrar asignación si no hay otra alerta más específica en la mesa
-        const otra = solicitudes.some((s) => s.id_mesa === m.id_mesa) ||
+        const otra =
+          solicitudes.some((s) => s.id_mesa === m.id_mesa) ||
           listos.some((l) => l.id_mesa === m.id_mesa);
         return !otra;
       })
@@ -144,9 +146,7 @@ export function AlertasMeseroBanner() {
         <AlertaCard
           key={c.key}
           card={c}
-          onIr={() =>
-            nav({ to: "/servicio/$idMesa", params: { idMesa: c.mesa.id_mesa } })
-          }
+          onIr={() => nav({ to: "/servicio/$idMesa", params: { idMesa: c.mesa.id_mesa } })}
           onConfirmar={() => {
             if (c.kind === "sol") {
               limpiarMut.mutate(c.mesa.id_mesa);
@@ -176,11 +176,7 @@ function AlertaCard({
 }) {
   const mesa = card.mesa;
   const tiempo = minsAgo(
-    card.kind === "sol"
-      ? mesa.solicitud_at
-      : card.kind === "asig"
-        ? mesa.asignada_at
-        : null,
+    card.kind === "sol" ? mesa.solicitud_at : card.kind === "asig" ? mesa.asignada_at : null,
   );
 
   let styles = "";
@@ -226,21 +222,14 @@ function AlertaCard({
         <div className="shrink-0">{icon}</div>
         <div className="min-w-0 flex-1">
           <p className="font-bold leading-tight">{titulo}</p>
-          {card.kind !== "listo" && (
-            <p className="text-xs opacity-80">Hace {tiempo} min</p>
-          )}
+          {card.kind !== "listo" && <p className="text-xs opacity-80">Hace {tiempo} min</p>}
         </div>
       </div>
       <div className="mt-2 flex gap-2">
         <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={onIr}>
           Ver mesa <ArrowRight className="h-4 w-4" />
         </Button>
-        <Button
-          size="sm"
-          className="flex-1 gap-1"
-          onClick={onConfirmar}
-          disabled={confirmando}
-        >
+        <Button size="sm" className="flex-1 gap-1" onClick={onConfirmar} disabled={confirmando}>
           <Check className="h-4 w-4" /> {confirmarLabel}
         </Button>
       </div>

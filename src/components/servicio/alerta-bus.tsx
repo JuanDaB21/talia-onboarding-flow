@@ -12,25 +12,42 @@ import { Button } from "@/components/ui/button";
 import { BellRing } from "lucide-react";
 import {
   isAudioUnlocked,
-  startAlarm,
-  stopAlarm,
+  startVoiceAlerts,
+  stopVoiceAlerts,
   unlockAudio,
 } from "@/components/servicio/alerta-sound";
 
 export type AlertaTipo =
-  | "LLAMADO"
-  | "CUENTA"
-  | "PEDIR_MAS"
-  | "TOMAR_PEDIDO"
-  | "LISTO"
-  | "ASIGNACION";
+  "LLAMADO" | "CUENTA" | "PEDIR_MAS" | "TOMAR_PEDIDO" | "LISTO" | "ASIGNACION";
 
 export type AlertaItem = {
   key: string;
   tipo: AlertaTipo;
   idMesa: string;
+  /** Número/identificador visible de la mesa, para el mensaje hablado. */
+  identificador?: string;
   titulo?: string;
 };
+
+/** Mensaje hablado según el tipo de alerta. */
+function mensajeDeAlerta(a: AlertaItem): string {
+  const mesa = a.identificador ?? "";
+  switch (a.tipo) {
+    case "CUENTA":
+      return `La mesa ${mesa} pide la cuenta`;
+    case "PEDIR_MAS":
+      return `La mesa ${mesa} quiere pedir más`;
+    case "TOMAR_PEDIDO":
+      return `La mesa ${mesa} está lista para ordenar`;
+    case "LISTO":
+      return `Mesa ${mesa}, pedido listo`;
+    case "ASIGNACION":
+      return `Te asignaron la mesa ${mesa}`;
+    case "LLAMADO":
+    default:
+      return `La mesa ${mesa} te necesita`;
+  }
+}
 
 type BusContext = {
   push: (a: AlertaItem) => void;
@@ -56,10 +73,7 @@ function readAcked(): Set<string> {
 function writeAcked(s: Set<string>) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(
-      ACK_STORAGE_KEY,
-      JSON.stringify(Array.from(s)),
-    );
+    window.sessionStorage.setItem(ACK_STORAGE_KEY, JSON.stringify(Array.from(s)));
   } catch {
     // ignorar
   }
@@ -93,30 +107,36 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
 
   const activas = useMemo(() => Array.from(items.values()), [items]);
 
-  // Iniciar/parar alarma según haya alertas
+  // Mensajes hablados de las alertas vigentes. Se recalcula cuando cambian.
+  const mensajes = useMemo(() => activas.map(mensajeDeAlerta), [activas]);
+
+  // Iniciar/parar la voz según haya alertas. Re-ejecuta cuando cambian los
+  // mensajes (nueva mesa, tipo distinto, o al confirmar/atender).
   useEffect(() => {
-    if (activas.length > 0) {
+    if (mensajes.length > 0) {
+      const speak = () => startVoiceAlerts(() => mensajes);
       if (!isAudioUnlocked()) {
-        // Intentar sin gesto (probablemente falle en móviles)
+        // Intentar sin gesto (probablemente falle en móviles → mostrar botón)
         void unlockAudio().then((ok) => {
-          if (ok) startAlarm();
-          else setNeedsUnlock(true);
+          if (ok) {
+            setNeedsUnlock(false);
+            speak();
+          } else {
+            setNeedsUnlock(true);
+          }
         });
       } else {
         setNeedsUnlock(false);
-        startAlarm();
+        speak();
       }
     } else {
-      stopAlarm();
+      stopVoiceAlerts();
       setNeedsUnlock(false);
     }
-    return () => {
-      // No detener aquí; el efecto se re-ejecuta ante cambios
-    };
-  }, [activas.length]);
+  }, [mensajes]);
 
   useEffect(() => {
-    return () => stopAlarm();
+    return () => stopVoiceAlerts();
   }, []);
 
   const value = useMemo(() => ({ push, ack, activas }), [push, ack, activas]);
@@ -133,7 +153,7 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
               const ok = await unlockAudio();
               if (ok) {
                 setNeedsUnlock(false);
-                startAlarm();
+                startVoiceAlerts(() => mensajes);
               }
             }}
           >
