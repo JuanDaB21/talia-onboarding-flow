@@ -26,6 +26,21 @@ export function listarVariantesReceta(input: { idReceta: string }): Promise<Vari
   return api.get<VarianteGrupo[]>(`/variantes/recetas/${input.idReceta}`);
 }
 
+// Grupo de variantes reutilizable: un VarianteGrupo con la receta origen como contexto.
+export interface VariantePlantilla extends VarianteGrupo {
+  id_receta: string;
+  nombre_receta: string;
+}
+
+// Lista los grupos de variantes de todas las recetas del negocio, para reutilizarlos.
+// `excluir` omite los grupos de una receta (típicamente la que se está editando).
+export function listarPlantillasVariantes(input?: {
+  excluir?: string;
+}): Promise<VariantePlantilla[]> {
+  const qs = input?.excluir ? `?excluir=${encodeURIComponent(input.excluir)}` : "";
+  return api.get<VariantePlantilla[]>(`/variantes/plantillas${qs}`);
+}
+
 // El backend reemplaza todos los grupos de la receta (borrar + reinsertar). Solo envía
 // grupos/opciones; los campos orden/id se derivan/ignoran en el servidor.
 export function guardarVariantesReceta(input: GuardarVariantesInput): Promise<{ ok: true }> {
