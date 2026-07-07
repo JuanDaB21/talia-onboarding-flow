@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getCatalogoServicio } from "@/lib/servicio.functions";
+import { StorageImage } from "@/components/shared/storage-image";
 import { ItemEditorSheet } from "./item-editor-sheet";
 
 const fmt = new Intl.NumberFormat("es-CO", {
@@ -144,17 +145,18 @@ export function AgregarProductoSheet({
                       className="text-left rounded-xl border bg-card p-3 hover:shadow-md transition-shadow"
                     >
                       <div className="flex gap-3 min-w-0">
-                        <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                          {p.url_imagen ? (
-                            <img
-                              src={p.url_imagen}
-                              alt={p.nombre_producto}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
+                        <StorageImage
+                          path={p.url_imagen}
+                          visibility="public"
+                          alt={p.nombre_producto}
+                          className="h-14 w-14 shrink-0 rounded-lg"
+                          imgClassName="h-full w-full object-cover"
+                          fallback={
+                            <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          }
+                        />
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-sm line-clamp-2 break-words">
                             {p.nombre_producto}

@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { realtime } from "@/lib/realtime-client";
+import { StorageImage } from "@/components/shared/storage-image";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 
 
@@ -99,18 +100,13 @@ export function PagosPendientesSheet({
                   {fmt.format(p.monto)}
                 </p>
                 {p.url_comprobante ? (
-                  <a
-                    href={p.url_comprobante}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block rounded-lg overflow-hidden border bg-muted"
-                  >
-                    <img
-                      src={p.url_comprobante}
-                      alt="Comprobante"
-                      className="w-full max-h-64 object-contain"
-                    />
-                  </a>
+                  <StorageImage
+                    path={p.url_comprobante}
+                    visibility="private"
+                    alt="Comprobante"
+                    className="w-full rounded-lg border"
+                    imgClassName="w-full max-h-64 object-contain"
+                  />
                 ) : (
                   <div className="flex items-center gap-2 text-muted-foreground text-sm">
                     <ImageOff className="h-4 w-4" /> Sin comprobante
