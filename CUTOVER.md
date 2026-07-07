@@ -47,10 +47,12 @@ Por cada módulo (empezar por `servicio` o `caja`):
 `mesas` (configuración, + realtime), `impresión`. **Storage** helper `src/lib/storage.ts`
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
-**Aún en Supabase** (residuos — ya no queda data-access de negocio):
-- Residuo: `preparacion/comanda-print.ts` importa `supabase` (revisar si es tipo/uso real).
-- **Storage** de imágenes sigue apoyándose en Supabase (`src/lib/storage.ts`) — decisión aparte.
-- **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase residuales.
+**Supabase: 0% (rama `deployment`/PR #10).** Ya no queda ningún acceso a Supabase en el front:
+- `@supabase/supabase-js` eliminado de `package.json`; `src/integrations/supabase/*` borrado.
+- **Storage** de imágenes también migrado: `src/lib/storage.ts` usa el backend Talia (URL prefirmada
+  al bucket + proxy `/storage/pub|priv`). Ya **no** depende de Supabase Storage.
+- `comanda-print.ts` repuntado a `getNegocioConfig()` (REST); auth shim `requireSupabaseAuth` retirado.
+- `grep -i supabase src` = solo **comentarios** históricos (0 usos de `supabase.`).
 
 ## Pendiente para llegar a 0% Supabase
 
