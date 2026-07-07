@@ -47,10 +47,12 @@ Por cada módulo (empezar por `servicio` o `caja`):
 `mesas` (configuración, + realtime), `impresión`. **Storage** helper `src/lib/storage.ts`
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
-**Aún en Supabase** (residuos — ya no queda data-access de negocio):
-- Residuo: `preparacion/comanda-print.ts` importa `supabase` (revisar si es tipo/uso real).
-- **Storage** de imágenes sigue apoyándose en Supabase (`src/lib/storage.ts`) — decisión aparte.
-- **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase residuales.
+**Supabase: 0% (rama `deployment`/PR #10).** Ya no queda ningún acceso a Supabase en el front:
+- `@supabase/supabase-js` eliminado de `package.json`; `src/integrations/supabase/*` borrado.
+- **Storage** de imágenes también migrado: `src/lib/storage.ts` usa el backend Talia (URL prefirmada
+  al bucket + proxy `/storage/pub|priv`). Ya **no** depende de Supabase Storage.
+- `comanda-print.ts` repuntado a `getNegocioConfig()` (REST); auth shim `requireSupabaseAuth` retirado.
+- `grep -i supabase src` = solo **comentarios** históricos (0 usos de `supabase.`).
 
 ## Pendiente para llegar a 0% Supabase
 
@@ -170,14 +172,16 @@ Hecho en esta pasada:
 > (completa GRANTs). **Ya aplicado a la DB dev de Railway y validado** (cada negocio ve solo lo suyo).
 > Al desplegar el backend, asegurar que `db:migrate` corre 0008 antes de servir con el código nuevo.
 
-## Deploy del front en Railway — pendiente de decisión
+## Deploy del front en Railway — RESUELTO (desplegándose en Railway)
 
-⚠️ El build usa `@lovable.dev/vite-tanstack-config`, que **incluye el plugin de Cloudflare
-(build-only)**. Para Railway (node-server) hay que **ejectar** ese wrapper en esta rama:
-sustituirlo por la config estándar de TanStack Start + Vite con target de servidor Node, arrancar con
-el server de Nitro, y neutralizar `wrangler.jsonc`. Alternativas:
-- **(A)** Ejectar a node-server y desplegar en Railway (unifica todo en Railway; requiere validar el build).
-- **(B)** Desplegar el front en **Cloudflare** (para lo que ya está armado) y dejar solo el backend en Railway.
+✅ **Decidido y en producción: el front se despliega en Railway** (node-server). No hay opción B.
+El wrapper `@lovable.dev/vite-tanstack-config` incluye el plugin de Cloudflare solo para el sandbox
+de Lovable; fuera de él, [`vite.config.ts`](vite.config.ts) fuerza `nitro: { preset: "node-server" }`,
+que genera un server autónomo en `.output/server/index.mjs`. Config de deploy en
+[`railway.json`](railway.json):
+- **build** (nixpacks): `bun run build` → produce `.output/server/index.mjs`.
+- **start**: `node .output/server/index.mjs` (escucha en `PORT` que inyecta Railway).
+- **healthcheck**: `/`.
 
-Decidir con el backend ya desplegado. Mientras tanto, el front se puede probar desde el **preview de
-Lovable** apuntando `VITE_API_URL` a la API de Railway.
+Requisitos de entorno en el servicio de Railway: `VITE_API_URL` (y `VITE_WS_URL`, `VITE_APP_ENV`)
+apuntando al backend. El preview de Lovable sigue disponible como entorno de prueba alternativo.
