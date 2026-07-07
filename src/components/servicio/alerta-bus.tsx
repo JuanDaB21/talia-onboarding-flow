@@ -60,6 +60,8 @@ type BusContext = {
    */
   sync: (liveKeys: string[]) => void;
   activas: AlertaItem[];
+  /** Keys reconocidas (atendidas) por el usuario. Las tarjetas visibles las ocultan. */
+  acked: Set<string>;
 };
 
 const Ctx = createContext<BusContext | null>(null);
@@ -88,7 +90,12 @@ function writeAcked(s: Set<string>) {
 
 export function AlertaBusProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Map<string, AlertaItem>>(() => new Map());
-  const ackedRef = useRef<Set<string>>(readAcked());
+  // `acked` es estado reactivo para que las tarjetas visibles (derivadas de la
+  // query en el banner) se oculten al instante al confirmar. `ackedRef` refleja
+  // el último valor para las lecturas síncronas de `push`.
+  const [acked, setAcked] = useState<Set<string>>(() => readAcked());
+  const ackedRef = useRef<Set<string>>(acked);
+  ackedRef.current = acked;
   const [needsUnlock, setNeedsUnlock] = useState(false);
 
   const push = useCallback((a: AlertaItem) => {
@@ -102,8 +109,13 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const ack = useCallback((key: string) => {
-    ackedRef.current.add(key);
-    writeAcked(ackedRef.current);
+    setAcked((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      writeAcked(next);
+      return next;
+    });
     setItems((prev) => {
       if (!prev.has(key)) return prev;
       const next = new Map(prev);
@@ -115,14 +127,18 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
   const sync = useCallback((liveKeys: string[]) => {
     const live = new Set(liveKeys);
     // Limpiar reconocimientos cuyo origen ya no existe, para permitir recurrencia futura.
-    let ackedChanged = false;
-    for (const k of ackedRef.current) {
-      if (!live.has(k)) {
-        ackedRef.current.delete(k);
-        ackedChanged = true;
+    setAcked((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const k of prev) {
+        if (!live.has(k)) {
+          next.delete(k);
+          changed = true;
+        }
       }
-    }
-    if (ackedChanged) writeAcked(ackedRef.current);
+      if (changed) writeAcked(next);
+      return changed ? next : prev;
+    });
     // Podar alertas activas cuyo origen ya fue resuelto por el backend.
     setItems((prev) => {
       let changed = false;
@@ -141,6 +157,41 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
 
   // Mensajes hablados de las alertas vigentes. Se recalcula cuando cambian.
   const mensajes = useMemo(() => activas.map(mensajeDeAlerta), [activas]);
+  // Ref al último valor para que el listener de gesto (montado una sola vez)
+  // hable los mensajes vigentes sin capturar un valor obsoleto.
+  const mensajesRef = useRef<string[]>(mensajes);
+  mensajesRef.current = mensajes;
+
+  // Desbloqueo proactivo en móvil: iOS/Android exigen un gesto del usuario para
+  // habilitar audio/voz. En vez de depender solo del botón "Activar alertas",
+  // el PRIMER toque/tecla en cualquier parte de la app desbloquea el audio, de
+  // modo que cuando llegue una alerta la voz ya puede sonar. Se auto-desengancha
+  // al lograrlo.
+  useEffect(() => {
+    if (typeof window === "undefined" || isAudioUnlocked()) return;
+    let done = false;
+    const onGesture = () => {
+      if (done) return;
+      void unlockAudio().then((ok) => {
+        if (!ok) return; // reintentará en el siguiente gesto
+        done = true;
+        setNeedsUnlock(false);
+        if (mensajesRef.current.length > 0) {
+          startVoiceAlerts(() => mensajesRef.current);
+        }
+        cleanup();
+      });
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("touchstart", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
+    window.addEventListener("pointerdown", onGesture, { passive: true });
+    window.addEventListener("touchstart", onGesture, { passive: true });
+    window.addEventListener("keydown", onGesture);
+    return cleanup;
+  }, []);
 
   // Iniciar/parar la voz según haya alertas. Re-ejecuta cuando cambian los
   // mensajes (nueva mesa, tipo distinto, o al confirmar/atender).
@@ -172,8 +223,8 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ push, ack, sync, activas }),
-    [push, ack, sync, activas],
+    () => ({ push, ack, sync, activas, acked }),
+    [push, ack, sync, activas, acked],
   );
 
   return (
@@ -210,6 +261,7 @@ export function useAlertaBus(): BusContext {
       ack: () => {},
       sync: () => {},
       activas: [],
+      acked: new Set<string>(),
     };
   }
   return c;

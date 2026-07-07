@@ -148,7 +148,13 @@ export function AlertasMeseroBanner() {
         mesa: m,
         key: `asig:${m.id_mesa}:${m.asignada_at ?? ""}`,
       })),
-  ];
+  ]
+    // Ocultar al instante lo ya confirmado por el usuario. Las tarjetas se derivan
+    // de la query (que tarda en refrescar, y `listo`/`asig` no tienen mutación que
+    // limpie el backend), así que sin esto quedaban "congeladas" tras confirmar.
+    // `bus.sync` retira la key de `acked` cuando el backend resuelve el origen, así
+    // que la alerta puede reaparecer si vuelve a ocurrir.
+    .filter((c) => !bus.acked.has(c.key));
 
   if (cards.length === 0) return null;
 
