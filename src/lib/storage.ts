@@ -1,5 +1,6 @@
-// Storage vía backend Talia. Subida con URL prefirmada (PUT directo al bucket)
-// y lectura por proxy del backend (/storage/pub|priv).
+// Storage vía backend Talia. Subida y lectura por proxy del backend
+// (/storage/upload y /storage/pub|priv): el navegador solo habla con el backend,
+// nunca hace fetch directo al bucket (evita "Failed to fetch" por CORS/alcance).
 import { useEffect, useState } from "react";
 import { api, getTokens } from "@/lib/api-client";
 import { compressForScope } from "@/lib/image-compress";
@@ -22,28 +23,29 @@ export function publicUrl(path: string | null | undefined): string | null {
 }
 
 /**
- * Sube un archivo: pide URL prefirmada, hace PUT al bucket y devuelve la `path`
- * (relativa a la API, la que se guarda en la fila) y la `key` del objeto.
+ * Sube un archivo por el backend (`POST /storage/upload`) y devuelve la `path`
+ * (relativa a la API, la que se guarda en la fila) y la `key` del objeto. El
+ * backend sube al bucket; el navegador no hace PUT directo al bucket.
  */
 export async function uploadToStorage(
   scope: StorageScope,
   file: File | Blob,
 ): Promise<{ path: string; key: string }> {
-  // Comprimir antes de pedir la URL prefirmada: el contentType (y por tanto la
-  // extensión de la key) debe corresponder al blob que realmente se sube.
+  // Comprimir en el navegador antes de subir (menos bytes = más rápido). El
+  // contentType debe corresponder al blob que realmente se sube.
   const toUpload = await compressForScope(scope, file);
   const contentType = (toUpload as File).type || "application/octet-stream";
-  const { key, uploadUrl, path } = await api.post<{ key: string; uploadUrl: string; path: string }>(
-    "/storage/upload-url",
-    { scope, contentType },
-  );
-  const put = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "content-type": contentType },
+  const tokens = getTokens();
+  const res = await fetch(`${api.url}/storage/upload?scope=${encodeURIComponent(scope)}`, {
+    method: "POST",
+    headers: {
+      "content-type": contentType,
+      ...(tokens ? { authorization: `Bearer ${tokens.access}` } : {}),
+    },
     body: toUpload,
   });
-  if (!put.ok) throw new Error("No se pudo subir el archivo");
-  return { path, key };
+  if (!res.ok) throw new Error("No se pudo subir el archivo");
+  return (await res.json()) as { path: string; key: string };
 }
 
 /**
