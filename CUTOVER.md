@@ -135,7 +135,7 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
         productos_lentos, desviaciones, etc.), así que el componente consumidor no cambia de shape.
       - Con esto se elimina el import de `supabase` en `analytics.functions.ts`.
 
-### Cierre final (0% Supabase) — EN CURSO (rama `feat/cutover-usuarios-analytics-front`)
+### Cierre final (0% Supabase) — LISTO (rama `feat/cutover-usuarios-analytics-front`, PR #10)
 
 Hecho en esta pasada:
 - [x] **Chat IA** → el backend ya sirve `/api/chat` (mismos tools/auth). `chat-panel.tsx` repuntado
@@ -150,15 +150,18 @@ Hecho en esta pasada:
 - [x] Quitado `VITE_SUPABASE_*` de `.env.example`.
 - [x] `grep -r "supabase" src` = **vacío** (solo quedaban comentarios, ya limpiados).
 
-> ⏭️ **PENDIENTE para la próxima sesión (retomar exactamente aquí):**
-> 1. **Regenerar `src/routeTree.gen.ts`** (todavía referencia el borrado `/api/chat` → rompe tsc/build).
->    Correr `npx vite dev` un momento (el plugin de router lo regenera) o `vite build`, y confirmar que
->    `grep -c "ApiChat\|api/chat" src/routeTree.gen.ts` = 0.
-> 2. `npx tsc --noEmit` verde.
-> 3. Verificar en la app corriendo (con `VITE_API_URL` al backend de Railway):
->    - **Chat** admin: abre, responde y usa tools (POST a `${VITE_API_URL}/chat`, 200 stream).
->    - **Espacios de trabajo**: ya NO deben verse duplicados (arreglado en backend, ver nota abajo).
-> 4. Commit final + marcar este bloque como cerrado.
+> ✅ **CERRADO** (sesión 2026-07-06):
+> 1. **`src/routeTree.gen.ts` regenerado** con el router-plugin (`npx vite dev` un momento). Ya no
+>    referencia el borrado `/api/chat`: `grep -c "ApiChat\|api/chat" src/routeTree.gen.ts` = **0**.
+> 2. `npx tsc --noEmit` **verde**. La regeneración destapó un error latente que el routeTree viejo
+>    enmascaraba: `_app.menu.productos.tsx` leía `useSearch({strict:false}).editar` sin que ninguna
+>    ruta declarara ese search param. Arreglado de forma idiomática: la ruta ahora declara
+>    `validateSearch` con `editar: z.string().optional()` y usa `Route.useSearch()` (estilo del repo,
+>    cf. `_app.bodega.inventario.index.tsx`). Comportamiento del deep-link `?editar=<id>` intacto.
+> 3. ⏭️ **Verificación en app viva** (requiere `VITE_API_URL` → backend de Railway + login): pendiente
+>    de correr manualmente — **chat** admin responde/usa tools; **espacios** ya no duplicados. El dev
+>    server arranca limpio; el resto es runtime contra el backend.
+> 4. `grep -i supabase src` = solo **comentarios** históricos (sin `supabase.` real); 0% data-access.
 
 > 🔒 **Backend — fix de aislamiento por tenant (RLS)** — rama `talia:fix/rls-tenant-isolation` (PR aparte).
 > Causa del bug "espacios duplicados": el backend conectaba como `postgres` (SUPERUSER+BYPASSRLS),
