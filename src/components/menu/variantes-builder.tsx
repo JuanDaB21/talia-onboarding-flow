@@ -16,7 +16,9 @@ import {
   listarVariantesReceta,
   guardarVariantesReceta,
   listarInsumosParaVariantes,
+  listarPlantillasVariantes,
   type VarianteGrupo,
+  type VariantePlantilla,
 } from "@/lib/variantes.functions";
 
 type OpcionEditable = {
@@ -56,8 +58,16 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
     queryFn: () => listarInsumosParaVariantes(),
   });
 
+  // Grupos reutilizables de otras recetas (excluye la receta actual).
+  const plantillasQ = useQuery({
+    queryKey: ["plantillasVariantes", idReceta],
+    queryFn: () => listarPlantillasVariantes({ excluir: idReceta }),
+  });
+
   const [grupos, setGrupos] = useState<GrupoEditable[]>([]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set([0]));
+  // Fuerza el reset del Select de plantillas tras cada importación (permite repetir).
+  const [pickerKey, setPickerKey] = useState(0);
 
   useEffect(() => {
     if (variantesQ.data) setGrupos(variantesQ.data.map(fromServer));
@@ -106,6 +116,15 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
       },
     ]);
     setExpanded((s) => new Set([...s, grupos.length]));
+  }
+
+  function importarPlantilla(p: VariantePlantilla) {
+    setGrupos((gs) => {
+      setExpanded((s) => new Set([...s, gs.length]));
+      return [...gs, fromServer(p)];
+    });
+    toast.success(`Grupo "${p.nombre}" copiado de ${p.nombre_receta}`);
+    setPickerKey((k) => k + 1);
   }
 
   function removeGrupo(idx: number) {
@@ -162,6 +181,30 @@ export function VariantesBuilder({ idReceta }: { idReceta: string }) {
         Permite que el cliente elija con qué viene este producto (ej. tipo de papa). Cada opción
         consume un insumo del inventario y puede sumar un valor extra.
       </p>
+
+      {(plantillasQ.data?.length ?? 0) > 0 && (
+        <div className="flex items-center gap-2">
+          <Select
+            key={pickerKey}
+            onValueChange={(idGrupo) => {
+              const p = plantillasQ.data?.find((x) => x.id_grupo === idGrupo);
+              if (p) importarPlantilla(p);
+            }}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Reutilizar un grupo de otra receta…" />
+            </SelectTrigger>
+            <SelectContent>
+              {plantillasQ.data?.map((p) => (
+                <SelectItem key={p.id_grupo} value={p.id_grupo}>
+                  {p.nombre_receta} — {p.nombre} ({p.opciones.length}{" "}
+                  {p.opciones.length === 1 ? "opción" : "opciones"})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {grupos.length === 0 && (
         <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
