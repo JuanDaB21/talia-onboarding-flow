@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { getTokens, onAuthExpired } from "@/lib/api-client";
+import { api, getTokens, onAuthExpired } from "@/lib/api-client";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useChatStorage } from "@/hooks/use-chat-storage";
 import {
@@ -99,7 +99,7 @@ function ChatInner({
 
   const transport = useRef(
     new DefaultChatTransport({
-      api: "/api/chat",
+      api: `${api.url}/chat`,
       headers: (): Record<string, string> =>
         tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
     }),

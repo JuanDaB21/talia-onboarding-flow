@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -245,13 +244,12 @@ function PersonalTurno() {
   const staff = data?.staff ?? [];
   const [target, setTarget] = useState<StaffEnTurno | null>(null);
   const [busy, setBusy] = useState(false);
-  const inhabilitar = useServerFn(inhabilitarStaff);
 
   const handleInhabilitar = async () => {
     if (!target) return;
     setBusy(true);
     try {
-      await inhabilitar({ data: { id_usuario: target.id_usuario } });
+      await inhabilitarStaff({ id_usuario: target.id_usuario });
       toast.success(`${target.nombre} fue inhabilitado`);
       qc.invalidateQueries({ queryKey: ["personal-turno"] });
     } catch (e) {

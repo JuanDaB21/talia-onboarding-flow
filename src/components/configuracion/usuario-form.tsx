@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,8 +57,6 @@ const ROLES_BASE: RolStaffUi[] = ["ADMIN", "CAJERO", "MESERO"];
 export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
   const isEdit = Boolean(usuario);
   const [deleting, setDeleting] = useState(false);
-  const crear = useServerFn(crearUsuarioStaff);
-  const actualizar = useServerFn(actualizarUsuarioStaff);
   const { espacios } = useEspacios({ soloActivos: true });
 
   type FormValues = UsuarioCreateInput | UsuarioUpdateInput;
@@ -157,25 +154,21 @@ export function UsuarioForm({ usuario, onSuccess, onCancel, onDelete }: Props) {
     try {
       if (isEdit && usuario) {
         const v = values as UsuarioUpdateInput;
-        await actualizar({
-          data: {
-            id_usuario: usuario.id_usuario,
-            nombre: v.nombre,
-            rol: v.rol,
-            id_espacio_asignado: v.id_espacio_asignado ?? null,
-            estado: v.estado,
-            recibe_propinas: v.recibe_propinas,
-            password: v.password || undefined,
-          },
+        await actualizarUsuarioStaff({
+          id_usuario: usuario.id_usuario,
+          nombre: v.nombre,
+          rol: v.rol,
+          id_espacio_asignado: v.id_espacio_asignado ?? null,
+          estado: v.estado,
+          recibe_propinas: v.recibe_propinas,
+          password: v.password || undefined,
         });
         toast.success("Usuario actualizado");
       } else {
         const v = values as UsuarioCreateInput;
-        await crear({
-          data: {
-            ...v,
-            id_espacio_asignado: v.id_espacio_asignado ?? null,
-          },
+        await crearUsuarioStaff({
+          ...v,
+          id_espacio_asignado: v.id_espacio_asignado ?? null,
         });
         toast.success("Usuario creado");
       }

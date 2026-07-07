@@ -1,6 +1,6 @@
 // Carta pública (comensal por QR) vía REST del backend Talia (/carta/*).
 // Endpoints públicos (sin auth): el backend deriva el negocio desde la mesa con
-// funciones SECURITY DEFINER. Reemplaza el uso de supabaseAdmin del original.
+// funciones SECURITY DEFINER.
 import { api } from "@/lib/api-client";
 
 export interface CartaProducto {

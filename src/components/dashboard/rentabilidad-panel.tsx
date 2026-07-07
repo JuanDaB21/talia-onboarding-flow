@@ -1,4 +1,3 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +15,9 @@ const CUAD_META: Record<Cuadrante, { label: string; desc: string; icon: typeof S
 };
 
 export function RentabilidadPanel({ desde, hasta }: { desde: string; hasta: string }) {
-  const fn = useServerFn(getIngenieriaMenu);
   const { data, isLoading } = useQuery({
     queryKey: ["ingenieria-menu", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getIngenieriaMenu({ desde, hasta }),
     ...POLL.SLOW,
   });
 

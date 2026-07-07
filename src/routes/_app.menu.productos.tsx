@@ -1,16 +1,22 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { ProductosTab } from "@/components/menu/productos-tab";
 
+const searchSchema = z.object({
+  editar: z.string().optional(),
+});
+
 export const Route = createFileRoute("/_app/menu/productos")({
   head: () => ({ meta: [{ title: "Productos — Menú" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: ProductosPage,
 });
 
 function ProductosPage() {
   const { idNegocio, loading } = useCurrentNegocio();
-  const search = useSearch({ strict: false });
-  const autoEditId = typeof search.editar === "string" ? search.editar : undefined;
+  const { editar: autoEditId } = Route.useSearch();
   if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   if (!idNegocio) return <p className="text-sm text-destructive">No se encontró un negocio.</p>;
 

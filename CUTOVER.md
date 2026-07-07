@@ -47,13 +47,10 @@ Por cada módulo (empezar por `servicio` o `caja`):
 `mesas` (configuración, + realtime), `impresión`. **Storage** helper `src/lib/storage.ts`
 (subida prefirmada + proxy priv autenticado); ya en uso por métodos-pago (QR) y comprobantes de pago.
 
-**Aún en Supabase** (backend YA listo — solo falta el repunte del front, ver checklist abajo):
-- **Usuarios** (`configuracion/usuarios-tab`, `usuarios.functions.ts`) — ✅ backend listo (talia-backend
-  PR #11, §B). Falta repuntar a `/usuarios` (ver **[ ] usuarios** abajo).
-- **Analítica avanzada** (`analytics.functions.ts`) — ✅ backend listo (PR #11, §C). Falta repuntar a
-  `/analytics/*` (ver **[ ] analítica avanzada** abajo).
+**Aún en Supabase** (residuos — ya no queda data-access de negocio):
 - Residuo: `preparacion/comanda-print.ts` importa `supabase` (revisar si es tipo/uso real).
-- **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase.
+- **Storage** de imágenes sigue apoyándose en Supabase (`src/lib/storage.ts`) — decisión aparte.
+- **Auth shim** (`requireSupabaseAuth`) — mientras queden server functions Supabase residuales.
 
 ## Pendiente para llegar a 0% Supabase
 
@@ -101,12 +98,14 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
 
 ## Repunte pendiente (backend listo — ejecutar en la próxima sesión)
 
-> Solo quedan estos dos. Backend vivo: `talia-backend` PR #11 (endpoints §B/§C). Contrato completo en
-> `talia-backend/docs/CUTOVER-BACKEND.md` §B/§C. Patrón: reescribir el `*.functions.ts` con
-> `api.get/post/patch/put/del` de `@/lib/api-client`, quitar `createServerFn`/`requireSupabaseAuth`, y
-> en los call-sites cambiar `useServerFn(fn)` → `fn` directo y `fn({ data: x })` → `fn(x)`.
+> ✅ **COMPLETO.** Ambos módulos repuntados a REST en esta rama (`usuarios.functions.ts` y
+> `analytics.functions.ts` sin `supabase`, sin `createServerFn`/`requireSupabaseAuth`). Los call-sites
+> ya llaman `fn(x)` directo: `usuarios-tab`, `usuario-form`, `caja-turno-card`, `_app.operacion` y los
+> 4 paneles de dashboard (`rentabilidad`, `cliente`, `operacion`, `alertas`). El detalle de contrato
+> se conserva abajo como referencia. `npx tsc --noEmit` verde.
 
-- [ ] **usuarios** → reescribir `src/lib/usuarios.functions.ts` a REST. Preservar las 4 firmas
+- [x] **usuarios** → `src/lib/usuarios.functions.ts` repuntado a REST (+ `listarUsuariosStaff` →
+      `GET /usuarios`, filtrando `SUPERADMIN` en el front). Preserva las 4 firmas
       (`crearUsuarioStaff`, `actualizarUsuarioStaff`, `eliminarUsuarioStaff`, `inhabilitarStaff`).
       Mapa endpoint:
       - `crearUsuarioStaff(input)` → `api.post("/usuarios", input)`; input tal cual
@@ -125,7 +124,7 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
         pueden quedarse. Ya no se crea usuario en Supabase Auth (el backend inserta con `password_hash`).
       - Call-sites: `configuracion/usuarios-tab.tsx`, `configuracion/usuario-form.tsx`.
 
-- [ ] **analítica avanzada** → reescribir `src/lib/analytics.functions.ts` a REST. Las 4 funciones son
+- [x] **analítica avanzada** → `src/lib/analytics.functions.ts` repuntado a REST. Las 4 funciones son
       `POST { desde, hasta }` con la **misma forma de salida** (tipos `IngenieriaMenu`,
       `ComportamientoCliente`, `EficienciaOperativa`, `AlertasFugas` se conservan tal cual):
       - `getIngenieriaMenu(r)` → `api.post("/analytics/ingenieria-menu", r)`.
@@ -136,13 +135,40 @@ Por cada módulo, cuando el endpoint esté vivo en Railway: reemplazar la versi�
         productos_lentos, desviaciones, etc.), así que el componente consumidor no cambia de shape.
       - Con esto se elimina el import de `supabase` en `analytics.functions.ts`.
 
-### Cierre final (cuando no quede ningún `supabase.*`)
+### Cierre final (0% Supabase) — LISTO (rama `feat/cutover-usuarios-analytics-front`, PR #10)
 
-- [ ] Eliminar `src/integrations/supabase/*` (`client`, `client.server`, `auth-middleware`,
-      `auth-attacher`) y todas las server functions restantes.
-- [ ] Quitar la dependencia `@supabase/supabase-js` del `package.json`.
-- [ ] Verificar que `VITE_SUPABASE_*` ya no se usa; borrar de `.env`/`.env.example`.
-- [ ] `grep -r "supabase" src` debe quedar vacío. `npx tsc --noEmit` verde.
+Hecho en esta pasada:
+- [x] **Chat IA** → el backend ya sirve `/api/chat` (mismos tools/auth). `chat-panel.tsx` repuntado
+      a `${api.url}/chat` con `Authorization: Bearer` (ya no usa la ruta local). Borrada la ruta
+      duplicada `src/routes/api/chat.ts`.
+- [x] **Cron cerrar-turnos** → lo corre el backend (`cron/cerrar-turnos.ts`). Borrado el hook
+      duplicado `src/routes/api/public/hooks/cerrar-turnos.ts`.
+- [x] **comanda-print.ts** → `supabase.from("negocio")` → `getNegocioConfig()` (REST).
+- [x] **start.ts** → quitado `attachSupabaseAuth` del `functionMiddleware` (ya no hay server functions).
+- [x] Eliminado `src/integrations/supabase/*` (client, client.server, auth-middleware, auth-attacher, types).
+- [x] Quitado `@supabase/supabase-js` del `package.json` (+ `npm install`, -9 paquetes).
+- [x] Quitado `VITE_SUPABASE_*` de `.env.example`.
+- [x] `grep -r "supabase" src` = **vacío** (solo quedaban comentarios, ya limpiados).
+
+> ✅ **CERRADO** (sesión 2026-07-06):
+> 1. **`src/routeTree.gen.ts` regenerado** con el router-plugin (`npx vite dev` un momento). Ya no
+>    referencia el borrado `/api/chat`: `grep -c "ApiChat\|api/chat" src/routeTree.gen.ts` = **0**.
+> 2. `npx tsc --noEmit` **verde**. La regeneración destapó un error latente que el routeTree viejo
+>    enmascaraba: `_app.menu.productos.tsx` leía `useSearch({strict:false}).editar` sin que ninguna
+>    ruta declarara ese search param. Arreglado de forma idiomática: la ruta ahora declara
+>    `validateSearch` con `editar: z.string().optional()` y usa `Route.useSearch()` (estilo del repo,
+>    cf. `_app.bodega.inventario.index.tsx`). Comportamiento del deep-link `?editar=<id>` intacto.
+> 3. ⏭️ **Verificación en app viva** (requiere `VITE_API_URL` → backend de Railway + login): pendiente
+>    de correr manualmente — **chat** admin responde/usa tools; **espacios** ya no duplicados. El dev
+>    server arranca limpio; el resto es runtime contra el backend.
+> 4. `grep -i supabase src` = solo **comentarios** históricos (sin `supabase.` real); 0% data-access.
+
+> 🔒 **Backend — fix de aislamiento por tenant (RLS)** — rama `talia:fix/rls-tenant-isolation` (PR aparte).
+> Causa del bug "espacios duplicados": el backend conectaba como `postgres` (SUPERUSER+BYPASSRLS),
+> anulando RLS → `GET /espacios` (y otras lecturas RLS-only) devolvían filas de **todos** los negocios.
+> Fix: `withTenant` hace `SET LOCAL ROLE authenticated` + migración `0008_grant_authenticated.sql`
+> (completa GRANTs). **Ya aplicado a la DB dev de Railway y validado** (cada negocio ve solo lo suyo).
+> Al desplegar el backend, asegurar que `db:migrate` corre 0008 antes de servir con el código nuevo.
 
 ## Deploy del front en Railway — pendiente de decisión
 

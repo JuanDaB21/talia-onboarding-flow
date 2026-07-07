@@ -1,6 +1,5 @@
 // Módulo de menú (categorías, subcategorías, productos, recetas) vía REST del
-// backend Talia (/menu/*). Reemplaza los supabase.from/rpc inline de los
-// componentes de menú. Los insumos se leen de /bodega/insumos.
+// backend Talia (/menu/*). Los insumos se leen de /bodega/insumos.
 import { api } from "@/lib/api-client";
 
 // ── Categorías / subcategorías ──────────────────────────────────────────────

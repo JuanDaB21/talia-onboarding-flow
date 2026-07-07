@@ -1,5 +1,5 @@
 // Storage vía backend Talia. Subida con URL prefirmada (PUT directo al bucket)
-// y lectura por proxy del backend (/storage/pub|priv). Reemplaza supabase.storage.
+// y lectura por proxy del backend (/storage/pub|priv).
 import { useEffect, useState } from "react";
 import { api, getTokens } from "@/lib/api-client";
 

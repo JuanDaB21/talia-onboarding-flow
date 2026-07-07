@@ -1,4 +1,3 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,10 +7,9 @@ import { cn } from "@/lib/utils";
 import { POLL } from "@/lib/query-config";
 
 export function AlertasPanel({ desde, hasta }: { desde: string; hasta: string }) {
-  const fn = useServerFn(getAlertasFugas);
   const { data, isLoading } = useQuery({
     queryKey: ["alertas-fugas", desde, hasta],
-    queryFn: () => fn({ data: { desde, hasta } }),
+    queryFn: () => getAlertasFugas({ desde, hasta }),
     ...POLL.REALTIME,
   });
 
