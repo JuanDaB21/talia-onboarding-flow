@@ -8,7 +8,6 @@ import {
   XCircle,
   Clock,
   Users,
-  ExternalLink,
   UserX,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RoleGate } from "@/components/admin/role-gate";
+import { StorageImage } from "@/components/shared/storage-image";
 import {
   getAlertasOperacion,
   getMesasOperacion,
@@ -125,17 +125,13 @@ function PagosPendientes() {
                 </div>
               </div>
               {p.url_comprobante && (
-                <a href={p.url_comprobante} target="_blank" rel="noreferrer" className="shrink-0">
-                  <img
-                    src={p.url_comprobante}
-                    alt="Comprobante"
-                    loading="lazy"
-                    decoding="async"
-                    width={64}
-                    height={64}
-                    className="h-16 w-16 rounded border object-cover"
-                  />
-                </a>
+                <StorageImage
+                  path={p.url_comprobante}
+                  visibility="private"
+                  alt="Comprobante"
+                  className="h-16 w-16 shrink-0 rounded border"
+                  imgClassName="h-full w-full object-cover"
+                />
               )}
             </div>
             <div className="flex gap-2">
@@ -156,13 +152,6 @@ function PagosPendientes() {
               >
                 <XCircle className="mr-1 h-4 w-4" /> Rechazar
               </Button>
-              {p.url_comprobante && (
-                <Button size="sm" variant="outline" asChild>
-                  <a href={p.url_comprobante} target="_blank" rel="noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              )}
             </div>
           </div>
         ))}
