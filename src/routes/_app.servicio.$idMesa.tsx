@@ -52,6 +52,7 @@ import {
 import { PrepedidoEnVivoCard } from "@/components/servicio/prepedido-en-vivo-card";
 import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
+import { StorageImage } from "@/components/shared/storage-image";
 import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 import {
   EditarItemDialog,
@@ -1195,17 +1196,18 @@ function PedidoAbiertoCard({
                       className="text-left rounded-xl border bg-card p-3 hover:shadow-md transition-shadow"
                     >
                       <div className="flex gap-3 min-w-0">
-                        <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                          {p.url_imagen ? (
-                            <img
-                              src={p.url_imagen}
-                              alt={p.nombre_producto}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
+                        <StorageImage
+                          path={p.url_imagen}
+                          visibility="public"
+                          alt={p.nombre_producto}
+                          className="h-14 w-14 shrink-0 rounded-lg"
+                          imgClassName="h-full w-full object-cover"
+                          fallback={
+                            <div className="h-14 w-14 shrink-0 rounded-lg bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          }
+                        />
                         <div className="min-w-0 flex-1">
                           <h4 className="font-semibold text-sm line-clamp-2 break-words">
                             {p.nombre_producto}
