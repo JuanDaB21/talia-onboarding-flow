@@ -9,6 +9,7 @@ export interface MiStaff {
   rol: "SUPERADMIN" | "ADMIN" | "CAJERO" | "MESERO" | "COCINA" | "BARRA" | "ESTACION";
   esta_en_turno: boolean;
   turno_iniciado_at: string | null;
+  ausente_desde: string | null;
   id_espacio_asignado: string | null;
   espacio_slug: string | null;
   espacio_nombre: string | null;
