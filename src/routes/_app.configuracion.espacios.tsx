@@ -29,6 +29,7 @@ import { useEspacios } from "@/hooks/use-espacios";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { setBodegaPrincipalEspacio } from "@/lib/bodegas.functions";
 import { EspacioImpresoraRow } from "@/components/configuracion/espacio-impresora-row";
+import { PrintAgentsCard } from "@/components/configuracion/print-agents-card";
 import {
   crearEspacio,
   renombrarEspacio,
@@ -213,6 +214,7 @@ function EspaciosPage() {
               <EspacioImpresoraRow id_espacio={e.id_espacio} slug={e.slug} nombre={e.nombre} />
             </Card>
           ))}
+          <PrintAgentsCard />
         </div>
       )}
 
