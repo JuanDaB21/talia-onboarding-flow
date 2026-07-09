@@ -19,6 +19,7 @@ import {
   printPruebaOnPairedPrinter,
   subscribePairing,
   unpairPrinter,
+  describePrinterError,
   type PairedPrinter,
 } from "@/services/usbPrinter";
 
@@ -95,8 +96,19 @@ export function EspacioImpresoraRow({ id_espacio, slug, nombre }: Props) {
     setBusy(true);
     try {
       const out = await printPruebaOnPairedPrinter(slug, ancho);
-      if (out.ok) toast.success("Prueba enviada a la impresora");
-      else toast.error("No se pudo imprimir la prueba", { description: out.error });
+      if (out.ok) {
+        toast.success("Prueba enviada a la impresora");
+      } else if (out.error === "driver_windows") {
+        toast.error("Windows tiene tomada la impresora", {
+          description:
+            "Cambia su driver a WinUSB con la utilidad Zadig (zadig.akeo.ie) y vuelve a vincular. Mientras use el driver de impresión de Windows, el navegador no puede acceder.",
+          duration: 10000,
+        });
+      } else {
+        toast.error("No se pudo imprimir la prueba", {
+          description: describePrinterError(out.error),
+        });
+      }
     } finally {
       setBusy(false);
     }
