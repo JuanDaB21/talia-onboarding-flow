@@ -7,6 +7,7 @@ import {
   isWebUSBSupported,
   getPairedPrinter,
   printComandaOnPairedPrinter,
+  describePrinterError,
 } from "@/services/usbPrinter";
 import {
   getPrinterAlerts,
@@ -92,16 +93,7 @@ export async function dispatchComandas(comandas: ComandaPrintData[]): Promise<vo
 }
 
 function mapMotivo(err: string | undefined): string {
-  switch (err) {
-    case "impresora_desconectada":
-      return "Impresora desconectada o apagada";
-    case "sin_pareo":
-      return "Sin impresora vinculada";
-    case "webusb_no_soportado":
-      return "Navegador sin soporte USB";
-    default:
-      return err ? `Error: ${err}` : "Error de impresión";
-  }
+  return describePrinterError(err);
 }
 
 // -------- Hook para Operación en vivo -------- //

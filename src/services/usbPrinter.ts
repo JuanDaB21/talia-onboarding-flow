@@ -343,6 +343,52 @@ export interface PrintOutcome {
   error?: string;
 }
 
+/**
+ * Normaliza una excepción de WebUSB a un código estable. El caso más común en
+ * Windows es "Access denied" al reclamar la interfaz: el SO ya tiene la
+ * impresora tomada con su driver de impresión y hay que cambiarlo a WinUSB.
+ */
+export function mapUsbError(e: unknown): string {
+  const name = e instanceof Error ? e.name : "";
+  const msg = (e instanceof Error ? e.message : String(e ?? "")).toLowerCase();
+  if (
+    msg.includes("access denied") ||
+    msg.includes("acceso denegado") ||
+    msg.includes("claim") ||
+    name === "SecurityError"
+  )
+    return "driver_windows";
+  if (msg.includes("already open") || msg.includes("in use") || msg.includes("busy"))
+    return "impresora_ocupada";
+  if (msg.includes("endpoint")) return "sin_endpoint";
+  if (name === "NetworkError" || msg.includes("transfer")) return "transferencia_fallida";
+  if (name === "NotFoundError" || msg.includes("no device") || msg.includes("desconect"))
+    return "impresora_desconectada";
+  return e instanceof Error && e.message ? e.message : "error_desconocido";
+}
+
+/** Traduce un código de error de impresión a un mensaje accionable para el usuario. */
+export function describePrinterError(code: string | undefined): string {
+  switch (code) {
+    case "sin_pareo":
+      return "Sin impresora vinculada a esta estación";
+    case "webusb_no_soportado":
+      return "Este navegador no soporta impresión USB. Usa Chrome, Edge u Opera de escritorio.";
+    case "impresora_desconectada":
+      return "Impresora desconectada o apagada";
+    case "driver_windows":
+      return "Windows tiene tomada la impresora. Cambia su driver a WinUSB con Zadig y vuelve a vincular.";
+    case "impresora_ocupada":
+      return "La impresora está ocupada por otra app o pestaña. Ciérrala e inténtalo de nuevo.";
+    case "sin_endpoint":
+      return "La impresora no expone un endpoint de escritura compatible.";
+    case "transferencia_fallida":
+      return "Falló el envío de datos a la impresora. Revisa el cable o la conexión.";
+    default:
+      return code ? `Error: ${code}` : "Error de impresión";
+  }
+}
+
 export async function printComandaOnPairedPrinter(
   comanda: ComandaPrintData,
   opts: { negocio?: string; anchoMm?: number } = {},
@@ -360,7 +406,7 @@ export async function printComandaOnPairedPrinter(
     await sendBytesToDevice(device, data);
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "error_desconocido" };
+    return { ok: false, error: mapUsbError(e) };
   }
 }
 
@@ -384,6 +430,6 @@ export async function printPruebaOnPairedPrinter(slug: string, anchoMm: number):
     await sendBytesToDevice(device, concat(...partes));
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "error_desconocido" };
+    return { ok: false, error: mapUsbError(e) };
   }
 }
