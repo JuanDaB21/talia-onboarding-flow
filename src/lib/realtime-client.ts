@@ -11,7 +11,8 @@
  * (= tablas). El backend empuja eventos incrementales scopeados por negocio
  * (CONTRATO P3). Reconecta con backoff.
  */
-import { getTokens } from "./api-client";
+import { toast } from "sonner";
+import { getTokens, setTokens, onAuthExpired } from "./api-client";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:3000/realtime";
 
@@ -84,6 +85,23 @@ class RealtimeManager {
     try {
       msg = JSON.parse(ev.data as string);
     } catch {
+      return;
+    }
+    // Sesión única: el backend nos expulsó porque este usuario abrió sesión en otro
+    // dispositivo. Cerramos la sesión local y avisamos (mismo flujo que onAuthExpired).
+    if (msg.type === "session_revoked") {
+      this.closed = true;
+      try {
+        this.ws?.close();
+      } catch {
+        /* ignore */
+      }
+      this.ws = null;
+      setTokens(null);
+      toast.error("Sesión cerrada", {
+        description: "Tu usuario inició sesión en otro dispositivo.",
+      });
+      onAuthExpired.dispatchEvent(new Event("expired"));
       return;
     }
     if (msg.type !== "events" || !msg.events) return;
