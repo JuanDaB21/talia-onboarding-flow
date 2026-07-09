@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -23,7 +24,7 @@ import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
 import { minutosTranscurridos, retrasoItem } from "./comanda-utils";
 import { type ComandaDestino } from "./comanda-print";
-import { dispatchComandas } from "@/services/printDispatch";
+import { enqueueComandas } from "@/lib/impresion.functions";
 
 interface Props {
   comanda: ComandaEstacion | null;
@@ -133,7 +134,7 @@ export function ComandaSheet({
               size="sm"
               className={hayEnCola ? "sm:w-auto" : "w-full"}
               onClick={() =>
-                dispatchComandas([
+                void enqueueComandas([
                   {
                     destino,
                     mesa_identificador: comanda.mesa_identificador,
@@ -152,6 +153,18 @@ export function ComandaSheet({
                     })),
                   },
                 ])
+                  .then((r) =>
+                    toast[r.agenteConectado ? "success" : "warning"](
+                      r.agenteConectado
+                        ? "Comanda enviada a imprimir"
+                        : "Sin agente conectado: quedó en cola",
+                    ),
+                  )
+                  .catch((e) =>
+                    toast.error("No se pudo enviar a imprimir", {
+                      description: e instanceof Error ? e.message : undefined,
+                    }),
+                  )
               }
             >
               <Printer className="h-4 w-4 mr-2" />

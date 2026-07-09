@@ -76,7 +76,7 @@ import {
 } from "@/components/ui/select";
 import { useMiStaff } from "@/hooks/use-mi-staff";
 import { type ComandaPrintData } from "@/components/preparacion/comanda-print";
-import { dispatchComandas } from "@/services/printDispatch";
+import { enqueueComandas } from "@/lib/impresion.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
@@ -166,7 +166,20 @@ function imprimirComandasDePedido(
     }))
     .filter((c) => c.items.length > 0);
   if (comandas.length === 0) return;
-  void dispatchComandas(comandas);
+  // Encola las comandas: las imprime el print-agent local del PC de impresoras.
+  void enqueueComandas(comandas)
+    .then((r) => {
+      if (!r.agenteConectado) {
+        toast.warning("No hay un agente de impresión conectado", {
+          description: "La comanda quedó en cola y se imprimirá al reconectar el PC de impresoras.",
+        });
+      }
+    })
+    .catch((e) => {
+      toast.error("No se pudo enviar la comanda a imprimir", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    });
 }
 
 function MesaEnServicio() {
