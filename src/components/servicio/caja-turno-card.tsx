@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, LogIn, UserX } from "lucide-react";
+import { Clock, Coffee, LogIn, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { getMiStaff } from "@/lib/turno.functions";
-import { inhabilitarStaff } from "@/lib/usuarios.functions";
+import { ausentarmeMesero, inhabilitarStaff, retornarMesero } from "@/lib/usuarios.functions";
 import { logout } from "@/lib/auth";
 import { setAuthUser } from "@/hooks/use-auth-user";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ function formatDuracion(ms: number) {
 
 export function CajaTurnoCard() {
   const navigate = useNavigate();
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ["mi-staff", "turno-card"],
     queryFn: () => getMiStaff(),
     ...POLL.SLOW,
@@ -45,8 +45,52 @@ export function CajaTurnoCard() {
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [ausentando, setAusentando] = useState(false);
 
   if (!data || !data.esta_en_turno || !data.turno_iniciado_at) return null;
+
+  const esMesero = data.rol === "MESERO";
+  const ausente = !!data.ausente_desde;
+
+  const handleAusentarme = async () => {
+    setAusentando(true);
+    try {
+      const { reasignadas } = await ausentarmeMesero();
+      toast.success("Estás ausente", {
+        description:
+          reasignadas > 0
+            ? `${reasignadas} mesa(s) se repartieron entre los meseros en turno.`
+            : "No tenías mesas asignadas.",
+      });
+      await refetch();
+    } catch (e) {
+      toast.error("No se pudo marcar ausente", {
+        description: e instanceof Error ? e.message : "",
+      });
+    } finally {
+      setAusentando(false);
+    }
+  };
+
+  const handleVolver = async () => {
+    setAusentando(true);
+    try {
+      const { devueltas } = await retornarMesero();
+      toast.success("¡Bienvenido de vuelta!", {
+        description:
+          devueltas > 0
+            ? `Se te devolvieron ${devueltas} mesa(s) que seguían abiertas.`
+            : "No había mesas abiertas para devolverte.",
+      });
+      await refetch();
+    } catch (e) {
+      toast.error("No se pudo retornar", {
+        description: e instanceof Error ? e.message : "",
+      });
+    } finally {
+      setAusentando(false);
+    }
+  };
 
   const inicio = new Date(data.turno_iniciado_at);
   const ahora = Date.now();
@@ -80,10 +124,17 @@ export function CajaTurnoCard() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Mi turno
         </h2>
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          En turno
-        </span>
+        {ausente ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            <Coffee className="h-3.5 w-3.5" />
+            Ausente
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            En turno
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Stat
@@ -98,7 +149,31 @@ export function CajaTurnoCard() {
         />
       </div>
 
-      <div className="mt-3 flex justify-end">
+      {ausente && (
+        <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          Estás ausente: tus mesas se repartieron entre los meseros en turno. Al
+          volver, las que sigan abiertas se te devolverán.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        {esMesero &&
+          (ausente ? (
+            <Button size="sm" disabled={ausentando} onClick={handleVolver}>
+              <UserCheck className="mr-1 h-4 w-4" />
+              {ausentando ? "Volviendo…" : "Volver"}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={ausentando}
+              onClick={handleAusentarme}
+            >
+              <Coffee className="mr-1 h-4 w-4" />
+              {ausentando ? "Saliendo…" : "Ausentarme"}
+            </Button>
+          ))}
         <Button
           variant="outline"
           size="sm"

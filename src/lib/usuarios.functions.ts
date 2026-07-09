@@ -52,3 +52,13 @@ export function inhabilitarStaff(input?: { id_usuario?: string }) {
     ? api.post<{ ok: true }>(`/usuarios/${id}/inhabilitar`)
     : api.post<{ ok: true }>("/usuarios/inhabilitar");
 }
+
+/** El mesero sale un momento (recado): sus mesas se reparten entre los meseros en turno. */
+export function ausentarmeMesero() {
+  return api.post<{ ok: true; reasignadas: number }>("/usuarios/ausentarme");
+}
+
+/** El mesero vuelve: recupera las mesas aún abiertas que eran suyas. */
+export function retornarMesero() {
+  return api.post<{ ok: true; devueltas: number }>("/usuarios/retornar");
+}
