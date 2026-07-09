@@ -457,7 +457,7 @@ function CartaPage() {
                 disabled={solicitarMut.isPending}
               >
                 <Plus className="h-5 w-5" />
-                Pedir más
+                Pedir más o llamar mesero
               </Button>
               <Button
                 size="lg"

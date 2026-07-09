@@ -306,6 +306,13 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           description: "Ahora puedes configurar las variantes en el paso 5.",
         });
         navigate({ to: "/menu/recetas/$id", params: { id: recetaIdFinal } });
+      } else if (productoId) {
+        // Al terminar de configurar la receta, ir directo al producto para seguir
+        // configurándolo (precio, imagen, disponibilidad).
+        toast.success("Receta actualizada", {
+          description: "Continúa configurando el producto.",
+        });
+        navigate({ to: "/menu/productos", search: { editar: productoId } });
       } else {
         toast.success("Receta actualizada");
         navigate({ to: "/menu/recetas" });
