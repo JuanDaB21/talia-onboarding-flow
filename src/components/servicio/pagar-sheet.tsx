@@ -11,6 +11,7 @@ import {
   QrCode as QrCodeIcon,
   Smartphone,
   Ticket,
+  User,
   X,
   CalendarCheck,
 } from "lucide-react";
@@ -139,6 +140,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     });
 
   const selectAll = () => setSelected(new Set(pendientes.map((i) => i.id_item)));
+  const selectMany = (ids: string[]) => setSelected((s) => new Set([...s, ...ids]));
   const clear = () => setSelected(new Set());
 
   type PagarInput = {
@@ -319,6 +321,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             selected={selected}
             onToggle={toggle}
             onSelectAll={selectAll}
+            onSelectMany={selectMany}
             onClear={clear}
             totalSeleccionado={totalSeleccionado}
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
@@ -649,6 +652,7 @@ function PasoItems({
   selected,
   onToggle,
   onSelectAll,
+  onSelectMany,
   onClear,
   totalSeleccionado,
   totalPendiente,
@@ -671,6 +675,7 @@ function PasoItems({
   selected: Set<string>;
   onToggle: (id: string) => void;
   onSelectAll: () => void;
+  onSelectMany: (ids: string[]) => void;
   onClear: () => void;
   totalSeleccionado: number;
   totalPendiente: number;
@@ -689,22 +694,32 @@ function PasoItems({
   onPagarConAbono: () => void;
   aplicandoAbono: boolean;
 }) {
+  // Agrupado por COMENSAL (identidad del pre-pedido QR) para acelerar dividir la
+  // cuenta. Los ítems que agregó el mesero directo (sin comensal) caen en "Mesa".
   const { grupos, pagados } = useMemo(() => {
-    const m = new Map<number, ItemCobrable[]>();
+    const m = new Map<string, { label: string; esMesa: boolean; items: ItemCobrable[] }>();
     const pag: ItemCobrable[] = [];
     for (const it of items) {
       if (it.pagado) {
         pag.push(it);
         continue;
       }
-      const arr = m.get(it.pedido_numero) ?? [];
-      arr.push(it);
-      m.set(it.pedido_numero, arr);
+      const key = it.id_cliente ?? "__mesa__";
+      const g = m.get(key) ?? {
+        label: it.nombre_comensal ?? "Mesa",
+        esMesa: it.id_cliente == null,
+        items: [] as ItemCobrable[],
+      };
+      g.items.push(it);
+      m.set(key, g);
     }
-    return {
-      grupos: Array.from(m.entries()).sort((a, b) => a[0] - b[0]),
-      pagados: pag,
-    };
+    const grupos = Array.from(m.entries())
+      .map(([key, g]) => ({ key, ...g }))
+      .sort((a, b) => {
+        if (a.esMesa !== b.esMesa) return a.esMesa ? 1 : -1; // "Mesa" al final
+        return a.label.localeCompare(b.label);
+      });
+    return { grupos, pagados: pag };
   }, [items]);
 
   const totalPagado = pagados.reduce((a, b) => a + b.subtotal, 0);
@@ -742,47 +757,67 @@ function PasoItems({
           </div>
         </div>
 
-        {grupos.map(([num, list]) => (
-          <div key={num} className="space-y-2">
-            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Pedido #{num}
-            </h4>
-            <ul className="space-y-1">
-              {list.map((it) => {
-                const isSel = selected.has(it.id_item);
-                return (
-                  <li
-                    key={it.id_item}
-                    className={`rounded-lg border p-3 transition-colors ${
-                      isSel
-                        ? "bg-primary/5 border-primary"
-                        : "bg-card hover:bg-muted/40 cursor-pointer"
-                    }`}
-                    onClick={() => onToggle(it.id_item)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={isSel}
-                        className="mt-0.5"
-                        onCheckedChange={() => onToggle(it.id_item)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">
-                          {it.cantidad > 1 ? `${it.cantidad}× ` : ""}
-                          {it.nombre_producto}
+        {grupos.map((g) => {
+          const grupoSubtotal = g.items.reduce((a, it) => a + it.subtotal, 0);
+          const todosSel = g.items.every((it) => selected.has(it.id_item));
+          return (
+            <div key={g.key} className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  <User className="h-3.5 w-3.5" />
+                  {g.label}
+                  <span className="normal-case tracking-normal text-muted-foreground/70">
+                    · {fmt.format(grupoSubtotal)}
+                  </span>
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={todosSel}
+                  onClick={() => onSelectMany(g.items.map((it) => it.id_item))}
+                >
+                  Cobrar todo
+                </Button>
+              </div>
+              <ul className="space-y-1">
+                {g.items.map((it) => {
+                  const isSel = selected.has(it.id_item);
+                  return (
+                    <li
+                      key={it.id_item}
+                      className={`rounded-lg border p-3 transition-colors ${
+                        isSel
+                          ? "bg-primary/5 border-primary"
+                          : "bg-card hover:bg-muted/40 cursor-pointer"
+                      }`}
+                      onClick={() => onToggle(it.id_item)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={isSel}
+                          className="mt-0.5"
+                          onCheckedChange={() => onToggle(it.id_item)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">
+                            {it.cantidad > 1 ? `${it.cantidad}× ` : ""}
+                            {it.nombre_producto}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">Pedido #{it.pedido_numero}</p>
+                        </div>
+                        <p className="text-sm font-semibold tabular-nums shrink-0">
+                          {fmt.format(it.subtotal)}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold tabular-nums shrink-0">
-                        {fmt.format(it.subtotal)}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
 
         {!hayPendientes && pagados.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">
