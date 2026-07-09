@@ -14,6 +14,8 @@ export interface ItemCobrable {
   destino: string | null;
   estado_preparacion: string;
   pedido_numero: number;
+  id_cliente: string | null;
+  nombre_comensal: string | null;
 }
 
 export function listarItemsCobrables(idMesa: string) {
