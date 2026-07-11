@@ -31,6 +31,7 @@ import {
   getPersonalEnTurno,
   type StaffEnTurno,
 } from "@/lib/admin.functions";
+import { ordenarMesas } from "@/lib/mesas.functions";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
 import { inhabilitarStaff } from "@/lib/usuarios.functions";
 import { useMiStaff } from "@/hooks/use-mi-staff";
@@ -337,7 +338,7 @@ function MesasGrid() {
     queryFn: () => getMesasOperacion(),
     ...POLL.LIVE,
   });
-  const mesas = data?.mesas ?? [];
+  const mesas = ordenarMesas(data?.mesas ?? []);
   return (
     <Card>
       <CardHeader>

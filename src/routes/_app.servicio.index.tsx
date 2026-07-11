@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { realtime } from "@/lib/realtime-client";
 import { abrirMesa, listarMesasServicio, type MesaServicio } from "@/lib/servicio.functions";
+import { ordenarMesas } from "@/lib/mesas.functions";
 import { listarPagosPendientes } from "@/lib/pagos.functions";
 import { beepListo } from "@/components/servicio/alerta-sound";
 import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
@@ -171,7 +172,7 @@ function ServicioIndex() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.mesas.map((m) => (
+          {ordenarMesas(data.mesas).map((m) => (
             <MesaCard key={m.id_mesa} m={m} esAdmin={!!data.esAdmin} />
           ))}
         </div>
