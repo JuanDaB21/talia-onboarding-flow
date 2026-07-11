@@ -413,7 +413,8 @@ export function PrepedidoItemEditor({
                 </section>
               )}
 
-              {(ops?.ingredientes?.length ?? 0) > 0 && (
+              {(ops?.permite_quitar_ingredientes ?? true) &&
+                (ops?.ingredientes?.length ?? 0) > 0 && (
                 <section className="space-y-2">
                   <h3
                     className="text-sm font-semibold uppercase tracking-wider"

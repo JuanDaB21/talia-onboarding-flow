@@ -101,6 +101,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
   const [descripcion, setDescripcion] = useState("");
   const [tiempoPrep, setTiempoPrep] = useState<string>("15");
   const [ingredientes, setIngredientes] = useState<IngredienteInput[]>([]);
+  const [permiteQuitar, setPermiteQuitar] = useState(true);
   const [search, setSearch] = useState("");
 
   // Paso 4: Extras
@@ -145,6 +146,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
           setIdCategoria(r.id_categoria);
           setIdSubcategoria(r.id_subcategoria);
           setTiempoPrep(String(r.tiempo_preparacion_min ?? 15));
+          setPermiteQuitar(r.permite_quitar_ingredientes ?? true);
         }
         setIngredientes(
           (d ?? []).map((x) => ({
@@ -275,6 +277,7 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
       descripcion,
       ingredientes: payload,
       tiempoPreparacionMin: tiempoPrepNum,
+      permiteQuitarIngredientes: permiteQuitar,
     };
     try {
       let productoId = idProducto;
@@ -596,6 +599,21 @@ export function RecetaBuilder({ mode, idReceta }: Props) {
               </div>
             ))}
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-md border bg-background p-3">
+            <Checkbox
+              checked={permiteQuitar}
+              onCheckedChange={(v) => setPermiteQuitar(!!v)}
+              className="mt-0.5"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Permitir quitar ingredientes</p>
+              <p className="text-xs text-muted-foreground">
+                Si lo desactivas, el cliente no podrá quitar ingredientes de este plato al
+                pedirlo (útil en recetas que no deben modificarse).
+              </p>
+            </div>
+          </label>
         </section>
 
         <section

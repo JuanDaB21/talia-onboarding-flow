@@ -135,6 +135,8 @@ export interface OpcionesProducto {
   extras: OpcionExtra[];
   ingredientes: OpcionIngrediente[];
   variantes: OpcionVarianteGrupo[];
+  /** Si es false, la receta no permite quitar ingredientes (se oculta la sección). */
+  permite_quitar_ingredientes: boolean;
 }
 
 export function getOpcionesProducto(idProducto: string) {

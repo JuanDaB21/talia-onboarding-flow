@@ -25,6 +25,7 @@ export const recetaSchema = z.object({
   id_categoria: z.string().uuid("Selecciona una categoría"),
   id_subcategoria: z.string().uuid("Selecciona una subcategoría"),
   ingredientes: z.array(ingredienteSchema).min(1, "Agrega al menos un ingrediente"),
+  permite_quitar_ingredientes: z.boolean().default(true),
 });
 export type RecetaInput = z.infer<typeof recetaSchema>;
 

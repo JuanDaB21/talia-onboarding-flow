@@ -6,7 +6,6 @@ import {
   Banknote,
   Camera,
   CheckCircle2,
-  CreditCard,
   Loader2,
   QrCode as QrCodeIcon,
   Smartphone,
@@ -52,7 +51,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
 
-type Metodo = "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO";
+type Metodo = "EFECTIVO" | "TRANSFERENCIA";
 type Paso = "items" | "metodo";
 
 interface Props {
@@ -403,7 +402,7 @@ function PropinaResumenRow({
   const etiqueta =
     propinaCustom !== null ? "monto fijo" : `${Math.round((propinaPct ?? 0) * 100)}%`;
 
-  const opciones = [0, 0.05, 0.1, 0.15];
+  const opciones = [0, 0.1];
   const montosFijos = [2000, 5000, 10000, 20000];
 
   return (
@@ -432,7 +431,7 @@ function PropinaResumenRow({
           <div className="space-y-5 overflow-y-auto">
             <section className="space-y-2">
               <p className="text-xs font-semibold uppercase text-muted-foreground">Porcentaje</p>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {opciones.map((pct) => {
                   const active = propinaCustom === null && propinaPct === pct;
                   return (
@@ -1127,7 +1126,6 @@ function PasoMetodo({
   const puedePagar = (() => {
     if (isLoading) return false;
     if (metodo === "TRANSFERENCIA") return !!urlComprobante && !!subtipo;
-    if (metodo === "DATAFONO") return !!subtipo;
     return true;
   })();
 
@@ -1185,7 +1183,7 @@ function PasoMetodo({
 
         {!dividir && (
           <>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <MetodoBtn
                 active={metodo === "EFECTIVO"}
                 onClick={() => setMetodo("EFECTIVO")}
@@ -1197,12 +1195,6 @@ function PasoMetodo({
                 onClick={() => setMetodo("TRANSFERENCIA")}
                 icon={<Smartphone className="h-5 w-5" />}
                 label="Transferencia"
-              />
-              <MetodoBtn
-                active={metodo === "DATAFONO"}
-                onClick={() => setMetodo("DATAFONO")}
-                icon={<CreditCard className="h-5 w-5" />}
-                label="Datáfono"
               />
             </div>
 
@@ -1238,38 +1230,6 @@ function PasoMetodo({
               />
             )}
 
-            {metodo === "DATAFONO" && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Tipo</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
-                    {["Débito", "Crédito"].map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setSubtipo(s)}
-                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          subtipo === s
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card hover:bg-muted"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="voucher">N° voucher (opcional)</Label>
-                  <Input
-                    id="voucher"
-                    value={voucher}
-                    onChange={(e) => setVoucher(e.target.value.slice(0, 50))}
-                    placeholder="Ej: 123456"
-                  />
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -1573,7 +1533,6 @@ function PartesEditor({
     const n = Number(p.monto);
     if (!Number.isFinite(n) || n <= 0) return false;
     if (p.metodo === "TRANSFERENCIA") return !!p.subtipo && !!p.urlComprobante;
-    if (p.metodo === "DATAFONO") return !!p.subtipo;
     return true;
   };
   const todasValidas = partes.every(parteValida);
@@ -1711,7 +1670,7 @@ function ParteCard({
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <MetodoBtn
           active={parte.metodo === "EFECTIVO"}
           onClick={() =>
@@ -1738,19 +1697,6 @@ function ParteCard({
           icon={<Smartphone className="h-4 w-4" />}
           label="Transf."
         />
-        <MetodoBtn
-          active={parte.metodo === "DATAFONO"}
-          onClick={() =>
-            onChange({
-              metodo: "DATAFONO",
-              subtipo: "",
-              urlComprobante: null,
-              voucher: "",
-            })
-          }
-          icon={<CreditCard className="h-4 w-4" />}
-          label="Datáfono"
-        />
       </div>
 
       <div>
@@ -1775,32 +1721,6 @@ function ParteCard({
         />
       )}
 
-      {parte.metodo === "DATAFONO" && (
-        <div className="space-y-2">
-          <Label>Tipo</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {["Débito", "Crédito"].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => onChange({ subtipo: s })}
-                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  parte.subtipo === s
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card hover:bg-muted"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <Input
-            value={parte.voucher}
-            onChange={(e) => onChange({ voucher: e.target.value.slice(0, 50) })}
-            placeholder="N° voucher (opcional)"
-          />
-        </div>
-      )}
     </div>
   );
 }
