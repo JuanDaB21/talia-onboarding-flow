@@ -6,6 +6,13 @@ export function listarMesas() {
   return api.get<Mesa[]>("/mesas");
 }
 
+const mesaCollator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+
+// Ordena por identificador en orden natural (1,2,…,10 en vez de 1,10,2). No muta el arreglo.
+export function ordenarMesas<T extends { identificador: string }>(mesas: T[]): T[] {
+  return [...mesas].sort((a, b) => mesaCollator.compare(a.identificador, b.identificador));
+}
+
 export function crearMesa(input: { identificador: string }) {
   return api.post<Mesa>("/mesas", { identificador: input.identificador });
 }

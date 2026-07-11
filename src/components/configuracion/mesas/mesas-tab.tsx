@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { realtime } from "@/lib/realtime-client";
-import { listarMesas } from "@/lib/mesas.functions";
+import { listarMesas, ordenarMesas } from "@/lib/mesas.functions";
 import { Button } from "@/components/ui/button";
 import type { Mesa } from "@/lib/mesas-schemas";
 import { MesaCard } from "./mesa-card";
@@ -17,7 +17,7 @@ export function MesasTab({ idNegocio }: { idNegocio: string }) {
 
   const load = async () => {
     const data = await listarMesas();
-    setItems(data ?? []);
+    setItems(ordenarMesas(data ?? []));
     setLoading(false);
   };
 
