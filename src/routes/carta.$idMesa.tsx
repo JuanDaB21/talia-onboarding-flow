@@ -22,7 +22,11 @@ import {
   type CartaProducto,
   type CuentaPublica,
 } from "@/lib/menu-publico.functions";
-import { unirseSesionPrepedido, getPrepedidoPublico } from "@/lib/prepedido.functions";
+import {
+  unirseSesionPrepedido,
+  revalidarSesionPrepedido,
+  getPrepedidoPublico,
+} from "@/lib/prepedido.functions";
 import { publicUrl } from "@/lib/storage";
 import { getMenuTheme, getThemeFontsUrl, getThemeStyle, type MenuTheme } from "@/lib/menu-themes";
 import { POLL } from "@/lib/query-config";
@@ -56,7 +60,7 @@ const fmt = new Intl.NumberFormat("es-CO", {
 function CartaPage() {
   const { idMesa } = Route.useParams();
 
-  const { cliente, hydrated, registrar, setSesion } = useClienteMesa(idMesa);
+  const { cliente, hydrated, registrar, setSesion, limpiar } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
   const [nombreInput, setNombreInput] = useState("");
   const [catActiva, setCatActiva] = useState<string | null>(null);
@@ -78,9 +82,16 @@ function CartaPage() {
     setNombreInput(cliente.nombre);
     if (cliente.idSesion) {
       setFase("menu");
-      // Re-upsert para garantizar que la sesión existe en la BD
-      unirseSesionPrepedido({ idMesa, idCliente: cliente.idCliente, nombre: cliente.nombre })
+      // Revalida SIN ocupar la mesa. Si la sesión ya no existe (la cuenta se cerró/pagó y se
+      // borró la sesión), limpia el localStorage y vuelve al onboarding, evitando la
+      // "ocupación fantasma" que provocaba el antiguo re-upsert con `unirse`.
+      revalidarSesionPrepedido({ idMesa, idCliente: cliente.idCliente })
         .then((res) => {
+          if (!res.id_sesion) {
+            limpiar();
+            setFase("onboarding");
+            return;
+          }
           if (res.id_sesion !== cliente.idSesion) setSesion(res.id_sesion);
         })
         .catch(() => {
@@ -112,17 +123,22 @@ function CartaPage() {
     refetchInterval: 3000,
   });
 
-  // Heartbeat cada 60s
+  // Heartbeat cada 60s — revalida (no ocupa). Si la sesión expiró (cuenta pagada/cerrada),
+  // limpia y vuelve al onboarding en vez de re-ocupar la mesa.
   useEffect(() => {
     if (!cliente?.idSesion) return;
     const id = setInterval(() => {
-      unirseSesionPrepedido({
-        idMesa,
-        idCliente: cliente.idCliente,
-        nombre: cliente.nombre,
-      }).catch(() => undefined);
+      revalidarSesionPrepedido({ idMesa, idCliente: cliente.idCliente })
+        .then((res) => {
+          if (!res.id_sesion) {
+            limpiar();
+            setFase("onboarding");
+          }
+        })
+        .catch(() => undefined);
     }, 60_000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cliente, idMesa]);
 
   const { data, isLoading, isError, refetch } = useQuery({

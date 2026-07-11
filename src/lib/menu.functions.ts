@@ -154,6 +154,7 @@ export interface RecetaDetalle {
     id_categoria: string;
     id_subcategoria: string;
     tiempo_preparacion_min: number;
+    permite_quitar_ingredientes: boolean;
   };
   ingredientes: Array<{
     id_insumo: string;
@@ -176,6 +177,7 @@ export interface GuardarRecetaInput {
   descripcion?: string;
   ingredientes: Array<{ id_insumo: string; cantidad: number }>;
   tiempoPreparacionMin: number;
+  permiteQuitarIngredientes: boolean;
 }
 
 export function crearReceta(input: GuardarRecetaInput) {

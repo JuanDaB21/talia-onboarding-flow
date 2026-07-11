@@ -268,7 +268,8 @@ export function PrepedidoItemEditorStaff({ open, onOpenChange, idMesa, item }: P
                 </div>
               )}
 
-              {(ops?.ingredientes?.length ?? 0) > 0 && (
+              {(ops?.permite_quitar_ingredientes ?? true) &&
+                (ops?.ingredientes?.length ?? 0) > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                     Quitar ingredientes

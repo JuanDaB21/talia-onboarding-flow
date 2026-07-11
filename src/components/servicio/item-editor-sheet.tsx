@@ -252,7 +252,7 @@ export function ItemEditorSheet({
               </div>
             )}
 
-            {(ops?.ingredientes.length ?? 0) > 0 && (
+            {(ops?.permite_quitar_ingredientes ?? true) && (ops?.ingredientes.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <Label>Quitar ingredientes</Label>
                 <div className="space-y-2 rounded-lg border p-3">

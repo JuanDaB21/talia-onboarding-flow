@@ -26,7 +26,7 @@ export function listarItemsCobrables(idMesa: string) {
 
 export interface RegistrarPagoInput {
   idMesa: string;
-  metodo: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO";
+  metodo: "EFECTIVO" | "TRANSFERENCIA";
   subtipo?: string | null;
   voucher?: string | null;
   urlComprobante?: string | null;
@@ -47,7 +47,7 @@ export interface RegistrarPagoDivididoInput {
   idBono?: string | null;
   idReserva?: string | null;
   partes: Array<{
-    metodo: "EFECTIVO" | "TRANSFERENCIA" | "DATAFONO";
+    metodo: "EFECTIVO" | "TRANSFERENCIA";
     subtipo?: string | null;
     voucher?: string | null;
     urlComprobante?: string | null;

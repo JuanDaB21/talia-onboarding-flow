@@ -60,6 +60,11 @@ export function useClienteMesa(idMesa: string) {
     });
   };
 
+  /** Borra la sesión persistida (p. ej. tras pagar/cerrar la cuenta) y vuelve a estado limpio. */
+  const limpiar = () => {
+    if (typeof window !== "undefined") localStorage.removeItem(keyFor(idMesa));
+    setCliente(null);
+  };
 
-  return { cliente, hydrated, registrar, setSesion };
+  return { cliente, hydrated, registrar, setSesion, limpiar };
 }

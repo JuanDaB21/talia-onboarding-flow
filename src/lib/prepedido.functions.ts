@@ -92,6 +92,8 @@ export interface OpcionesProducto {
   extras: OpcionExtra[];
   ingredientes: OpcionIngrediente[];
   variantes: OpcionVarianteGrupo[];
+  /** Si es false, la receta no permite quitar ingredientes (se oculta la sección). */
+  permite_quitar_ingredientes: boolean;
 }
 
 // ============================================================
@@ -107,6 +109,21 @@ export function unirseSesionPrepedido(input: {
     idMesa: input.idMesa,
     idCliente: input.idCliente,
     nombre: input.nombre.trim(),
+  });
+}
+
+/**
+ * Revalida una sesión de prepedido SIN ocupar la mesa. Usar en el montaje/heartbeat del
+ * front (no en el onboarding). Devuelve `id_sesion: null` si la sesión ya no existe en la BD
+ * (la cuenta se cerró/pagó) → el llamador debe limpiar el localStorage y volver al onboarding.
+ */
+export function revalidarSesionPrepedido(input: {
+  idMesa: string;
+  idCliente: string;
+}): Promise<{ id_sesion: string | null }> {
+  return api.post<{ id_sesion: string | null }>("/prepedido/public/revalidar", {
+    idMesa: input.idMesa,
+    idCliente: input.idCliente,
   });
 }
 
