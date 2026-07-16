@@ -377,9 +377,10 @@ function MesaEnServicio() {
     );
   }
   if (mesaQ.isError || !mesaQ.data) {
+    const msg = mesaQ.error instanceof Error ? mesaQ.error.message : null;
     return (
       <p className="text-sm text-destructive">
-        No se pudo cargar la mesa.{" "}
+        {msg ?? "No se pudo cargar la mesa."}{" "}
         <Link to="/servicio" className="underline">
           Volver
         </Link>

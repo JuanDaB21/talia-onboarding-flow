@@ -52,6 +52,7 @@ export interface MesaOperacion {
   asignada_at: string | null;
   solicitud_cliente: string | null;
   solicitud_at: string | null;
+  tiene_prepedido: boolean;
 }
 
 export function getMesasOperacion() {
