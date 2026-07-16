@@ -38,6 +38,24 @@ export function enqueueComandas(comandas: ComandaPrintData[]) {
   });
 }
 
+/**
+ * Imprime la precuenta completa de la mesa en la impresora del espacio CAJA.
+ * El backend arma los items desde la DB; aquí solo viaja el preview no persistido
+ * (propina elegida y descuentos bono/reserva en pantalla).
+ */
+export function imprimirCuenta(
+  idMesa: string,
+  extras: {
+    propina?: number | null;
+    descuentos?: { etiqueta: string; monto: number }[];
+  } = {},
+) {
+  return api.post<{ ok: true; encolado: boolean; agenteConectado: boolean }>(
+    `/impresion/cuenta/${idMesa}`,
+    extras,
+  );
+}
+
 export interface PrintJob {
   id_job: string;
   espacio_slug: string;
