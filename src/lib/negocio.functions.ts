@@ -7,6 +7,7 @@ export interface NegocioConfig {
   url_logo: string | null;
   tema_menu: string;
   porcentaje_retencion_propina: number;
+  auto_cierre_turno_horas: number;
 }
 
 // GET /negocio (fila completa del tenant). Se normaliza tema por defecto y se
@@ -18,6 +19,7 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     url_logo: string | null;
     tema_menu: string | null;
     porcentaje_retencion_propina: number | string | null;
+    auto_cierre_turno_horas: number | string | null;
   }>("/negocio");
   return {
     id_negocio: n.id_negocio,
@@ -25,7 +27,18 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     url_logo: n.url_logo,
     tema_menu: n.tema_menu ?? "verde-bosque",
     porcentaje_retencion_propina: Number(n.porcentaje_retencion_propina ?? 0),
+    auto_cierre_turno_horas: Number(n.auto_cierre_turno_horas ?? 12),
   };
+}
+
+// PATCH /negocio — horas de cierre automático del turno (solo ADMIN, validado en backend).
+export async function updateNegocioCierreTurno(input: {
+  auto_cierre_turno_horas: number;
+}): Promise<{ ok: true }> {
+  await api.patch("/negocio", {
+    auto_cierre_turno_horas: input.auto_cierre_turno_horas,
+  });
+  return { ok: true };
 }
 
 // PATCH /negocio — solo apariencia (tema/logo). Validación en el backend.

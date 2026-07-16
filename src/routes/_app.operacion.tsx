@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RoleGate } from "@/components/admin/role-gate";
+import { AbrirMesaDialog } from "@/components/servicio/abrir-mesa-dialog";
 import { StorageImage } from "@/components/shared/storage-image";
 import {
   getAlertasOperacion,
@@ -338,6 +339,8 @@ function MesasGrid() {
     queryFn: () => getMesasOperacion(),
     ...POLL.LIVE,
   });
+  // Mesa a abrir (elegir mesero) cuando se toca una mesa libre desde Operación.
+  const [abrirId, setAbrirId] = useState<string | null>(null);
   const mesas = ordenarMesas(data?.mesas ?? []);
   return (
     <Card>
@@ -350,30 +353,62 @@ function MesasGrid() {
         {isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {mesas.map((m) => {
-            const color =
-              m.estado === "LIBRE"
-                ? "bg-muted text-muted-foreground"
-                : m.estado === "OCUPADA"
-                  ? "bg-primary/15 text-primary border-primary/40"
-                  : m.solicitud_cliente
-                    ? "bg-destructive/15 text-destructive border-destructive/40"
-                    : "bg-amber-500/15 text-amber-700 border-amber-500/40";
-            return (
+            // Ocupación aparente: además del estado, un prepedido en curso o una solicitud
+            // del cliente cuentan como "en servicio" (mismas señales que Mesas en servicio).
+            const enServicio =
+              m.estado === "OCUPADA" || m.tiene_prepedido || !!m.solicitud_cliente;
+            const color = m.solicitud_cliente
+              ? "bg-destructive/15 text-destructive border-destructive/40"
+              : m.estado === "OCUPADA"
+                ? "bg-primary/15 text-primary border-primary/40"
+                : m.tiene_prepedido
+                  ? "bg-amber-500/15 text-amber-700 border-amber-500/40"
+                  : "bg-muted text-muted-foreground";
+            const etiqueta = m.solicitud_cliente
+              ? "Llama"
+              : m.tiene_prepedido && m.estado !== "OCUPADA"
+                ? "Armando"
+                : m.estado;
+            const cls = `rounded-md border p-2 text-center text-xs transition-colors hover:opacity-80 ${color}`;
+            const inner = (
+              <>
+                <div className="text-sm font-bold">{m.identificador}</div>
+                <div className="truncate">{etiqueta}</div>
+                {m.mesero_nombre && <div className="truncate opacity-70">{m.mesero_nombre}</div>}
+              </>
+            );
+            // En servicio → ir al detalle. Libre → exigir asignar mesero (como en Servicio).
+            return enServicio ? (
               <Link
                 key={m.id_mesa}
                 to="/servicio/$idMesa"
                 params={{ idMesa: m.id_mesa }}
-                className={`rounded-md border p-2 text-center text-xs transition-colors hover:opacity-80 ${color}`}
+                className={cls}
                 title={m.mesero_nombre ?? ""}
               >
-                <div className="text-sm font-bold">{m.identificador}</div>
-                <div className="truncate">{m.estado}</div>
-                {m.mesero_nombre && <div className="truncate opacity-70">{m.mesero_nombre}</div>}
+                {inner}
               </Link>
+            ) : (
+              <button
+                key={m.id_mesa}
+                type="button"
+                onClick={() => setAbrirId(m.id_mesa)}
+                className={cls}
+                title="Abrir mesa (asignar mesero)"
+              >
+                {inner}
+              </button>
             );
           })}
         </div>
       </CardContent>
+      <AbrirMesaDialog
+        open={abrirId !== null}
+        idMesa={abrirId ?? ""}
+        onOpenChange={(o) => {
+          if (!o) setAbrirId(null);
+        }}
+      />
     </Card>
   );
 }

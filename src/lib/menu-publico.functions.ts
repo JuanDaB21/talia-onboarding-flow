@@ -22,6 +22,8 @@ export interface CartaMesa {
   id_mesa: string;
   identificador: string;
   estado: string;
+  solicitud_cliente: string | null;
+  solicitud_at: string | null;
 }
 
 export interface CartaNegocio {
@@ -58,6 +60,7 @@ export interface EstadoMesaPublico {
   id_mesa: string;
   identificador: string;
   estado: string;
+  solicitud_cliente: string | null;
   tiene_pedido_activo: boolean;
 }
 
@@ -67,6 +70,7 @@ export async function getEstadoMesaPublico(idMesa: string): Promise<EstadoMesaPu
     id_mesa: s.mesa.id_mesa,
     identificador: s.mesa.identificador,
     estado: s.mesa.estado,
+    solicitud_cliente: s.mesa.solicitud_cliente ?? null,
     tiene_pedido_activo: s.estado?.tiene_pedido_activo ?? false,
   };
 }

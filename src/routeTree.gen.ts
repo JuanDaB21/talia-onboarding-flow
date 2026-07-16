@@ -37,6 +37,7 @@ import { Route as AppMenuCategoriasRouteImport } from './routes/_app.menu.catego
 import { Route as AppEstacionSlugRouteImport } from './routes/_app.estacion.$slug'
 import { Route as AppConfiguracionUsuariosRouteImport } from './routes/_app.configuracion.usuarios'
 import { Route as AppConfiguracionPropinasRouteImport } from './routes/_app.configuracion.propinas'
+import { Route as AppConfiguracionOperacionRouteImport } from './routes/_app.configuracion.operacion'
 import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
 import { Route as AppConfiguracionEspaciosRouteImport } from './routes/_app.configuracion.espacios'
@@ -195,6 +196,12 @@ const AppConfiguracionPropinasRoute =
     path: '/propinas',
     getParentRoute: () => AppConfiguracionRoute,
   } as any)
+const AppConfiguracionOperacionRoute =
+  AppConfiguracionOperacionRouteImport.update({
+    id: '/operacion',
+    path: '/operacion',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionMetodosPagoRoute =
   AppConfiguracionMetodosPagoRouteImport.update({
     id: '/metodos-pago',
@@ -307,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/configuracion/operacion': typeof AppConfiguracionOperacionRoute
   '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/estacion/$slug': typeof AppEstacionSlugRoute
@@ -345,6 +353,7 @@ export interface FileRoutesByTo {
   '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/configuracion/operacion': typeof AppConfiguracionOperacionRoute
   '/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/estacion/$slug': typeof AppEstacionSlugRoute
@@ -391,6 +400,7 @@ export interface FileRoutesById {
   '/_app/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
+  '/_app/configuracion/operacion': typeof AppConfiguracionOperacionRoute
   '/_app/configuracion/propinas': typeof AppConfiguracionPropinasRoute
   '/_app/configuracion/usuarios': typeof AppConfiguracionUsuariosRoute
   '/_app/estacion/$slug': typeof AppEstacionSlugRoute
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
+    | '/configuracion/operacion'
     | '/configuracion/propinas'
     | '/configuracion/usuarios'
     | '/estacion/$slug'
@@ -476,6 +487,7 @@ export interface FileRouteTypes {
     | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
+    | '/configuracion/operacion'
     | '/configuracion/propinas'
     | '/configuracion/usuarios'
     | '/estacion/$slug'
@@ -521,6 +533,7 @@ export interface FileRouteTypes {
     | '/_app/configuracion/espacios'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/metodos-pago'
+    | '/_app/configuracion/operacion'
     | '/_app/configuracion/propinas'
     | '/_app/configuracion/usuarios'
     | '/_app/estacion/$slug'
@@ -748,6 +761,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionPropinasRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/operacion': {
+      id: '/_app/configuracion/operacion'
+      path: '/operacion'
+      fullPath: '/configuracion/operacion'
+      preLoaderRoute: typeof AppConfiguracionOperacionRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/configuracion/metodos-pago': {
       id: '/_app/configuracion/metodos-pago'
       path: '/metodos-pago'
@@ -917,6 +937,7 @@ interface AppConfiguracionRouteChildren {
   AppConfiguracionEspaciosRoute: typeof AppConfiguracionEspaciosRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
+  AppConfiguracionOperacionRoute: typeof AppConfiguracionOperacionRoute
   AppConfiguracionPropinasRoute: typeof AppConfiguracionPropinasRoute
   AppConfiguracionUsuariosRoute: typeof AppConfiguracionUsuariosRoute
   AppConfiguracionIndexRoute: typeof AppConfiguracionIndexRoute
@@ -928,6 +949,7 @@ const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionEspaciosRoute: AppConfiguracionEspaciosRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
+  AppConfiguracionOperacionRoute: AppConfiguracionOperacionRoute,
   AppConfiguracionPropinasRoute: AppConfiguracionPropinasRoute,
   AppConfiguracionUsuariosRoute: AppConfiguracionUsuariosRoute,
   AppConfiguracionIndexRoute: AppConfiguracionIndexRoute,

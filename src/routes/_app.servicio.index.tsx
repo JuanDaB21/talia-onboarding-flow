@@ -14,6 +14,7 @@ import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
 import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
 import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 import { AbrirMesaDialog } from "@/components/servicio/abrir-mesa-dialog";
+import { POLL } from "@/lib/query-config";
 
 
 export const Route = createFileRoute("/_app/servicio/")({
@@ -25,8 +26,9 @@ function ServicioIndex() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["servicio", "mesas"],
     queryFn: () => listarMesasServicio(),
-    // Sin polling: el canal realtime de abajo invalida cualquier cambio.
-    staleTime: 60_000,
+    // El canal realtime de abajo invalida al instante; POLL.LIVE es el respaldo para no
+    // quedar desfasado con Operación si el WS está caído/reconectando.
+    ...POLL.LIVE,
   });
 
   // Realtime: cualquier cambio relevante refresca

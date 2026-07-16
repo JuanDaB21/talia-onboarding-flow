@@ -159,6 +159,8 @@ function CartaPage() {
     onSuccess: () => {
       toast.success("¡Tu mesero va en camino!");
       refetch();
+      // Refresca el estado polleado para que el botón pase a "Mesero notificado" al instante.
+      estadoQ.refetch();
     },
     onError: (e) => {
       toast.error("No se pudo llamar al mesero", {
@@ -248,7 +250,10 @@ function CartaPage() {
   }
 
   const { mesa, categorias, negocio } = data;
-  const ocupada = mesa.estado === "OCUPADA";
+  // El botón "Llamar mesero" se rige por si HAY un llamado pendiente, tomado de la query
+  // polleada (15s), no del estado de ocupación de la mesa. Así, cuando el mesero atiende
+  // (backend pone solicitud_cliente → null), el próximo poll reactiva el botón por sí solo.
+  const llamadoPendiente = estadoQ.data?.solicitud_cliente === "LLAMADO";
   const logoUrl = publicUrl(negocio?.url_logo ?? null);
   const nombreNegocio = negocio?.nombre_comercial ?? "";
 
@@ -495,20 +500,20 @@ function CartaPage() {
               size="lg"
               className="w-full h-14 text-base font-semibold gap-2"
               style={{
-                background: ocupada ? "var(--menu-surface-2)" : "var(--menu-primary)",
-                color: ocupada ? "var(--menu-foreground)" : "var(--menu-primary-foreground)",
+                background: llamadoPendiente ? "var(--menu-surface-2)" : "var(--menu-primary)",
+                color: llamadoPendiente ? "var(--menu-foreground)" : "var(--menu-primary-foreground)",
                 borderRadius: "var(--menu-radius)",
-                opacity: ocupada ? 0.85 : 1,
+                opacity: llamadoPendiente ? 0.85 : 1,
               }}
               onClick={() => mut.mutate()}
-              disabled={mut.isPending || ocupada}
+              disabled={mut.isPending || llamadoPendiente}
             >
               {mut.isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Bell className="h-5 w-5" />
               )}
-              {ocupada ? "Mesero notificado" : "Llamar mesero"}
+              {llamadoPendiente ? "Mesero notificado" : "Llamar mesero"}
             </Button>
           )}
         </div>
