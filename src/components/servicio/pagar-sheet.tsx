@@ -7,6 +7,7 @@ import {
   Camera,
   CheckCircle2,
   Loader2,
+  Printer,
   QrCode as QrCodeIcon,
   Smartphone,
   Ticket,
@@ -36,6 +37,7 @@ import {
   registrarPagoDividido,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
+import { imprimirCuenta } from "@/lib/impresion.functions";
 import { listarMetodosPagoQr, type MetodoPagoQr } from "@/lib/metodos-pago.functions";
 import { listarBonos, previsualizarBono, type Bono } from "@/lib/bonos.functions";
 import {
@@ -142,6 +144,54 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const selectMany = (ids: string[]) => setSelected((s) => new Set([...s, ...ids]));
   const clear = () => setSelected(new Set());
 
+  // Precuenta completa de la mesa en la impresora de CAJA. Propina/descuentos solo
+  // viajan si la selección en pantalla cubre TODO lo pendiente (si no, el papel
+  // mostraría descuentos calculados sobre una selección parcial).
+  const [imprimiendoCuenta, setImprimiendoCuenta] = useState(false);
+  const onImprimirCuenta = () => {
+    const seleccionCompleta =
+      pendientes.length > 0 && pendientes.every((i) => selected.has(i.id_item));
+    const descuentos = seleccionCompleta
+      ? [
+          ...(descuentoBono > 0
+            ? [{ etiqueta: bonoInfo ? `Bono ${bonoInfo.nombre}` : "Bono", monto: descuentoBono }]
+            : []),
+          ...(descuentoReserva > 0
+            ? [
+                {
+                  etiqueta: reservaSel ? `Abono ${reservaSel.codigo_reserva}` : "Abono reserva",
+                  monto: descuentoReserva,
+                },
+              ]
+            : []),
+        ]
+      : [];
+    setImprimiendoCuenta(true);
+    imprimirCuenta(idMesa, {
+      propina: seleccionCompleta && !reservaCubreTodo && propina > 0 ? propina : null,
+      descuentos,
+    })
+      .then((r) => {
+        if (!r.encolado) {
+          toast.info("No hay nada para imprimir o CAJA no tiene impresora configurada");
+        } else if (!r.agenteConectado) {
+          toast.warning("No hay un agente de impresión conectado", {
+            description: "La cuenta quedó en cola y se imprimirá al reconectar el PC de impresoras.",
+          });
+        } else {
+          toast.success("Cuenta enviada a la impresora de caja", {
+            icon: <Printer className="h-4 w-4" />,
+          });
+        }
+      })
+      .catch((e) =>
+        toast.error("No se pudo imprimir la cuenta", {
+          description: e instanceof Error ? e.message : undefined,
+        }),
+      )
+      .finally(() => setImprimiendoCuenta(false));
+  };
+
   type PagarInput = {
     idMesa: string;
     metodo: Metodo;
@@ -152,6 +202,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     propina: number;
     idBono: string | null;
     idReserva: string | null;
+    montoRecibido: number | null;
   };
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => registrarPago(input),
@@ -338,6 +389,8 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             onContinue={() => setPaso("metodo")}
             onPagarConAbono={() => abonoMut.mutate()}
             aplicandoAbono={abonoMut.isPending}
+            onImprimirCuenta={onImprimirCuenta}
+            imprimiendoCuenta={imprimiendoCuenta}
           />
         ) : (
           <PasoMetodo
@@ -362,6 +415,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
                 propina,
                 idBono,
                 idReserva: abonoActivo ? idReservaAbono : null,
+                montoRecibido: extras.montoRecibido ?? null,
               })
             }
             isLoading={pagarMut.isPending}
@@ -669,6 +723,8 @@ function PasoItems({
   onContinue,
   onPagarConAbono,
   aplicandoAbono,
+  onImprimirCuenta,
+  imprimiendoCuenta,
 }: {
   items: ItemCobrable[];
   selected: Set<string>;
@@ -692,6 +748,8 @@ function PasoItems({
   onContinue: () => void;
   onPagarConAbono: () => void;
   aplicandoAbono: boolean;
+  onImprimirCuenta: () => void;
+  imprimiendoCuenta: boolean;
 }) {
   // Agrupado por COMENSAL (identidad del pre-pedido QR) para acelerar dividir la
   // cuenta. Los ítems que agregó el mesero directo (sin comensal) caen en "Mesa".
@@ -889,20 +947,37 @@ function PasoItems({
             </span>
           </div>
         </div>
-        {reservaCubreTodo ? (
-          <Button size="lg" className="w-full" disabled={aplicandoAbono} onClick={onPagarConAbono}>
-            {aplicandoAbono ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        <div className="flex gap-2">
+          <Button
+            size="lg"
+            variant="outline"
+            className="shrink-0"
+            disabled={!hayPendientes || imprimiendoCuenta}
+            onClick={onImprimirCuenta}
+            title="Imprimir cuenta en caja"
+          >
+            {imprimiendoCuenta ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CalendarCheck className="h-4 w-4 mr-2" />
+              <Printer className="h-4 w-4" />
             )}
-            Aplicar abono de reserva
+            <span className="ml-2 hidden sm:inline">Cuenta</span>
           </Button>
-        ) : (
-          <Button size="lg" className="w-full" disabled={selected.size === 0} onClick={onContinue}>
-            Continuar al método de pago
-          </Button>
-        )}
+          {reservaCubreTodo ? (
+            <Button size="lg" className="flex-1" disabled={aplicandoAbono} onClick={onPagarConAbono}>
+              {aplicandoAbono ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CalendarCheck className="h-4 w-4 mr-2" />
+              )}
+              Aplicar abono de reserva
+            </Button>
+          ) : (
+            <Button size="lg" className="flex-1" disabled={selected.size === 0} onClick={onContinue}>
+              Continuar al método de pago
+            </Button>
+          )}
+        </div>
       </div>
     </>
   );
@@ -1061,7 +1136,12 @@ function PasoMetodo({
   descuentoReserva: number;
   bonoInfo: BonoPreview | null;
   reservaInfo: ReservaAplicable | null;
-  onPagar: (extras: { subtipo?: string; voucher?: string; urlComprobante?: string }) => void;
+  onPagar: (extras: {
+    subtipo?: string;
+    voucher?: string;
+    urlComprobante?: string;
+    montoRecibido?: number | null;
+  }) => void;
   isLoading: boolean;
   onPagarDividido: (
     partes: Array<{
@@ -1253,6 +1333,10 @@ function PasoMetodo({
                 subtipo: subtipo || undefined,
                 voucher: voucher || undefined,
                 urlComprobante: urlComprobante ?? undefined,
+                montoRecibido:
+                  metodo === "EFECTIVO" && Number.isFinite(Number(recibido)) && Number(recibido) > 0
+                    ? Number(recibido)
+                    : null,
               })
             }
           >

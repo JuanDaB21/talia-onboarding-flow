@@ -34,6 +34,8 @@ export interface RegistrarPagoInput {
   propina?: number;
   idBono?: string | null;
   idReserva?: string | null;
+  /** Efectivo entregado por el cliente; solo para imprimir el CAMBIO en el ticket de caja. */
+  montoRecibido?: number | null;
 }
 
 export function registrarPago(input: RegistrarPagoInput) {
