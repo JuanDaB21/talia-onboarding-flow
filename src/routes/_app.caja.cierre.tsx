@@ -2,15 +2,35 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Lock, AlertCircle, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  AlertCircle,
+  CheckCircle2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RoleGate } from "@/components/admin/role-gate";
 import {
@@ -27,7 +47,7 @@ import { formatMoney } from "@/lib/format";
 export const Route = createFileRoute("/_app/caja/cierre")({
   head: () => ({ meta: [{ title: "Cerrar caja — Talia" }] }),
   component: () => (
-    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
+    <RoleGate roles={["ADMIN", "SUPERADMIN", "CAJERO"]}>
       <CierreWizard />
     </RoleGate>
   ),
@@ -88,7 +108,11 @@ function CierreWizard() {
     return (
       <Card>
         <CardContent className="p-6 text-sm">
-          No hay caja abierta. <Link to="/caja" className="underline">Volver</Link>.
+          No hay caja abierta.{" "}
+          <Link to="/caja" className="underline">
+            Volver
+          </Link>
+          .
         </CardContent>
       </Card>
     );
@@ -96,7 +120,11 @@ function CierreWizard() {
     return (
       <Card>
         <CardContent className="p-6 text-sm">
-          La caja de hoy ya está cerrada. <Link to="/caja" className="underline">Volver</Link>.
+          La caja ya está cerrada. Puedes abrir una nueva desde{" "}
+          <Link to="/caja" className="underline">
+            Caja
+          </Link>
+          .
         </CardContent>
       </Card>
     );
@@ -271,13 +299,21 @@ function CierreWizard() {
             <CardTitle className="text-base">Conciliación</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Diff label="Efectivo" sistema={efectivoEsperado} fisico={Number(efectivoFisico)} dif={difEfectivo} />
-            <Diff label="Datáfono" sistema={datafonoEsperado} fisico={Number(datafonoFisico)} dif={difDatafono} />
+            <Diff
+              label="Efectivo"
+              sistema={efectivoEsperado}
+              fisico={Number(efectivoFisico)}
+              dif={difEfectivo}
+            />
+            <Diff
+              label="Datáfono"
+              sistema={datafonoEsperado}
+              fisico={Number(datafonoFisico)}
+              dif={difDatafono}
+            />
             {(ajustesPrevios ?? []).length > 0 && (
               <div className="space-y-1 rounded-md border bg-muted/30 p-3">
-                <div className="text-sm font-semibold">
-                  Ajustes ya registrados hoy
-                </div>
+                <div className="text-sm font-semibold">Ajustes ya registrados hoy</div>
                 <ul className="space-y-1 text-sm">
                   {(ajustesPrevios ?? []).map((a) => (
                     <li key={a.id_ajuste} className="flex items-center justify-between">
@@ -305,7 +341,9 @@ function CierreWizard() {
               tipos={tipos ?? []}
               ajustes={ajustes}
               onChange={setAjustes}
-              onTipoCreated={() => queryClient.invalidateQueries({ queryKey: ["caja-ajuste-tipos"] })}
+              onTipoCreated={() =>
+                queryClient.invalidateQueries({ queryKey: ["caja-ajuste-tipos"] })
+              }
             />
             {hayDiferencia && (
               <div className="grid gap-2">

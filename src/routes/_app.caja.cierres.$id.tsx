@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/format";
 export const Route = createFileRoute("/_app/caja/cierres/$id")({
   head: () => ({ meta: [{ title: "Reporte de cierre — Talia" }] }),
   component: () => (
-    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
+    <RoleGate roles={["ADMIN", "SUPERADMIN", "CAJERO"]}>
       <ReportePage />
     </RoleGate>
   ),
@@ -31,8 +31,7 @@ function ReportePage() {
       </p>
     );
 
-  const total =
-    data.efectivo_sistema + data.transferencia_sistema + data.datafono_sistema;
+  const total = data.efectivo_sistema + data.transferencia_sistema + data.datafono_sistema;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -54,7 +53,9 @@ function ReportePage() {
           <p className="text-sm">Fecha: {data.fecha}</p>
           <p className="text-xs text-muted-foreground">
             Apertura: {new Date(data.abierta_at).toLocaleString()}
+            {data.abierta_por_nombre && ` (${data.abierta_por_nombre})`}
             {data.cerrada_at && ` · Cierre: ${new Date(data.cerrada_at).toLocaleString()}`}
+            {data.cerrada_por_nombre && ` (${data.cerrada_por_nombre})`}
           </p>
         </div>
 
@@ -79,7 +80,7 @@ function ReportePage() {
           />
           <Separator className="my-2" />
           <Row label="Transferencias confirmadas" value={formatMoney(data.transferencia_sistema)} />
-          <Row label="TOTAL VENTAS DEL DÍA" value={formatMoney(total)} bold />
+          <Row label="TOTAL VENTAS DEL CIERRE" value={formatMoney(total)} bold />
         </Section>
 
         {data.ajustes.length > 0 && (

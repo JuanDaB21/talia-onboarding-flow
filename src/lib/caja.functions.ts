@@ -11,6 +11,8 @@ export interface ResumenCajaDia {
     base_inicial: number;
     abierta_at: string;
     cerrada_at: string | null;
+    abierta_por_nombre: string | null;
+    cerrada_por_nombre: string | null;
   } | null;
   efectivo: number;
   transferencia_confirmada: number;
@@ -82,13 +84,18 @@ export function eliminarAjusteCaja(idAjuste: string) {
   return api.post<{ ok: true }>(`/caja/ajustes/${idAjuste}/eliminar`);
 }
 
+// Con multi-caja (0026) puede haber varios cierres por fecha; el backend los
+// ordena por fecha DESC, abierta_at DESC.
 export interface CierreListItem {
   id_caja: string;
   fecha: string;
   estado: string;
   total: number;
   diferencia: number;
+  abierta_at: string | null;
   cerrada_at: string | null;
+  abierta_por_nombre: string | null;
+  cerrada_por_nombre: string | null;
 }
 
 export function listarCierres(input?: { desde?: string | null; hasta?: string | null }) {
@@ -114,6 +121,8 @@ export interface CierreDetalle {
   nota_cuadre: string | null;
   abierta_at: string;
   cerrada_at: string | null;
+  abierta_por_nombre: string | null;
+  cerrada_por_nombre: string | null;
   negocio_nombre: string;
   top_productos: Array<{ nombre: string; cantidad: number; total: number }>;
   hora_pico: { hora: number; total: number } | null;
