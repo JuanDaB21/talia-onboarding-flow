@@ -2,7 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, Unlock, FileText, AlertCircle, Calendar as CalendarIcon, X, Plus, Trash2 } from "lucide-react";
+import {
+  Lock,
+  Unlock,
+  FileText,
+  AlertCircle,
+  Calendar as CalendarIcon,
+  X,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,11 +49,13 @@ import {
 import { formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
+const hora = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 export const Route = createFileRoute("/_app/caja/")({
   head: () => ({ meta: [{ title: "Caja — Talia" }] }),
   component: () => (
-    <RoleGate roles={["ADMIN","SUPERADMIN","CAJERO"]}>
+    <RoleGate roles={["ADMIN", "SUPERADMIN", "CAJERO"]}>
       <CajaPage />
     </RoleGate>
   ),
@@ -59,10 +70,7 @@ function CajaPage() {
 
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
-  const filtros = useMemo(
-    () => ({ desde: desde || null, hasta: hasta || null }),
-    [desde, hasta],
-  );
+  const filtros = useMemo(() => ({ desde: desde || null, hasta: hasta || null }), [desde, hasta]);
   const hist = useQuery({
     queryKey: ["cierres", filtros],
     queryFn: () => listarCierres(filtros),
@@ -102,6 +110,12 @@ function CajaPage() {
         <p className="text-sm text-muted-foreground">Cargando…</p>
       ) : !data?.caja ? (
         <AbrirCajaForm />
+      ) : data.caja.estado === "CERRADA" ? (
+        // Multi-caja: tras un cierre se puede abrir un ciclo nuevo el mismo día.
+        <>
+          <AbrirCajaForm nuevoCiclo />
+          <CajaResumen data={data} />
+        </>
       ) : (
         <CajaResumen data={data} />
       )}
@@ -113,7 +127,9 @@ function CajaPage() {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1">
-              <Label htmlFor="desde" className="text-xs">Desde</Label>
+              <Label htmlFor="desde" className="text-xs">
+                Desde
+              </Label>
               <Input
                 id="desde"
                 type="date"
@@ -124,7 +140,9 @@ function CajaPage() {
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="hasta" className="text-xs">Hasta</Label>
+              <Label htmlFor="hasta" className="text-xs">
+                Hasta
+              </Label>
               <Input
                 id="hasta"
                 type="date"
@@ -155,13 +173,9 @@ function CajaPage() {
           <Separator />
 
           <div className="space-y-2">
-            {hist.isLoading && (
-              <p className="text-sm text-muted-foreground">Cargando…</p>
-            )}
+            {hist.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
             {!hist.isLoading && hist.data?.cierres.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Sin cierres en este rango.
-              </p>
+              <p className="text-sm text-muted-foreground">Sin cierres en este rango.</p>
             )}
             {hist.data?.cierres.map((c) => (
               <Link
@@ -171,9 +185,18 @@ function CajaPage() {
                 className="flex items-center justify-between rounded-md border p-3 hover:bg-muted/50"
               >
                 <div>
-                  <div className="text-sm font-medium">{c.fecha}</div>
+                  <div className="text-sm font-medium">
+                    {c.fecha}
+                    {c.abierta_at && (
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        {hora(c.abierta_at)}
+                        {c.cerrada_at && `–${hora(c.cerrada_at)}`}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {c.estado} · Total {formatMoney(c.total)}
+                    {c.cerrada_por_nombre && ` · Cerró: ${c.cerrada_por_nombre}`}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -191,7 +214,7 @@ function CajaPage() {
   );
 }
 
-function AbrirCajaForm() {
+function AbrirCajaForm({ nuevoCiclo }: { nuevoCiclo?: boolean }) {
   const qc = useQueryClient();
   const [base, setBase] = useState("0");
   const [busy, setBusy] = useState(false);
@@ -207,6 +230,8 @@ function AbrirCajaForm() {
       await abrirCaja(n);
       toast.success("Caja abierta");
       qc.invalidateQueries({ queryKey: ["estado-caja"] });
+      qc.invalidateQueries({ queryKey: ["cierres"] });
+      qc.invalidateQueries({ queryKey: ["caja-ajustes-actual"] });
     } catch (e) {
       toast.error("No se pudo abrir", { description: e instanceof Error ? e.message : "" });
     } finally {
@@ -218,12 +243,14 @@ function AbrirCajaForm() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Unlock className="h-4 w-4" /> Abrir caja del día
+          <Unlock className="h-4 w-4" /> {nuevoCiclo ? "Abrir nueva caja" : "Abrir caja"}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Registra el efectivo con el que abres la caja (vueltos, fondo, etc.).
+          {nuevoCiclo
+            ? "Puedes abrir otra caja el mismo día: el nuevo ciclo cuadra solo sus propios pagos."
+            : "Registra el efectivo con el que abres la caja (vueltos, fondo, etc.)."}
         </p>
         <div className="grid gap-2">
           <Label htmlFor="base">Base inicial (COP)</Label>
@@ -243,17 +270,12 @@ function AbrirCajaForm() {
   );
 }
 
-function CajaResumen({
-  data,
-}: {
-  data: NonNullable<Awaited<ReturnType<typeof getEstadoCaja>>>;
-}) {
+function CajaResumen({ data }: { data: NonNullable<Awaited<ReturnType<typeof getEstadoCaja>>> }) {
   const cerrada = data.caja?.estado === "CERRADA";
   const bloqueos: string[] = [];
   if (data.pagos_pendientes > 0)
     bloqueos.push(`${data.pagos_pendientes} pago(s) pendientes de verificar`);
-  if (data.mesas_abiertas > 0)
-    bloqueos.push(`${data.mesas_abiertas} mesa(s) con cuenta abierta`);
+  if (data.mesas_abiertas > 0) bloqueos.push(`${data.mesas_abiertas} mesa(s) con cuenta abierta`);
 
   return (
     <Card>
@@ -261,12 +283,30 @@ function CajaResumen({
         <CardTitle className="flex items-center justify-between text-base">
           <span className="flex items-center gap-2">
             {cerrada ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-            Caja del día · {data.caja!.fecha}
+            {cerrada ? "Último cierre" : "Caja actual"} · {data.caja!.fecha}
           </span>
           <Badge variant={cerrada ? "secondary" : "default"}>{data.caja!.estado}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Abierta{" "}
+          {new Date(data.caja!.abierta_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          {data.caja!.abierta_por_nombre && ` por ${data.caja!.abierta_por_nombre}`}
+          {cerrada && data.caja!.cerrada_at && (
+            <>
+              {" · "}Cerrada{" "}
+              {new Date(data.caja!.cerrada_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {data.caja!.cerrada_por_nombre && ` por ${data.caja!.cerrada_por_nombre}`}
+            </>
+          )}
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <Row label="Base inicial" value={formatMoney(data.caja!.base_inicial)} />
           <Row label="Efectivo cobrado" value={formatMoney(data.efectivo)} />
@@ -280,11 +320,7 @@ function CajaResumen({
             highlight={data.transferencia_pendiente > 0}
           />
           <Row label="Datáfono" value={formatMoney(data.datafono)} />
-          <Row
-            label="Total sistema (sin base)"
-            value={formatMoney(data.total_sistema)}
-            bold
-          />
+          <Row label="Total sistema (sin base)" value={formatMoney(data.total_sistema)} bold />
           <Row
             label="Total sistema (con base)"
             value={formatMoney(data.total_sistema + Number(data.caja!.base_inicial))}
@@ -316,8 +352,6 @@ function CajaResumen({
           </>
         )}
 
-
-
         {!cerrada && (
           <>
             <Separator />
@@ -346,7 +380,7 @@ function CajaResumen({
           </>
         )}
 
-        {cerrada && data.caja!.fecha === new Date().toISOString().slice(0, 10) && (
+        {cerrada && (
           <>
             <Separator />
             <ReabrirCajaButton />
@@ -379,7 +413,8 @@ function ReabrirCajaButton() {
     <>
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">
-          Si cerraste la caja por error, puedes reabrirla. Los valores de cuadre quedarán en cero y deberás volver a registrarlos al cerrar.
+          Si cerraste esta caja por error, puedes reabrirla (en vez de abrir una nueva). Los valores
+          de cuadre quedarán en cero y deberás volver a registrarlos al cerrar.
         </p>
         <Button variant="outline" onClick={() => setConfirmOpen(true)}>
           <Unlock className="mr-2 h-4 w-4" /> Reabrir caja
@@ -388,10 +423,11 @@ function ReabrirCajaButton() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Reabrir la caja del día?</DialogTitle>
+            <DialogTitle>¿Reabrir la última caja cerrada?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Se borrarán los valores de cuadre del cierre anterior y la caja volverá al estado ABIERTA. Esta acción quedará anotada en la nota de cuadre.
+            Se borrarán los valores de cuadre del cierre anterior y la caja volverá al estado
+            ABIERTA. Esta acción quedará anotada en la nota de cuadre.
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={busy}>
@@ -434,7 +470,10 @@ function AjustesCajaLive() {
   const qc = useQueryClient();
 
   const tipos = useQuery({ queryKey: ["caja-ajuste-tipos"], queryFn: () => listarTiposAjuste() });
-  const ajustes = useQuery({ queryKey: ["caja-ajustes-actual"], queryFn: () => listarAjustesCajaActual() });
+  const ajustes = useQuery({
+    queryKey: ["caja-ajustes-actual"],
+    queryFn: () => listarAjustesCajaActual(),
+  });
 
   const [selTipo, setSelTipo] = useState("");
   const [monto, setMonto] = useState("");
@@ -528,8 +567,8 @@ function AjustesCajaLive() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Registra sumas o restas de efectivo en cualquier momento del día (ej. propina,
-        descuadre, gasto menor).
+        Registra sumas o restas de efectivo en cualquier momento del día (ej. propina, descuadre,
+        gasto menor).
       </p>
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
@@ -566,11 +605,7 @@ function AjustesCajaLive() {
         </div>
         <div className="min-w-[160px] flex-1">
           <Label className="text-xs">Nota (opcional)</Label>
-          <Input
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder="Detalle"
-          />
+          <Input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Detalle" />
         </div>
         <Button type="button" onClick={agregar} disabled={busy}>
           Agregar
@@ -593,9 +628,7 @@ function AjustesCajaLive() {
                 <span className="ml-1 text-xs text-muted-foreground">
                   ({a.signo === "POSITIVO" ? "+" : "−"})
                 </span>
-                {a.nota && (
-                  <span className="ml-2 text-xs text-muted-foreground">· {a.nota}</span>
-                )}
+                {a.nota && <span className="ml-2 text-xs text-muted-foreground">· {a.nota}</span>}
               </span>
               <span className="flex items-center gap-2">
                 <span className="font-medium">
@@ -671,4 +704,3 @@ function AjustesCajaLive() {
     </div>
   );
 }
-
