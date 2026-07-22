@@ -19,14 +19,20 @@ export function Heatmap({ data }: { data: number[][] }) {
             <div key={d} className="contents">
               <div className="pr-2 text-xs text-muted-foreground">{d}</div>
               {Array.from({ length: 24 }).map((_, hi) => {
-                const v = data[di][hi];
+                const v = data[di]?.[hi] ?? 0;
                 const op = v === 0 ? 0 : 0.1 + (v / max) * 0.9;
+                // --primary ya es un color completo (oklch, Tailwind v4): envolverlo en
+                // hsl() invalidaba el color-mix y dejaba TODAS las celdas transparentes.
+                const fondo =
+                  v === 0
+                    ? "transparent"
+                    : `color-mix(in oklab, var(--primary) ${op * 100}%, transparent)`;
                 return (
                   <div
                     key={hi}
                     title={`${d} ${hi}:00 · $${Math.round(v).toLocaleString()}`}
                     className={cn("aspect-square rounded-sm border border-border/30")}
-                    style={{ backgroundColor: v === 0 ? "transparent" : `color-mix(in oklab, hsl(var(--primary)) ${op * 100}%, transparent)` }}
+                    style={{ backgroundColor: fondo }}
                   />
                 );
               })}

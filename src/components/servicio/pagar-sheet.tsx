@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { uploadToStorage, usePrivImage } from "@/lib/storage";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
+import { getNegocioConfig } from "@/lib/negocio.functions";
 import {
   listarItemsCobrables,
   registrarPago,
@@ -77,11 +78,22 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     enabled: open,
   });
 
+  // % sugerido por el negocio (Configuración › Propinas), el mismo que imprime
+  // la precuenta. En un ref para no pisar lo que el cajero ya haya elegido.
+  const negocioQ = useQuery({
+    queryKey: ["negocio-config"],
+    queryFn: () => getNegocioConfig(),
+    staleTime: 5 * 60_000,
+  });
+  const pctSugerido = (negocioQ.data?.propina_pct_sugerida ?? 10) / 100;
+  const pctSugeridoRef = useRef(pctSugerido);
+  pctSugeridoRef.current = pctSugerido;
+
   const [paso, setPaso] = useState<Paso>("items");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [metodo, setMetodo] = useState<Metodo>("EFECTIVO");
-  // Propina: 10% por defecto. Si el cliente escribe un monto fijo, se usa ese.
-  const [propinaPct, setPropinaPct] = useState<number | null>(0.1);
+  // Propina: el % sugerido por defecto. Si el cajero fija un monto, se usa ese.
+  const [propinaPct, setPropinaPct] = useState<number | null>(pctSugerido);
   const [propinaCustom, setPropinaCustom] = useState<number | null>(null);
   const [idBono, setIdBono] = useState<string | null>(null);
   const [idReservaAbono, setIdReservaAbono] = useState<string | null>(null);
@@ -92,7 +104,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       setPaso("items");
       setSelected(new Set());
       setMetodo("EFECTIVO");
-      setPropinaPct(0.1);
+      setPropinaPct(pctSugeridoRef.current);
       setPropinaCustom(null);
       setIdBono(null);
       setIdReservaAbono(null);
@@ -166,9 +178,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             : []),
         ]
       : [];
+    // Solo se manda la propina si el cajero ya la fijó sobre TODA la cuenta; si
+    // se omite, el backend imprime la sugerida del negocio sobre el total real.
+    const propinaFijada = seleccionCompleta && !reservaCubreTodo && propina > 0;
     setImprimiendoCuenta(true);
     imprimirCuenta(idMesa, {
-      propina: seleccionCompleta && !reservaCubreTodo && propina > 0 ? propina : null,
+      ...(propinaFijada ? { propina } : {}),
       descuentos,
     })
       .then((r) => {
@@ -226,7 +241,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         } else {
           setPaso("items");
           setSelected(new Set());
-          setPropinaPct(0.1);
+          setPropinaPct(pctSugeridoRef.current);
           setPropinaCustom(null);
           setIdBono(null);
           setIdReservaAbono(null);
@@ -278,7 +293,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         } else {
           setPaso("items");
           setSelected(new Set());
-          setPropinaPct(0.1);
+          setPropinaPct(pctSugeridoRef.current);
           setPropinaCustom(null);
           setIdBono(null);
           setIdReservaAbono(null);

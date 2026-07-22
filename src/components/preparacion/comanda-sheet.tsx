@@ -6,7 +6,6 @@ import {
   Clock,
   MinusCircle,
   PlusCircle,
-  PlayCircle,
   Printer,
   StickyNote,
 } from "lucide-react";
@@ -31,10 +30,8 @@ interface Props {
   destino: ComandaDestino;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
-  onIniciarTodo: () => Promise<void>;
+  onAdvance: (idItem: string, nuevo: "LISTO") => Promise<void>;
   busyId: string | null;
-  iniciandoTodo: boolean;
 }
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -44,18 +41,10 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   ENTREGADO: { label: "Entregado", cls: "bg-primary/15 text-primary" },
 };
 
-function siguienteEstado(
-  e: string,
-): "EN_PREPARACION" | "LISTO" | null {
-  if (e === "EN_COLA") return "EN_PREPARACION";
-  if (e === "EN_PREPARACION") return "LISTO";
-  return null;
-}
-
-function labelAccion(s: "EN_PREPARACION" | "LISTO" | null) {
-  if (s === "EN_PREPARACION") return "Iniciar";
-  if (s === "LISTO") return "Marcar listo";
-  return "";
+// La estación solo cierra items: la preparación ya arrancó al confirmar el pedido.
+// EN_COLA solo aparece en items anteriores a ese cambio y también pasa a LISTO.
+function siguienteEstado(e: string): "LISTO" | null {
+  return e === "EN_COLA" || e === "EN_PREPARACION" ? "LISTO" : null;
 }
 
 export function ComandaSheet({
@@ -64,9 +53,7 @@ export function ComandaSheet({
   open,
   onOpenChange,
   onAdvance,
-  onIniciarTodo,
   busyId,
-  iniciandoTodo,
 }: Props) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -82,7 +69,6 @@ export function ComandaSheet({
     (i) => i.estado_preparacion === "LISTO" || i.estado_preparacion === "ENTREGADO",
   ).length;
   const pct = total > 0 ? Math.round((listos / total) * 100) : 0;
-  const hayEnCola = comanda.items.some((i) => i.estado_preparacion === "EN_COLA");
   const transcurrido = Math.floor(minutosTranscurridos(comanda.pedido_created_at));
 
   return (
@@ -116,23 +102,11 @@ export function ComandaSheet({
             <Progress value={pct} className="h-2" />
           </div>
           <div className="mt-3 flex flex-col sm:flex-row gap-2">
-            {hayEnCola && (
-              <Button
-                onClick={onIniciarTodo}
-                disabled={iniciandoTodo}
-                variant="secondary"
-                className="flex-1"
-                size="sm"
-              >
-                <PlayCircle className="h-4 w-4 mr-2" />
-                Iniciar toda la comanda
-              </Button>
-            )}
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className={hayEnCola ? "sm:w-auto" : "w-full"}
+              className="w-full"
               onClick={() =>
                 void enqueueComandas([
                   {
@@ -209,7 +183,7 @@ export function ComandaSheet({
 
 interface ItemRowProps {
   item: ItemPreparacion;
-  onAdvance: (idItem: string, nuevo: "EN_PREPARACION" | "LISTO") => Promise<void>;
+  onAdvance: (idItem: string, nuevo: "LISTO") => Promise<void>;
   busy: boolean;
 }
 
@@ -220,8 +194,8 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
   const planeado = item.tiempo_planeado_min ?? 0;
 
   let tiempoTexto = "";
-  if (item.estado_preparacion === "EN_PREPARACION") {
-    const t = Math.floor(minutosTranscurridos(item.iniciado_at));
+  if (item.estado_preparacion === "EN_PREPARACION" || item.estado_preparacion === "EN_COLA") {
+    const t = Math.floor(minutosTranscurridos(item.iniciado_at ?? item.pedido_created_at));
     tiempoTexto = `${t}/${planeado || "—"} min`;
   } else if (item.estado_preparacion === "LISTO" && item.listo_at) {
     const t = Math.floor(minutosTranscurridos(item.listo_at));
@@ -344,13 +318,8 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
               {retraso > 0 && ` · retraso +${retraso}`}
             </span>
             {sig && (
-              <Button
-                size="sm"
-                variant={sig === "LISTO" ? "default" : "outline"}
-                disabled={busy}
-                onClick={() => onAdvance(item.id_item, sig)}
-              >
-                {labelAccion(sig)}
+              <Button size="sm" disabled={busy} onClick={() => onAdvance(item.id_item, sig)}>
+                Marcar listo
               </Button>
             )}
           </div>

@@ -1,9 +1,11 @@
 import type { ItemPreparacion } from "@/lib/preparacion.functions";
 
-export type EstadoComanda = "EN_COLA" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
+// EN_COLA ya no se produce (la preparación arranca al confirmar el pedido), pero
+// pueden quedar items en cola de antes del cambio: se tratan como en preparación.
+export type EstadoComanda = "EN_PREPARACION" | "LISTO" | "ENTREGADO";
 
 export function estadoComanda(items: ItemPreparacion[]): EstadoComanda {
-  if (items.length === 0) return "EN_COLA";
+  if (items.length === 0) return "EN_PREPARACION";
   if (items.every((i) => i.estado_preparacion === "ENTREGADO")) return "ENTREGADO";
   if (
     items.every(
@@ -11,8 +13,7 @@ export function estadoComanda(items: ItemPreparacion[]): EstadoComanda {
     )
   )
     return "LISTO";
-  if (items.some((i) => i.estado_preparacion !== "EN_COLA")) return "EN_PREPARACION";
-  return "EN_COLA";
+  return "EN_PREPARACION";
 }
 
 export function minutosTranscurridos(from: string | null): number {
@@ -23,8 +24,9 @@ export function minutosTranscurridos(from: string | null): number {
 export function retrasoItem(item: ItemPreparacion): number {
   const planeado = item.tiempo_planeado_min ?? 0;
   if (planeado <= 0) return 0;
-  if (item.estado_preparacion === "EN_PREPARACION") {
-    const t = minutosTranscurridos(item.iniciado_at);
+  if (item.estado_preparacion === "EN_PREPARACION" || item.estado_preparacion === "EN_COLA") {
+    // Items legacy en cola no tienen iniciado_at: se cronometran desde el pedido.
+    const t = minutosTranscurridos(item.iniciado_at ?? item.pedido_created_at);
     return Math.max(0, Math.floor(t - planeado));
   }
   return 0;

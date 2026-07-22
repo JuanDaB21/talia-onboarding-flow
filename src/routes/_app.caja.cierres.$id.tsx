@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, Printer } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { RoleGate } from "@/components/admin/role-gate";
+import { ImprimirCierreButton } from "@/components/caja/imprimir-cierre-button";
 import { getCierre } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 
@@ -41,9 +42,7 @@ function ReportePage() {
             <ChevronLeft className="mr-1 h-4 w-4" /> Volver
           </Link>
         </Button>
-        <Button onClick={() => window.print()} size="sm">
-          <Printer className="mr-1 h-4 w-4" /> Imprimir
-        </Button>
+        <ImprimirCierreButton idCaja={id} size="sm" />
       </div>
 
       <div className="rounded-lg border bg-card p-6 print:border-0 print:p-0">
@@ -124,10 +123,10 @@ function ReportePage() {
           </>
         )}
 
-        {data.top_productos.length > 0 && (
+        {data.productos_vendidos.length > 0 && (
           <>
             <Separator className="my-4" />
-            <Section title="Top productos vendidos">
+            <Section title="Productos vendidos">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
@@ -137,14 +136,26 @@ function ReportePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.top_productos.map((p) => (
+                  {data.productos_vendidos.map((p) => (
                     <tr key={p.nombre} className="border-b">
                       <td className="py-1">{p.nombre}</td>
-                      <td className="py-1 text-right">{p.cantidad}</td>
-                      <td className="py-1 text-right">{formatMoney(p.total)}</td>
+                      <td className="py-1 text-right tabular-nums">{p.cantidad}</td>
+                      <td className="py-1 text-right tabular-nums">{formatMoney(p.total)}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="font-bold">
+                    <td className="py-1">
+                      {data.productos_vendidos.length} producto
+                      {data.productos_vendidos.length === 1 ? "" : "s"}
+                    </td>
+                    <td className="py-1 text-right tabular-nums">{data.unidades_totales}</td>
+                    <td className="py-1 text-right tabular-nums">
+                      {formatMoney(data.productos_vendidos.reduce((a, p) => a + p.total, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </Section>
           </>
