@@ -61,10 +61,16 @@ export function RangeSelector({
 
   const applyCustom = () => {
     if (range.from && range.to) {
+      // El calendario entrega ambos días a las 00:00: sin llevar `hasta` al final
+      // del día, las ventas del último día quedaban fuera de todo el dashboard.
+      const desde = new Date(range.from);
+      desde.setHours(0, 0, 0, 0);
+      const hasta = new Date(range.to);
+      hasta.setHours(23, 59, 59, 999);
       onChange({
         rango: "custom",
-        desde: range.from.toISOString(),
-        hasta: range.to.toISOString(),
+        desde: desde.toISOString(),
+        hasta: hasta.toISOString(),
       });
       setOpen(false);
     }

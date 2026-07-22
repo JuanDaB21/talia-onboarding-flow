@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { realtime } from "@/lib/realtime-client";
 import {
   avanzarItem,
-  iniciarComanda,
   listarComandasEstacion,
   type ComandaEstacion,
 } from "@/lib/preparacion.functions";
@@ -11,8 +10,8 @@ import { ComandaCard } from "./comanda-card";
 import { ComandaSheet } from "./comanda-sheet";
 import { estadoComanda, type EstadoComanda } from "./comanda-utils";
 
+// Sin columna "En cola": la preparación arranca al confirmar el pedido.
 const COLUMNAS: { key: EstadoComanda; label: string }[] = [
-  { key: "EN_COLA", label: "En cola" },
   { key: "EN_PREPARACION", label: "En preparación" },
   { key: "LISTO", label: "Listo" },
   { key: "ENTREGADO", label: "Entregado (recientes)" },
@@ -28,7 +27,6 @@ export function KanbanBoard({ destino, titulo }: Props) {
   const [comandas, setComandas] = useState<ComandaEstacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [iniciandoTodo, setIniciandoTodo] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const refrescar = useCallback(async () => {
@@ -59,10 +57,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
     };
   }, [refrescar, destino]);
 
-  const handleAdvance = async (
-    idItem: string,
-    nuevoEstado: "EN_PREPARACION" | "LISTO",
-  ) => {
+  const handleAdvance = async (idItem: string, nuevoEstado: "LISTO") => {
     setBusyId(idItem);
     try {
       await avanzarItem({ idItem, nuevoEstado });
@@ -72,20 +67,6 @@ export function KanbanBoard({ destino, titulo }: Props) {
       toast.error("No se pudo avanzar", { description: msg });
     } finally {
       setBusyId(null);
-    }
-  };
-
-  const handleIniciarTodo = async (idPedido: string) => {
-    setIniciandoTodo(true);
-    try {
-      const res = await iniciarComanda({ idPedido, destino });
-      toast.success(`${res.iniciados} item${res.iniciados === 1 ? "" : "s"} en preparación`);
-      await refrescar();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error";
-      toast.error("No se pudo iniciar", { description: msg });
-    } finally {
-      setIniciandoTodo(false);
     }
   };
 
@@ -155,11 +136,7 @@ export function KanbanBoard({ destino, titulo }: Props) {
         open={openId !== null && comandaAbierta !== null}
         onOpenChange={(o) => !o && setOpenId(null)}
         onAdvance={handleAdvance}
-        onIniciarTodo={() =>
-          comandaAbierta ? handleIniciarTodo(comandaAbierta.id_pedido) : Promise.resolve()
-        }
         busyId={busyId}
-        iniciandoTodo={iniciandoTodo}
       />
     </div>
   );

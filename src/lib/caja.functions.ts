@@ -124,7 +124,10 @@ export interface CierreDetalle {
   abierta_por_nombre: string | null;
   cerrada_por_nombre: string | null;
   negocio_nombre: string;
-  top_productos: Array<{ nombre: string; cantidad: number; total: number }>;
+  /** Todo lo vendido en la ventana de esta caja (no un top-N), más vendido primero. */
+  productos_vendidos: Array<{ nombre: string; cantidad: number; total: number }>;
+  unidades_totales: number;
+  /** Hora con más ventas, calculada en la timezone del negocio. */
   hora_pico: { hora: number; total: number } | null;
   ajustes: Array<{
     id_ajuste: string;

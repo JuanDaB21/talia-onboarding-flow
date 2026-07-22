@@ -7,6 +7,10 @@ export interface NegocioConfig {
   url_logo: string | null;
   tema_menu: string;
   porcentaje_retencion_propina: number;
+  /** % de propina sugerido al cliente en la precuenta impresa. */
+  propina_pct_sugerida: number;
+  /** Aviso que acompaña esa propina en el papel. */
+  propina_mensaje: string;
   auto_cierre_turno_horas: number;
   /** Hora local a la que inicia el día operativo de caja ("HH:MM"). */
   dia_operativo_inicio: string;
@@ -23,6 +27,8 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     url_logo: string | null;
     tema_menu: string | null;
     porcentaje_retencion_propina: number | string | null;
+    propina_pct_sugerida: number | string | null;
+    propina_mensaje: string | null;
     auto_cierre_turno_horas: number | string | null;
     dia_operativo_inicio: string | null;
     dia_operativo_duracion_horas: number | string | null;
@@ -33,6 +39,8 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     url_logo: n.url_logo,
     tema_menu: n.tema_menu ?? "verde-bosque",
     porcentaje_retencion_propina: Number(n.porcentaje_retencion_propina ?? 0),
+    propina_pct_sugerida: Number(n.propina_pct_sugerida ?? 10),
+    propina_mensaje: n.propina_mensaje ?? "",
     auto_cierre_turno_horas: Number(n.auto_cierre_turno_horas ?? 12),
     // pg serializa time como "HH:MM:SS" → normalizar a "HH:MM" (input type=time).
     dia_operativo_inicio: (n.dia_operativo_inicio ?? "00:00").slice(0, 5),
@@ -83,5 +91,20 @@ export async function updateNegocioPropinas(input: {
   await api.patch("/negocio", {
     porcentaje_retencion_propina: input.porcentaje_retencion_propina,
   });
+  return { ok: true };
+}
+
+// PATCH /negocio — propina SUGERIDA al cliente: % y aviso que se imprimen en la
+// precuenta. Distinta de la retención de arriba, que reparte lo ya cobrado.
+export async function updateNegocioPropinaSugerida(input: {
+  propina_pct_sugerida?: number;
+  propina_mensaje?: string;
+}): Promise<{ ok: true }> {
+  const patch: { propina_pct_sugerida?: number; propina_mensaje?: string } = {};
+  if (input.propina_pct_sugerida !== undefined)
+    patch.propina_pct_sugerida = input.propina_pct_sugerida;
+  if (input.propina_mensaje !== undefined) patch.propina_mensaje = input.propina_mensaje;
+  if (Object.keys(patch).length === 0) return { ok: true };
+  await api.patch("/negocio", patch);
   return { ok: true };
 }

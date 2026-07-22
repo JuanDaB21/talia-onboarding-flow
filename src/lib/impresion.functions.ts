@@ -56,6 +56,17 @@ export function imprimirCuenta(
   );
 }
 
+/**
+ * Imprime el reporte de un cierre de caja en la impresora del espacio CAJA.
+ * Reemplaza el window.print() del navegador: el agente lo renderiza en ESC/POS
+ * con el mismo ancho y codepage que la precuenta y el ticket de pago.
+ */
+export function imprimirCierre(idCaja: string) {
+  return api.post<{ ok: true; encolado: boolean; agenteConectado: boolean }>(
+    `/impresion/cierre/${idCaja}`,
+  );
+}
+
 export interface PrintJob {
   id_job: string;
   espacio_slug: string;

@@ -35,14 +35,10 @@ export function listarComandasEstacion(destino: string) {
   return api.post<{ comandas: ComandaEstacion[] }>("/preparacion/comandas", { destino });
 }
 
-export function avanzarItem(input: { idItem: string; nuevoEstado: "EN_PREPARACION" | "LISTO" }) {
+// La preparación arranca sola al confirmar el pedido (se imprime la comanda),
+// así que la estación solo marca LISTO. Ya no existe el paso "iniciar".
+export function avanzarItem(input: { idItem: string; nuevoEstado: "LISTO" }) {
   return api.post<{ ok: true }>(`/preparacion/items/${input.idItem}/avanzar`, {
     nuevoEstado: input.nuevoEstado,
-  });
-}
-
-export function iniciarComanda(input: { idPedido: string; destino: string }) {
-  return api.post<{ iniciados: number }>(`/preparacion/comandas/${input.idPedido}/iniciar`, {
-    destino: input.destino,
   });
 }
