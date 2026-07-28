@@ -82,7 +82,7 @@ import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
-import { POLL } from "@/lib/query-config";
+import { POLL, pollWhen } from "@/lib/query-config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -249,12 +249,17 @@ function MesaEnServicio() {
     if (asig) bus.ack(`asig:${idMesa}:${asig}`);
   }, [mesaQ.data?.asignada_at, idMesa, bus]);
 
-  // Tick visual del tiempo de servicio
+  const [pagarOpen, setPagarOpen] = useState(false);
+
+  // Tick visual del tiempo de servicio. Se pausa mientras se está cobrando: con
+  // el sheet de pago abierto ya hay realtime + polling re-renderizando el árbol,
+  // y cada commit extra es una oportunidad de chocar con el DOM del modal del QR.
   const [, setTick] = useState(0);
   useEffect(() => {
+    if (pagarOpen) return;
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [pagarOpen]);
 
   // La solicitud del cliente ya NO se limpia automáticamente: se muestra como
   // banner persistente y se limpia con una acción explícita del mesero.
@@ -338,14 +343,15 @@ function MesaEnServicio() {
       }),
   });
 
-  const [pagarOpen, setPagarOpen] = useState(false);
   const [cerrarOpen, setCerrarOpen] = useState(false);
   const navigate = useNavigate();
 
   const estadoQ = useQuery({
     queryKey: ["estadoCierre", idMesa],
     queryFn: () => estadoCierreMesa(idMesa),
-    ...POLL.LIVE,
+    // Sin refetch periódico mientras el sheet de pago está abierto: el estado de
+    // cierre no cambia solo durante el cobro y el re-render sobra (ver el tick).
+    ...pollWhen(!pagarOpen, POLL.LIVE),
   });
 
   const cerrarMut = useMutation({

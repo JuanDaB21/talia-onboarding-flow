@@ -73,6 +73,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // Chrome Android traducía la app (el shell declaraba lang="en" con todo el
+      // contenido en español): Translate envuelve los nodos de texto en <font> y
+      // re-parenta hermanos, así que React perdía sus referencias de DOM y
+      // reventaba con "insertBefore ... no es un hijo de este nodo" al insertar
+      // nodos asíncronos — p. ej. el QR de transferencia dentro de su modal.
+      { name: "google", content: "notranslate" },
       { title: "Talia tu IA para restaurantes" },
       { name: "description", content: "Talia Restaurant Hub is a SaaS application for restaurant management." },
       { name: "author", content: "Lovable" },
@@ -101,11 +107,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // lang="es" + translate="no": la app es 100% en español y ninguna parte debe
+    // ser reescrita por el traductor del navegador (ver el meta `notranslate`).
+    <html lang="es" translate="no">
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="notranslate">
         {children}
         <Scripts />
       </body>
