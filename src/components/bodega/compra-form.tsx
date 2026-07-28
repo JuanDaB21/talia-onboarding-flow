@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { listarProveedores, listarInsumos, registrarCompra } from "@/lib/bodega.functions";
+import { fechaLocalISO } from "@/lib/format";
 import { useCurrentNegocio } from "@/hooks/use-current-negocio";
 import { useBodegas } from "@/hooks/use-bodegas";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ export function CompraForm({ onSuccess, onCancel }: CompraFormProps) {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = fechaLocalISO();
 
   const {
     control,

@@ -46,7 +46,7 @@ import {
   type AjusteTipo,
   reabrirCaja,
 } from "@/lib/caja.functions";
-import { formatMoney } from "@/lib/format";
+import { fechaLocalISO, formatMoney } from "@/lib/format";
 import { POLL } from "@/lib/query-config";
 
 const hora = (iso: string) =>
@@ -77,7 +77,7 @@ function CajaPage() {
   });
 
   const setHoy = () => {
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLocalISO();
     setDesde(hoy);
     setHasta(hoy);
   };
@@ -85,14 +85,14 @@ function CajaPage() {
     const h = new Date();
     const d = new Date();
     d.setDate(d.getDate() - 6);
-    setDesde(d.toISOString().slice(0, 10));
-    setHasta(h.toISOString().slice(0, 10));
+    setDesde(fechaLocalISO(d));
+    setHasta(fechaLocalISO(h));
   };
   const setMes = () => {
     const h = new Date();
     const d = new Date(h.getFullYear(), h.getMonth(), 1);
-    setDesde(d.toISOString().slice(0, 10));
-    setHasta(h.toISOString().slice(0, 10));
+    setDesde(fechaLocalISO(d));
+    setHasta(fechaLocalISO(h));
   };
   const limpiar = () => {
     setDesde("");
