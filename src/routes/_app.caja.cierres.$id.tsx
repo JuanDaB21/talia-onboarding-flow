@@ -82,6 +82,16 @@ function ReportePage() {
           <Row label="TOTAL VENTAS DEL CIERRE" value={formatMoney(total)} bold />
         </Section>
 
+        <Separator className="my-4" />
+
+        <Section title="Propinas">
+          <Row label="Propinas cobradas" value={formatMoney(data.propinas_total)} bold />
+          <Row label="De las cuales en efectivo" value={formatMoney(data.propinas_efectivo)} />
+          <p className="text-xs text-muted-foreground">
+            No están incluidas en el total de ventas ni en el cuadre.
+          </p>
+        </Section>
+
         {data.ajustes.length > 0 && (
           <>
             <Separator className="my-4" />
@@ -135,15 +145,30 @@ function ReportePage() {
                     <th className="py-1 text-right">Total</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {data.productos_vendidos.map((p) => (
-                    <tr key={p.nombre} className="border-b">
-                      <td className="py-1">{p.nombre}</td>
-                      <td className="py-1 text-right tabular-nums">{p.cantidad}</td>
-                      <td className="py-1 text-right tabular-nums">{formatMoney(p.total)}</td>
+                {data.productos_por_categoria.map((g) => (
+                  <tbody key={g.categoria} className="border-b">
+                    <tr className="bg-muted/40">
+                      <th
+                        colSpan={3}
+                        className="py-1 text-left text-xs font-semibold uppercase tracking-wide"
+                      >
+                        {g.categoria}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
+                    {g.productos.map((p) => (
+                      <tr key={`${g.categoria}-${p.nombre}`}>
+                        <td className="py-1 pl-3">{p.nombre}</td>
+                        <td className="py-1 text-right tabular-nums">{p.cantidad}</td>
+                        <td className="py-1 text-right tabular-nums">{formatMoney(p.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="text-xs font-medium">
+                      <td className="py-1 pl-3">Subtotal {g.categoria}</td>
+                      <td className="py-1 text-right tabular-nums">{g.cantidad}</td>
+                      <td className="py-1 text-right tabular-nums">{formatMoney(g.total)}</td>
+                    </tr>
+                  </tbody>
+                ))}
                 <tfoot>
                   <tr className="font-bold">
                     <td className="py-1">

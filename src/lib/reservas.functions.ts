@@ -17,6 +17,14 @@ export interface Reserva {
   id_metodo_pago_qr: string | null;
   metodo_pago_label: string | null;
   created_at: string;
+  id_decoracion: string | null;
+  /** Snapshot del costo al reservar; no cambia si luego sube el precio del catálogo. */
+  costo_decoracion: number;
+  decoracion_nombre: string | null;
+  /** Mesa donde se sentó la reserva (null mientras no se haya sentado). */
+  id_mesa_asignada: string | null;
+  /** Línea de la cuenta donde se cargó la decoración. */
+  id_item_decoracion: string | null;
 }
 
 export interface ReservaInput {
@@ -29,6 +37,8 @@ export interface ReservaInput {
   estado?: EstadoReserva;
   monto_abonado?: number;
   id_metodo_pago_qr?: string | null;
+  id_decoracion?: string | null;
+  costo_decoracion?: number;
 }
 
 export function listarReservas(params?: { fecha?: string; estado?: string; search?: string }) {
@@ -71,6 +81,39 @@ export function cancelarReserva(idReserva: string, devolver: boolean) {
 
 export function eliminarReserva(idReserva: string) {
   return api.del<{ ok: true }>(`/reservas/${idReserva}`);
+}
+
+/** Reserva del día operativo que todavía no se ha sentado en ninguna mesa. */
+export interface ReservaSentable {
+  id_reserva: string;
+  codigo_reserva: string;
+  customer_name: string;
+  hora_reserva: string;
+  cantidad_personas: number;
+  tipo_reserva: string | null;
+  monto_abonado: number;
+  costo_decoracion: number;
+  decoracion_nombre: string | null;
+}
+
+export function listarReservasSentablesHoy() {
+  return api.get<ReservaSentable[]>("/reservas/sentables-hoy");
+}
+
+/**
+ * Vincula la reserva a una mesa y carga su decoración como ítem de la cuenta.
+ * Idempotente: repetirlo no duplica el ítem. El abono se sigue descontando al
+ * cobrar, no aquí.
+ */
+export function sentarReserva(idReserva: string, idMesa: string) {
+  return api.post<{
+    id_pedido: string;
+    id_item_decoracion: string | null;
+    decoracion_nombre: string | null;
+    costo_decoracion: number;
+    monto_abonado: number;
+    codigo_reserva: string;
+  }>(`/reservas/${idReserva}/sentar`, { idMesa });
 }
 
 // Aplica el abono de una reserva sobre items seleccionados de una mesa (checkout).

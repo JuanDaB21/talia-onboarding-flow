@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  CalendarCheck,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -59,6 +60,7 @@ import {
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
+import { AsignarReservaDialog } from "@/components/servicio/asignar-reserva-dialog";
 import {
   Dialog,
   DialogContent,
@@ -318,6 +320,7 @@ function MesaEnServicio() {
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [reasignarOpen, setReasignarOpen] = useState(false);
+  const [reservaOpen, setReservaOpen] = useState(false);
 
   const { rol } = useMiStaff();
   const puedeReasignar =
@@ -359,6 +362,11 @@ function MesaEnServicio() {
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</p>
           <h1 className="text-2xl font-bold">{mesa.identificador}</h1>
         </div>
+        {/* Sienta una reserva del día: vincula la mesa y carga su decoración. */}
+        <Button variant="outline" size="sm" onClick={() => setReservaOpen(true)}>
+          <CalendarCheck className="mr-1 h-4 w-4" />
+          Reserva
+        </Button>
       </div>
 
       {mesa.solicitud_cliente === "LLAMADO" && (
@@ -456,6 +464,13 @@ function MesaEnServicio() {
       />
 
       <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
+
+      <AsignarReservaDialog
+        open={reservaOpen}
+        onOpenChange={setReservaOpen}
+        idMesa={idMesa}
+        identificadorMesa={mesa.identificador}
+      />
 
       <AlertDialog open={cerrarOpen} onOpenChange={setCerrarOpen}>
         <AlertDialogContent>
