@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
-import { minutosTranscurridos, retrasoItem } from "./comanda-utils";
+import { inicioComanda, minutosTranscurridos, retrasoItem } from "./comanda-utils";
 import { type ComandaDestino } from "./comanda-print";
 import { enqueueComandas } from "@/lib/impresion.functions";
 
@@ -69,7 +69,7 @@ export function ComandaSheet({
     (i) => i.estado_preparacion === "LISTO" || i.estado_preparacion === "ENTREGADO",
   ).length;
   const pct = total > 0 ? Math.round((listos / total) * 100) : 0;
-  const transcurrido = Math.floor(minutosTranscurridos(comanda.pedido_created_at));
+  const transcurrido = Math.floor(minutosTranscurridos(inicioComanda(comanda)));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -113,7 +113,7 @@ export function ComandaSheet({
                     destino,
                     mesa_identificador: comanda.mesa_identificador,
                     pedido_id: comanda.id_pedido,
-                    pedido_created_at: comanda.pedido_created_at,
+                    pedido_created_at: inicioComanda(comanda),
                     mesero: comanda.mesero_nombre,
                     items: comanda.items.map((it) => ({
                       cantidad: it.cantidad,
@@ -195,7 +195,7 @@ function ItemRow({ item, onAdvance, busy }: ItemRowProps) {
 
   let tiempoTexto = "";
   if (item.estado_preparacion === "EN_PREPARACION" || item.estado_preparacion === "EN_COLA") {
-    const t = Math.floor(minutosTranscurridos(item.iniciado_at ?? item.pedido_created_at));
+    const t = Math.floor(minutosTranscurridos(item.iniciado_at ?? inicioComanda(item)));
     tiempoTexto = `${t}/${planeado || "—"} min`;
   } else if (item.estado_preparacion === "LISTO" && item.listo_at) {
     const t = Math.floor(minutosTranscurridos(item.listo_at));

@@ -17,6 +17,8 @@ export interface ItemPreparacion {
   listo_at: string | null;
   entregado_at: string | null;
   pedido_created_at: string;
+  /** Cuándo el mesero confirmó el pedido: la base real del reloj de la comanda. */
+  confirmado_at: string | null;
   mesa_identificador: string;
   extras: { nombre: string; cantidad: number }[];
   exclusiones: { nombre: string }[];
@@ -26,7 +28,13 @@ export interface ItemPreparacion {
 export interface ComandaEstacion {
   id_pedido: string;
   mesa_identificador: string;
+  /**
+   * Creación del pedido ≈ apertura de la mesa: se crea al abrir la pantalla,
+   * mientras el cliente todavía lee la carta. No sirve para medir la cocina.
+   */
   pedido_created_at: string;
+  /** Confirmación del mesero: desde aquí se cuenta el tiempo de la comanda. */
+  confirmado_at: string | null;
   mesero_nombre: string | null;
   items: ItemPreparacion[];
 }
