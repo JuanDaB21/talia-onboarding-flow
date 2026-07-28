@@ -17,6 +17,7 @@ import {
   type Reserva,
 } from "@/lib/reservas.functions";
 import { ESTADOS_RESERVA, ESTADO_LABEL } from "@/lib/reservas.schemas";
+import { fechaLocalISO } from "@/lib/format";
 import { ReservasMetricasCards } from "@/components/reservas/reservas-metricas-cards";
 import { ReservaCard } from "@/components/reservas/reserva-card";
 import { ReservaFormSheet } from "@/components/reservas/reserva-form-sheet";
@@ -25,7 +26,9 @@ export const Route = createFileRoute("/_app/reservas/")({
   component: ReservasPage,
 });
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Fecha LOCAL: con `toISOString()` la lista abría en el día equivocado a partir
+// de las 7pm en Colombia (UTC−5), justo en horario de cena.
+const today = () => fechaLocalISO();
 
 function ReservasPage() {
   const [fecha, setFecha] = useState<string>(today());

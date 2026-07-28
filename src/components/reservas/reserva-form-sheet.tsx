@@ -23,9 +23,11 @@ import {
 import {
   ESTADOS_RESERVA,
   ESTADO_LABEL,
+  MEDIO_ABONO_EFECTIVO,
   reservaCrearSchema,
   type EstadoReserva,
 } from "@/lib/reservas.schemas";
+import { fechaLocalISO } from "@/lib/format";
 import { actualizarReserva, crearReserva, type Reserva } from "@/lib/reservas.functions";
 import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
 
@@ -35,7 +37,10 @@ interface Props {
   reserva?: Reserva | null;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => fechaLocalISO();
+
+/** Valor centinela del selector: abono recibido sin cuenta QR (efectivo u otro). */
+const CUENTA_EFECTIVO = "__efectivo__";
 
 type FormState = {
   customer_name: string;
@@ -93,6 +98,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const mut = useMutation({
     mutationFn: async () => {
       const monto = Number(form.monto_abonado) || 0;
+      const cuenta = form.id_metodo_pago_qr;
       const parsed = reservaCrearSchema.safeParse({
         customer_name: form.customer_name,
         customer_phone: form.customer_phone || null,
@@ -102,7 +108,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         tipo_reserva: form.tipo_reserva || null,
         estado: form.estado,
         monto_abonado: monto,
-        id_metodo_pago_qr: monto > 0 ? form.id_metodo_pago_qr || null : null,
+        // NULL = efectivo/otro: el abono no siempre entra por una cuenta QR.
+        id_metodo_pago_qr: monto > 0 && cuenta && cuenta !== CUENTA_EFECTIVO ? cuenta : null,
       });
       if (!parsed.success) {
         const e: Record<string, string> = {};
@@ -110,7 +117,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
           e[String(issue.path[0])] = issue.message;
         }
         setErrors(e);
-        throw new Error("Revisa los campos");
+        // El detalle va en el toast además de bajo el campo: si el que falla está
+        // fuera de la vista (el sheet hace scroll) parecía que el botón no hacía nada.
+        throw new Error(Object.values(e).join(" · ") || "Revisa los campos");
       }
       setErrors({});
       if (editing && reserva) {
@@ -132,6 +141,20 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((s) => ({ ...s, [k]: v }));
+
+  /**
+   * Escribir un monto sube el estado a "Abonado" solo. Antes eran dos campos
+   * independientes: se registraba el abono con estado "Intención" y la reserva
+   * nunca aparecía en el checkout para descontarla. Se revierte si se borra el
+   * monto, y el selector de estado sigue visible para corregirlo a mano.
+   */
+  const setMonto = (raw: string) =>
+    setForm((s) => {
+      const monto = Number(raw) || 0;
+      if (monto > 0 && s.estado === "intencion") return { ...s, monto_abonado: raw, estado: "abonado" };
+      if (monto <= 0 && s.estado === "abonado") return { ...s, monto_abonado: raw, estado: "intencion" };
+      return { ...s, monto_abonado: raw };
+    });
 
   const cuentasQ = useQuery({
     queryKey: ["metodosPagoQr"],
@@ -225,6 +248,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
               value={form.cantidad_personas}
               onChange={(e) => set("cantidad_personas", e.target.value)}
             />
+            {errors.cantidad_personas && (
+              <p className="text-xs text-destructive mt-1">{errors.cantidad_personas}</p>
+            )}
           </div>
           <div>
             <Label htmlFor="tipo">Tipo / motivo</Label>
@@ -257,6 +283,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.estado && (
+                <p className="text-xs text-destructive mt-1">{errors.estado}</p>
+              )}
             </div>
             <div>
               <Label htmlFor="monto">Monto abonado</Label>
@@ -264,7 +293,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
                 id="monto"
                 inputMode="numeric"
                 value={form.monto_abonado}
-                onChange={(e) => set("monto_abonado", e.target.value.replace(/[^\d]/g, ""))}
+                onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
                 placeholder="0"
               />
               {errors.monto_abonado && (
@@ -273,38 +302,41 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             </div>
             {montoNum > 0 && (
               <div>
-                <Label htmlFor="cuenta">Cuenta donde se recibió el abono *</Label>
-                {cuentas.length === 0 ? (
+                <Label htmlFor="cuenta">Dónde se recibió el abono</Label>
+                {/* "Efectivo / otro" siempre disponible: antes, un negocio sin
+                    cuentas QR cargadas no tenía ningún control aquí y el
+                    formulario no dejaba guardar nunca. */}
+                <Select
+                  value={form.id_metodo_pago_qr || CUENTA_EFECTIVO}
+                  onValueChange={(v) => set("id_metodo_pago_qr", v)}
+                >
+                  <SelectTrigger id="cuenta">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={CUENTA_EFECTIVO}>{MEDIO_ABONO_EFECTIVO}</SelectItem>
+                    {cuentas.map((c) => {
+                      const label = c.plataforma === "Otra" ? c.etiqueta || "Otra" : c.plataforma;
+                      return (
+                        <SelectItem key={c.id_qr} value={c.id_qr}>
+                          {label}
+                          {c.titular ? ` · ${c.titular}` : ""}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {cuentas.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    No hay cuentas configuradas.{" "}
+                    ¿Recibiste el abono por transferencia?{" "}
                     <Link
                       to="/configuracion/metodos-pago"
                       className="text-primary underline"
                       onClick={() => onOpenChange(false)}
                     >
-                      Configurar métodos de pago
+                      Configura tus cuentas
                     </Link>
                   </p>
-                ) : (
-                  <Select
-                    value={form.id_metodo_pago_qr}
-                    onValueChange={(v) => set("id_metodo_pago_qr", v)}
-                  >
-                    <SelectTrigger id="cuenta">
-                      <SelectValue placeholder="Selecciona la cuenta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cuentas.map((c) => {
-                        const label = c.plataforma === "Otra" ? c.etiqueta || "Otra" : c.plataforma;
-                        return (
-                          <SelectItem key={c.id_qr} value={c.id_qr}>
-                            {label}
-                            {c.titular ? ` · ${c.titular}` : ""}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
                 )}
                 {errors.id_metodo_pago_qr && (
                   <p className="text-xs text-destructive mt-1">{errors.id_metodo_pago_qr}</p>
