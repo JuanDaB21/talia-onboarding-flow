@@ -22,6 +22,58 @@ export interface ComandaPrintData {
   items: ComandaItemPrint[];
 }
 
+/**
+ * Firma de "presentación" de un ítem: dos líneas se pueden juntar solo si
+ * coinciden en TODO lo que se imprime. Una hamburguesa sin lechuga nunca cae en
+ * el mismo grupo que una normal.
+ *
+ * Los modificadores se ordenan antes de concatenar: el mismo par de extras en
+ * distinto orden es el mismo plato para la cocina.
+ */
+function clavePresentacion(it: ComandaItemPrint): string {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const nota = norm(it.nota ?? "");
+  const extras = (it.extras ?? [])
+    .map((e) => `${norm(e.nombre)}#${e.cantidad ?? 1}`)
+    .sort()
+    .join(",");
+  const excl = (it.exclusiones ?? [])
+    .map((e) => norm(e.nombre))
+    .sort()
+    .join(",");
+  const vars = (it.variantes ?? [])
+    .map((v) => `${norm(v.nombre_grupo)}:${norm(v.nombre_opcion)}`)
+    .sort()
+    .join(",");
+  return [
+    it.nombre_producto,
+    it.nombre_subcategoria ?? "",
+    it.tiene_alergia ? "1" : "0",
+    nota,
+    extras,
+    excl,
+    vars,
+  ].join("|");
+}
+
+/**
+ * Consolida ítems idénticos sumando cantidades: 2 hamburguesas iguales salen como
+ * `x2` en vez de dos líneas `x1`. `agregar_item_pedido` explota la cantidad en
+ * filas de 1, así que sin esto una comanda de 6 cervezas ocupaba 6 renglones.
+ * Los ítems de pre-pedido sí conservan `cantidad > 1`, por eso se SUMA en vez de
+ * contar. Conserva el orden de aparición del primero de cada grupo.
+ */
+export function agruparItemsComanda(items: ComandaItemPrint[]): ComandaItemPrint[] {
+  const grupos = new Map<string, ComandaItemPrint>();
+  for (const it of items) {
+    const k = clavePresentacion(it);
+    const previo = grupos.get(k);
+    if (previo) previo.cantidad += it.cantidad;
+    else grupos.set(k, { ...it });
+  }
+  return Array.from(grupos.values());
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -69,9 +121,10 @@ function renderItem(it: ComandaItemPrint): string {
   return `<li class="item">${head}${variantes}${extras}${excl}${alergia}${nota}</li>`;
 }
 
-function renderItems(items: ComandaItemPrint[]): string {
-  if (!items.length) return `<p class="empty">Sin items para esta estación.</p>`;
+function renderItems(rawItems: ComandaItemPrint[]): string {
+  if (!rawItems.length) return `<p class="empty">Sin items para esta estación.</p>`;
   // Asume items ya ordenados por subcategoría y nombre.
+  const items = agruparItemsComanda(rawItems);
   const out: string[] = [];
   let currentSub: string | null | undefined = undefined;
   items.forEach((it) => {

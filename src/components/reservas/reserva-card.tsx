@@ -23,7 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Reserva } from "@/lib/reservas.functions";
-import { ESTADO_LABEL, type EstadoReserva } from "@/lib/reservas.schemas";
+import { ESTADO_LABEL, MEDIO_ABONO_EFECTIVO, type EstadoReserva } from "@/lib/reservas.schemas";
 import { cancelarReserva, eliminarReserva } from "@/lib/reservas.functions";
 import { WhatsappCopyButton } from "./whatsapp-copy-button";
 import { CancelarReservaDialog } from "./cancelar-reserva-dialog";
@@ -130,9 +130,10 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                   <span className="font-semibold tabular-nums">
                     {fmt.format(reserva.monto_abonado)}
                   </span>
-                  {reserva.monto_abonado > 0 && reserva.metodo_pago_label && (
+                  {/* Sin cuenta QR el abono entró en efectivo/otro, no es un dato faltante. */}
+                  {reserva.monto_abonado > 0 && (
                     <span className="text-xs text-muted-foreground ml-2">
-                      · {reserva.metodo_pago_label}
+                      · {reserva.metodo_pago_label ?? MEDIO_ABONO_EFECTIVO}
                     </span>
                   )}
                 </div>

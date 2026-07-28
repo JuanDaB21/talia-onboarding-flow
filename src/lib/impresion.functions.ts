@@ -33,7 +33,13 @@ export function guardarImpresionAncho(input: { id_espacio: string; ancho_papel_m
  * Reemplaza el dispatch por WebUSB en el navegador.
  */
 export function enqueueComandas(comandas: ComandaPrintData[]) {
-  return api.post<{ ok: true; encolados: number; agenteConectado: boolean }>("/impresion/jobs", {
+  return api.post<{
+    ok: true;
+    encolados: number;
+    /** Slugs cuyo job se descartó por tener `requiere_impresora = false`. */
+    omitidos: string[];
+    agenteConectado: boolean;
+  }>("/impresion/jobs", {
     jobs: comandas.map((c) => ({ espacio_slug: c.destino, comanda: c })),
   });
 }

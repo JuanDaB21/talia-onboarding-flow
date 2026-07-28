@@ -51,27 +51,43 @@ function mensajeDeAlerta(a: AlertaItem): string {
 
 type BusContext = {
   push: (a: AlertaItem) => void;
+  /** "Me hago cargo": la acción que la resuelve ya se disparó contra el backend. */
   ack: (key: string) => void;
+  /**
+   * "No me interesa": oculta la alerta solo para este usuario, sin tocar el backend.
+   * Un admin ve las alertas de TODAS las mesas y no puede atenderlas él; sin esto se
+   * le acumulaban sin forma de quitarlas. A diferencia de `ack`, persiste entre
+   * sesiones (localStorage por usuario) — pero `sync` lo poda igual, así que la
+   * alerta reaparece si su causa se resuelve y vuelve a ocurrir.
+   */
+  dismiss: (key: string) => void;
   /**
    * Reconcilia el bus con las alertas realmente vigentes: poda del `Map` (y de los
    * reconocimientos persistidos) toda key que ya no esté en `liveKeys`. Esto para la voz
    * cuando el backend resuelve la alerta desde cualquier pantalla, y permite que una misma
-   * key (p. ej. `listo:<idMesa>`) vuelva a sonar si su origen reaparece.
+   * key (p. ej. `listo:<idMesa>:<listo_at>`) vuelva a sonar si su origen reaparece.
    */
   sync: (liveKeys: string[]) => void;
+  /** Identifica al dueño de los descartes persistidos. Sin esto se compartían entre usuarios del mismo celular. */
+  setUsuario: (userId: string | null) => void;
   activas: AlertaItem[];
   /** Keys reconocidas (atendidas) por el usuario. Las tarjetas visibles las ocultan. */
   acked: Set<string>;
+  /** Keys descartadas ("no me interesa"). Las tarjetas visibles también las ocultan. */
+  dismissed: Set<string>;
 };
 
 const Ctx = createContext<BusContext | null>(null);
 
 const ACK_STORAGE_KEY = "alerta-bus:ack";
+/** Namespaced por usuario: varios meseros usan el mismo celular por turno. */
+const dismissStorageKey = (userId: string | null) =>
+  `alerta-bus:dismiss:${userId ?? "anon"}`;
 
-function readAcked(): Set<string> {
+function readSet(storage: "session" | "local", key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = window.sessionStorage.getItem(ACK_STORAGE_KEY);
+    const raw = (storage === "session" ? window.sessionStorage : window.localStorage).getItem(key);
     if (!raw) return new Set();
     return new Set(JSON.parse(raw) as string[]);
   } catch {
@@ -79,14 +95,20 @@ function readAcked(): Set<string> {
   }
 }
 
-function writeAcked(s: Set<string>) {
+function writeSet(storage: "session" | "local", key: string, s: Set<string>) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(ACK_STORAGE_KEY, JSON.stringify(Array.from(s)));
+    (storage === "session" ? window.sessionStorage : window.localStorage).setItem(
+      key,
+      JSON.stringify(Array.from(s)),
+    );
   } catch {
     // ignorar
   }
 }
+
+const readAcked = () => readSet("session", ACK_STORAGE_KEY);
+const writeAcked = (s: Set<string>) => writeSet("session", ACK_STORAGE_KEY, s);
 
 export function AlertaBusProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Map<string, AlertaItem>>(() => new Map());
@@ -96,10 +118,27 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
   const [acked, setAcked] = useState<Set<string>>(() => readAcked());
   const ackedRef = useRef<Set<string>>(acked);
   ackedRef.current = acked;
+  // Descartes: persistidos por usuario (varios meseros comparten el celular). El
+  // id llega del banner —viene en GET /servicio/mesas—; hasta entonces, bucket
+  // "anon". Solo se guarda en un ref: nada lo renderiza, y así no se pisa entre
+  // el `setUsuario` y el render siguiente.
+  const [dismissed, setDismissed] = useState<Set<string>>(() =>
+    readSet("local", dismissStorageKey(null)),
+  );
+  const dismissedRef = useRef<Set<string>>(dismissed);
+  dismissedRef.current = dismissed;
+  const userIdRef = useRef<string | null>(null);
   const [needsUnlock, setNeedsUnlock] = useState(false);
 
+  const setUsuario = useCallback((id: string | null) => {
+    if (userIdRef.current === id) return;
+    // Cambió el usuario del dispositivo: cargar SUS descartes, no los del anterior.
+    userIdRef.current = id;
+    setDismissed(readSet("local", dismissStorageKey(id)));
+  }, []);
+
   const push = useCallback((a: AlertaItem) => {
-    if (ackedRef.current.has(a.key)) return;
+    if (ackedRef.current.has(a.key) || dismissedRef.current.has(a.key)) return;
     setItems((prev) => {
       if (prev.has(a.key)) return prev;
       const next = new Map(prev);
@@ -124,6 +163,23 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const dismiss = useCallback((key: string) => {
+    setDismissed((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      writeSet("local", dismissStorageKey(userIdRef.current), next);
+      return next;
+    });
+    // Sacarla de las activas para que además se calle la voz.
+    setItems((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
   const sync = useCallback((liveKeys: string[]) => {
     const live = new Set(liveKeys);
     // Limpiar reconocimientos cuyo origen ya no existe, para permitir recurrencia futura.
@@ -137,6 +193,20 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
         }
       }
       if (changed) writeAcked(next);
+      return changed ? next : prev;
+    });
+    // Misma poda para los descartes: si la causa se resolvió, un rebrote futuro
+    // de la misma key vuelve a avisar en vez de quedar silenciado para siempre.
+    setDismissed((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const k of prev) {
+        if (!live.has(k)) {
+          next.delete(k);
+          changed = true;
+        }
+      }
+      if (changed) writeSet("local", dismissStorageKey(userIdRef.current), next);
       return changed ? next : prev;
     });
     // Podar alertas activas cuyo origen ya fue resuelto por el backend.
@@ -223,8 +293,8 @@ export function AlertaBusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ push, ack, sync, activas, acked }),
-    [push, ack, sync, activas, acked],
+    () => ({ push, ack, dismiss, sync, setUsuario, activas, acked, dismissed }),
+    [push, ack, dismiss, sync, setUsuario, activas, acked, dismissed],
   );
 
   return (
@@ -259,9 +329,12 @@ export function useAlertaBus(): BusContext {
     return {
       push: () => {},
       ack: () => {},
+      dismiss: () => {},
       sync: () => {},
+      setUsuario: () => {},
       activas: [],
       acked: new Set<string>(),
+      dismissed: new Set<string>(),
     };
   }
   return c;
