@@ -28,9 +28,18 @@ export const reservaBaseSchema = z.object({
   estado: z.enum(ESTADOS_RESERVA).default("intencion"),
   monto_abonado: z.number().min(0).max(100_000_000).default(0),
   id_metodo_pago_qr: z.string().uuid().optional().nullable(),
+  // Decoración: el formulario solo la ofrece en reservas de cumpleaños, pero el
+  // schema no ata el catálogo a un tipo concreto (`tipo_reserva` es texto libre).
+  // `costo_decoracion` es un snapshot del catálogo al momento de reservar.
+  id_decoracion: z.string().uuid().optional().nullable(),
+  costo_decoracion: z.number().min(0).max(100_000_000).default(0),
 });
 
 export const reservaCrearSchema = reservaBaseSchema
+  .refine((v) => v.costo_decoracion <= 0 || !!v.id_decoracion, {
+    message: "Elige un tipo de decoración para poder cobrarla",
+    path: ["id_decoracion"],
+  })
   .refine((v) => v.estado !== "abonado" || v.monto_abonado > 0, {
     message: "Si el estado es 'Abonado', el monto debe ser mayor a 0",
     path: ["monto_abonado"],

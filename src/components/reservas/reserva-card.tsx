@@ -18,6 +18,7 @@ import {
   Tag,
   Phone,
   MoreVertical,
+  PartyPopper,
   Pencil,
   X,
   Trash2,
@@ -116,6 +117,18 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                         <Phone className="h-3 w-3" />
                         {reserva.customer_phone}
                       </span>
+                    )}
+                    {reserva.decoracion_nombre && (
+                      <span className="inline-flex items-center gap-1">
+                        <PartyPopper className="h-3 w-3" />
+                        {reserva.decoracion_nombre}
+                        {reserva.costo_decoracion > 0 && ` · ${fmt.format(reserva.costo_decoracion)}`}
+                      </span>
+                    )}
+                    {reserva.id_mesa_asignada && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Sentada
+                      </Badge>
                     )}
                   </div>
                 </div>

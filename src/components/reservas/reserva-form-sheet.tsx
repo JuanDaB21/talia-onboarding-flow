@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -27,9 +28,10 @@ import {
   reservaCrearSchema,
   type EstadoReserva,
 } from "@/lib/reservas.schemas";
-import { fechaLocalISO } from "@/lib/format";
+import { fechaLocalISO, formatMoney } from "@/lib/format";
 import { actualizarReserva, crearReserva, type Reserva } from "@/lib/reservas.functions";
 import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
+import { crearDecoracion, listarDecoraciones } from "@/lib/decoraciones.functions";
 
 interface Props {
   open: boolean;
@@ -42,6 +44,9 @@ const today = () => fechaLocalISO();
 /** Valor centinela del selector: abono recibido sin cuenta QR (efectivo u otro). */
 const CUENTA_EFECTIVO = "__efectivo__";
 
+/** Valor centinela del selector de decoración: la reserva no lleva ninguna. */
+const SIN_DECORACION = "__ninguna__";
+
 type FormState = {
   customer_name: string;
   customer_phone: string;
@@ -52,6 +57,8 @@ type FormState = {
   estado: EstadoReserva;
   monto_abonado: string;
   id_metodo_pago_qr: string;
+  id_decoracion: string;
+  costo_decoracion: string;
 };
 
 const empty = (): FormState => ({
@@ -64,9 +71,24 @@ const empty = (): FormState => ({
   estado: "intencion",
   monto_abonado: "0",
   id_metodo_pago_qr: "",
+  id_decoracion: "",
+  costo_decoracion: "0",
 });
 
 const TIPO_SUGERENCIAS = ["Cumpleaños", "Aniversario", "Grado", "Cena", "Reunión"];
+
+/**
+ * ¿El motivo de la reserva es un cumpleaños? `tipo_reserva` es texto libre, así que
+ * se compara sin tildes ni mayúsculas: "cumpleanos", "CUMPLEAÑOS" y "Cumpleaños de
+ * Ana" cuentan igual.
+ */
+function esCumpleanos(tipo: string): boolean {
+  return tipo
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .includes("cumpleanos");
+}
 
 export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const qc = useQueryClient();
@@ -88,6 +110,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         estado: reserva.estado,
         monto_abonado: String(reserva.monto_abonado),
         id_metodo_pago_qr: reserva.id_metodo_pago_qr ?? "",
+        id_decoracion: reserva.id_decoracion ?? "",
+        costo_decoracion: String(reserva.costo_decoracion ?? 0),
       });
     } else {
       setForm(empty());
@@ -99,6 +123,10 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
     mutationFn: async () => {
       const monto = Number(form.monto_abonado) || 0;
       const cuenta = form.id_metodo_pago_qr;
+      // La decoración solo se envía si el motivo sigue siendo cumpleaños: si el
+      // usuario cambia el motivo después de elegirla, la fila desaparece de la UI y
+      // guardar una decoración invisible dejaría un cobro sorpresa en la cuenta.
+      const conDeco = esCumpleanos(form.tipo_reserva) && !!form.id_decoracion;
       const parsed = reservaCrearSchema.safeParse({
         customer_name: form.customer_name,
         customer_phone: form.customer_phone || null,
@@ -110,6 +138,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         monto_abonado: monto,
         // NULL = efectivo/otro: el abono no siempre entra por una cuenta QR.
         id_metodo_pago_qr: monto > 0 && cuenta && cuenta !== CUENTA_EFECTIVO ? cuenta : null,
+        id_decoracion: conDeco ? form.id_decoracion : null,
+        costo_decoracion: conDeco ? Number(form.costo_decoracion) || 0 : 0,
       });
       if (!parsed.success) {
         const e: Record<string, string> = {};
@@ -268,6 +298,26 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
               ))}
             </datalist>
           </div>
+
+          {/* Solo para cumpleaños: es el caso donde el negocio vende decoración. */}
+          {esCumpleanos(form.tipo_reserva) && (
+            <DecoracionRow
+              open={open}
+              idDecoracion={form.id_decoracion}
+              costo={form.costo_decoracion}
+              onSelect={(id, costoCatalogo) =>
+                setForm((s) => ({
+                  ...s,
+                  id_decoracion: id,
+                  // Al elegir se copia el precio del catálogo, pero queda editable:
+                  // el costo guardado es un snapshot de esta reserva.
+                  costo_decoracion: id ? String(costoCatalogo) : "0",
+                }))
+              }
+              onCostoChange={(v) => set("costo_decoracion", v)}
+              error={errors.id_decoracion}
+            />
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="estado">Estado</Label>
@@ -356,5 +406,158 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Selector de tipo de decoración + creación inline. El "+ Crear tipo" evita mandar
+ * al usuario a otra pantalla en mitad de la reserva (que es lo que hace el enlace de
+ * métodos de pago) — aquí el catálogo se llena mientras se atiende al cliente.
+ *
+ * El costo queda editable después de elegir: lo que se guarda en la reserva es un
+ * snapshot, no una referencia viva al precio del catálogo.
+ */
+function DecoracionRow({
+  open,
+  idDecoracion,
+  costo,
+  onSelect,
+  onCostoChange,
+  error,
+}: {
+  open: boolean;
+  idDecoracion: string;
+  costo: string;
+  onSelect: (idDecoracion: string, costoCatalogo: number) => void;
+  onCostoChange: (v: string) => void;
+  error?: string;
+}) {
+  const qc = useQueryClient();
+  const [creando, setCreando] = useState(false);
+  const [nombreNuevo, setNombreNuevo] = useState("");
+  const [costoNuevo, setCostoNuevo] = useState("0");
+
+  const decosQ = useQuery({
+    queryKey: ["decoraciones"],
+    queryFn: () => listarDecoraciones(),
+    enabled: open,
+  });
+  const decoraciones = decosQ.data ?? [];
+
+  const crearMut = useMutation({
+    mutationFn: () =>
+      crearDecoracion({ nombre: nombreNuevo.trim(), costo: Number(costoNuevo) || 0 }),
+    onSuccess: (nueva) => {
+      toast.success(`Decoración "${nueva.nombre}" creada`);
+      qc.invalidateQueries({ queryKey: ["decoraciones"] });
+      onSelect(nueva.id_decoracion, nueva.costo);
+      setCreando(false);
+      setNombreNuevo("");
+      setCostoNuevo("0");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo crear"),
+  });
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+      <div>
+        <Label htmlFor="decoracion">Decoración</Label>
+        <div className="flex gap-2">
+          <Select
+            value={idDecoracion || SIN_DECORACION}
+            onValueChange={(v) => {
+              if (v === SIN_DECORACION) return onSelect("", 0);
+              const d = decoraciones.find((x) => x.id_decoracion === v);
+              onSelect(v, d?.costo ?? 0);
+            }}
+          >
+            <SelectTrigger id="decoracion" className="flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SIN_DECORACION}>Sin decoración</SelectItem>
+              {decoraciones.map((d) => (
+                <SelectItem key={d.id_decoracion} value={d.id_decoracion}>
+                  {d.nombre} · {formatMoney(d.costo)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Crear tipo de decoración"
+            onClick={() => setCreando((v) => !v)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+        {decoraciones.length === 0 && !creando && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Aún no hay tipos de decoración. Crea uno con el botón +.
+          </p>
+        )}
+      </div>
+
+      {creando && (
+        <div className="space-y-2 rounded-md border bg-background p-3">
+          <div>
+            <Label htmlFor="deco-nombre" className="text-xs">
+              Nombre del tipo
+            </Label>
+            <Input
+              id="deco-nombre"
+              value={nombreNuevo}
+              onChange={(e) => setNombreNuevo(e.target.value)}
+              placeholder="Ej: Globos y letrero"
+              maxLength={60}
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label htmlFor="deco-costo" className="text-xs">
+              Costo
+            </Label>
+            <Input
+              id="deco-costo"
+              inputMode="numeric"
+              value={costoNuevo}
+              onChange={(e) => setCostoNuevo(e.target.value.replace(/[^\d]/g, ""))}
+              placeholder="0"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setCreando(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={nombreNuevo.trim().length < 2 || crearMut.isPending}
+              onClick={() => crearMut.mutate()}
+            >
+              {crearMut.isPending ? "Creando..." : "Crear tipo"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {idDecoracion && (
+        <div>
+          <Label htmlFor="deco-costo-reserva">Costo a cobrar</Label>
+          <Input
+            id="deco-costo-reserva"
+            inputMode="numeric"
+            value={costo}
+            onChange={(e) => onCostoChange(e.target.value.replace(/[^\d]/g, ""))}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Se carga a la cuenta cuando se siente al cliente en una mesa.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

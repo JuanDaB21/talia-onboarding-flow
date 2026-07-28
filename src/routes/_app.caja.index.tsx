@@ -10,6 +10,7 @@ import {
   Calendar as CalendarIcon,
   X,
   Plus,
+  Receipt,
   Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,9 +102,16 @@ function CajaPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
-        <p className="text-sm text-muted-foreground">Gestión y arqueo diario</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
+          <p className="text-sm text-muted-foreground">Gestión y arqueo diario</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/caja/comprobantes">
+            <Receipt className="mr-1 h-4 w-4" /> Comprobantes
+          </Link>
+        </Button>
       </div>
 
       {isLoading ? (

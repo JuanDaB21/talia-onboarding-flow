@@ -125,8 +125,28 @@ export interface CierreDetalle {
   cerrada_por_nombre: string | null;
   negocio_nombre: string;
   /** Todo lo vendido en la ventana de esta caja (no un top-N), más vendido primero. */
-  productos_vendidos: Array<{ nombre: string; cantidad: number; total: number }>;
+  productos_vendidos: Array<{
+    nombre: string;
+    cantidad: number;
+    total: number;
+    /** `'Sin categoría'` para líneas libres (decoraciones) o productos borrados. */
+    categoria: string;
+  }>;
+  /** Lo mismo agrupado por categoría, la que más facturó primero. */
+  productos_por_categoria: Array<{
+    categoria: string;
+    cantidad: number;
+    total: number;
+    productos: Array<{ nombre: string; cantidad: number; total: number }>;
+  }>;
   unidades_totales: number;
+  /**
+   * Propinas cobradas en esta caja. Informativas: NO entran en el total de ventas
+   * ni en el cuadre (`pagos.monto` ya las incluye en los pagos divididos pero no en
+   * los simples, así que sumarlas las contaría dos veces en la mitad de los casos).
+   */
+  propinas_total: number;
+  propinas_efectivo: number;
   /** Hora con más ventas, calculada en la timezone del negocio. */
   hora_pico: { hora: number; total: number } | null;
   ajustes: Array<{
@@ -141,4 +161,43 @@ export interface CierreDetalle {
 
 export function getCierre(idCaja: string) {
   return api.get<CierreDetalle>(`/caja/cierres/${idCaja}`);
+}
+
+/**
+ * Comprobante de una transferencia ya resuelta (aprobada o rechazada). Las
+ * pendientes no salen aquí: siguen en el sheet "Pagos por confirmar".
+ */
+export interface ComprobantePago {
+  id_pago: string;
+  created_at: string;
+  metodo: string;
+  subtipo: string | null;
+  monto: number;
+  propina: number;
+  estado_confirmacion: "CONFIRMADO" | "RECHAZADO";
+  confirmado_at: string | null;
+  /** `null` si nunca hubo comprobante o si ya se purgó (ver `comprobante_purgado_at`). */
+  url_comprobante: string | null;
+  /** Si viene, el archivo se borró por la retención y no se puede recuperar. */
+  comprobante_purgado_at: string | null;
+  identificador_mesa: string;
+  mesero_nombre: string | null;
+  confirmado_por_nombre: string | null;
+}
+
+/**
+ * El backend recorta `desde` al piso de retención y devuelve el rango que realmente
+ * consultó, así que la UI puede mostrar la ventana efectiva sin recalcularla.
+ */
+export function listarComprobantes(input?: { desde?: string | null; hasta?: string | null }) {
+  const q = new URLSearchParams();
+  if (input?.desde) q.set("desde", input.desde);
+  if (input?.hasta) q.set("hasta", input.hasta);
+  const qs = q.toString();
+  return api.get<{
+    comprobantes: ComprobantePago[];
+    desde: string;
+    hasta: string;
+    retencionDias: number;
+  }>(`/caja/comprobantes${qs ? `?${qs}` : ""}`);
 }
