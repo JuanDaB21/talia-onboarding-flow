@@ -6,7 +6,7 @@
 import { toast } from "sonner";
 import { enqueueComandas } from "@/lib/impresion.functions";
 import type { PedidoSesion } from "@/lib/servicio.functions";
-import type { ComandaPrintData } from "@/components/preparacion/comanda-print";
+import { agruparItemsComanda, type ComandaPrintData } from "@/components/preparacion/comanda-print";
 
 /**
  * Encola las comandas de `pedido`, agrupadas por destino (una por estación).
@@ -39,18 +39,22 @@ export function imprimirComandasDePedido(
       pedido_id: pedido.id_pedido,
       pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
       mesero,
-      items: its.map((it) => ({
-        cantidad: it.cantidad,
-        nombre_producto: it.nombre_producto,
-        tiene_alergia: it.tiene_alergia,
-        nota: it.nota,
-        extras: it.extras.map((e) => ({ nombre: e.nombre })),
-        exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
-        variantes: it.variantes.map((v) => ({
-          nombre_grupo: v.nombre_grupo,
-          nombre_opcion: v.nombre_opcion,
+      // Agrupado: 2 hamburguesas iguales salen como `x2`, pero la que va sin
+      // lechuga (o con nota) queda en su propia línea.
+      items: agruparItemsComanda(
+        its.map((it) => ({
+          cantidad: it.cantidad,
+          nombre_producto: it.nombre_producto,
+          tiene_alergia: it.tiene_alergia,
+          nota: it.nota,
+          extras: it.extras.map((e) => ({ nombre: e.nombre })),
+          exclusiones: it.exclusiones.map((e) => ({ nombre: e.nombre })),
+          variantes: it.variantes.map((v) => ({
+            nombre_grupo: v.nombre_grupo,
+            nombre_opcion: v.nombre_opcion,
+          })),
         })),
-      })),
+      ),
     }))
     .filter((c) => c.items.length > 0);
   if (comandas.length === 0) return;

@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion, ItemPreparacion } from "@/lib/preparacion.functions";
 import { inicioComanda, minutosTranscurridos, retrasoItem } from "./comanda-utils";
-import { type ComandaDestino } from "./comanda-print";
+import { agruparItemsComanda, type ComandaDestino } from "./comanda-print";
 import { enqueueComandas } from "@/lib/impresion.functions";
 
 interface Props {
@@ -115,16 +115,20 @@ export function ComandaSheet({
                     pedido_id: comanda.id_pedido,
                     pedido_created_at: inicioComanda(comanda),
                     mesero: comanda.mesero_nombre,
-                    items: comanda.items.map((it) => ({
-                      cantidad: it.cantidad,
-                      nombre_producto: it.nombre_producto,
-                      nombre_subcategoria: it.nombre_subcategoria,
-                      tiene_alergia: it.tiene_alergia,
-                      nota: it.nota,
-                      extras: it.extras,
-                      exclusiones: it.exclusiones,
-                      variantes: it.variantes,
-                    })),
+                    // Agrupado igual que la comanda original: `x2` en vez de dos
+                    // líneas `x1`, separando lo que lleve notas o modificadores.
+                    items: agruparItemsComanda(
+                      comanda.items.map((it) => ({
+                        cantidad: it.cantidad,
+                        nombre_producto: it.nombre_producto,
+                        nombre_subcategoria: it.nombre_subcategoria,
+                        tiene_alergia: it.tiene_alergia,
+                        nota: it.nota,
+                        extras: it.extras,
+                        exclusiones: it.exclusiones,
+                        variantes: it.variantes,
+                      })),
+                    ),
                   },
                 ])
                   .then((r) =>
