@@ -33,6 +33,7 @@ import {
   historialBonos,
   type Bono,
 } from "@/lib/bonos.functions";
+import { fechaLocalISO } from "@/lib/format";
 import { useMiStaff } from "@/hooks/use-mi-staff";
 
 export const Route = createFileRoute("/_app/configuracion/bonos-descuentos")({
@@ -400,8 +401,8 @@ function HistorialTab() {
   const hoy = new Date();
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-  const [desde, setDesde] = useState<string>(inicioMes.toISOString().slice(0, 10));
-  const [hasta, setHasta] = useState<string>(hoy.toISOString().slice(0, 10));
+  const [desde, setDesde] = useState<string>(fechaLocalISO(inicioMes));
+  const [hasta, setHasta] = useState<string>(fechaLocalISO(hoy));
   const [idMesero, setIdMesero] = useState<string>("todos");
 
   const q = useQuery({
