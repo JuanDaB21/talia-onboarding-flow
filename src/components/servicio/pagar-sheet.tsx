@@ -1506,23 +1506,38 @@ function TransferenciaSection({
         </p>
       </div>
 
+      {/*
+        El contenido de este modal es de estructura FIJA a propósito. La imagen
+        del QR llega asíncrona (`usePrivImage` descarga el blob autenticado), y
+        cuando se renderizaba condicionalmente React tenía que hacer un
+        insertBefore contra el botón "Cerrar" cientos de ms después de abrir —
+        justo la operación que falla si algo externo (el traductor del navegador)
+        reordenó el DOM mientras tanto. Con el contenedor siempre montado, la
+        llegada del blob es solo un cambio de atributo.
+      */}
       <Dialog open={!!qrOpen} onOpenChange={(o) => !o && setQrOpen(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" translate="no">
           <DialogHeader>
             <DialogTitle>Escanea con {qrOpen?.etiqueta || qrOpen?.plataforma}</DialogTitle>
           </DialogHeader>
-          {qrOpen?.titular && (
-            <p className="text-sm text-muted-foreground -mt-2">{qrOpen.titular}</p>
-          )}
-          {qrModalUrl && (
-            <div className="rounded-xl bg-white p-4 flex items-center justify-center">
-              <img
-                src={qrModalUrl}
-                alt={`QR ${qrOpen?.plataforma}`}
-                className="w-full max-w-sm aspect-square object-contain"
-              />
+          {/* `empty:hidden` en vez de render condicional: el nodo sigue en el DOM
+              (React conserva su referencia) pero no deja hueco si no hay titular. */}
+          <p className="text-sm text-muted-foreground -mt-2 empty:hidden">
+            {qrOpen?.titular ?? ""}
+          </p>
+          <div className="rounded-xl bg-white p-4 flex items-center justify-center">
+            <div className="w-full max-w-sm aspect-square flex items-center justify-center">
+              {qrModalUrl ? (
+                <img
+                  src={qrModalUrl}
+                  alt={`QR ${qrOpen?.plataforma ?? ""}`}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              )}
             </div>
-          )}
+          </div>
           <Button onClick={() => setQrOpen(null)} className="w-full">
             Cerrar
           </Button>
