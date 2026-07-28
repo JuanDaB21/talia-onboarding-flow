@@ -13,6 +13,8 @@ export interface MesaServicio {
   solicitud_cliente: string | null;
   solicitud_at: string | null;
   alerta_listo: boolean;
+  /** `listo_at` más reciente entre los items LISTO sin entregar: discrimina la alerta. */
+  alerta_listo_at: string | null;
   alerta_seguimiento: boolean;
   tiene_prepedido: boolean;
 }
@@ -55,6 +57,16 @@ export function eliminarItem(idItem: string) {
 export function limpiarSolicitudCliente(input: { idMesa: string }) {
   return api.post<{ ok: true; result: number | null }>(
     `/servicio/mesas/${input.idMesa}/limpiar-solicitud`,
+  );
+}
+
+/**
+ * Marca ENTREGADO todo lo que esté LISTO en la mesa. Lo usa el banner de alertas,
+ * que solo conoce la mesa (no el pedido). Idempotente.
+ */
+export function entregarListosMesa(input: { idMesa: string }) {
+  return api.post<{ ok: true; entregados: number }>(
+    `/servicio/mesas/${input.idMesa}/entregar-listos`,
   );
 }
 

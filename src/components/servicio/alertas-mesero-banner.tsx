@@ -11,12 +11,14 @@ import {
   ClipboardCheck,
   PackageCheck,
   UserPlus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { realtime } from "@/lib/realtime-client";
 import {
   listarMesasServicio,
   limpiarSolicitudCliente,
+  entregarListosMesa,
   type MesaServicio,
 } from "@/lib/servicio.functions";
 import { useAlertaBus, type AlertaItem } from "@/components/servicio/alerta-bus";
@@ -24,6 +26,15 @@ import { useAlertaBus, type AlertaItem } from "@/components/servicio/alerta-bus"
 function minsAgo(iso: string | null) {
   if (!iso) return 0;
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+}
+
+/**
+ * La key lleva `alerta_listo_at` para que un plato NUEVO en una mesa que ya tenía
+ * uno sin entregar genere una key distinta: si no, el descarte anterior taparía
+ * la alerta nueva. Mismo criterio que `sol:` y `asig:` con su timestamp.
+ */
+function keyListo(m: MesaServicio) {
+  return `listo:${m.id_mesa}:${m.alerta_listo_at ?? ""}`;
 }
 
 export function AlertasMeseroBanner() {
@@ -55,6 +66,11 @@ export function AlertasMeseroBanner() {
   const misMesas = data?.mesas ?? [];
   const myId = data?.userId ?? null;
 
+  // Los descartes se guardan por usuario: varios meseros comparten el celular.
+  useEffect(() => {
+    bus.setUsuario(myId);
+  }, [myId, bus]);
+
   const solicitudes = misMesas.filter((m) => !!m.solicitud_cliente);
   const listos = misMesas.filter((m) => m.alerta_listo);
   const asignaciones = misMesas.filter((m) => !!m.asignada_at && m.id_mesero_asignado === myId);
@@ -75,7 +91,7 @@ export function AlertasMeseroBanner() {
   useEffect(() => {
     for (const m of listos) {
       bus.push({
-        key: `listo:${m.id_mesa}`,
+        key: keyListo(m),
         tipo: "LISTO",
         idMesa: m.id_mesa,
         identificador: m.identificador,
@@ -100,7 +116,7 @@ export function AlertasMeseroBanner() {
   useEffect(() => {
     const liveKeys = [
       ...solicitudes.map((m) => `sol:${m.id_mesa}:${m.solicitud_at ?? ""}`),
-      ...listos.map((m) => `listo:${m.id_mesa}`),
+      ...listos.map(keyListo),
       ...asignaciones.map((m) => `asig:${m.id_mesa}:${m.asignada_at ?? ""}`),
     ];
     bus.sync(liveKeys);
@@ -114,6 +130,20 @@ export function AlertasMeseroBanner() {
     },
     onError: (e) =>
       toast.error("No se pudo limpiar", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
+  // "Ya lo entregué" ahora sí marca en el backend: antes solo escondía la tarjeta
+  // en este celular, así que la alerta seguía viva para todo el equipo y volvía al
+  // recargar. Es lo que hacía que se acumularan sin remedio.
+  const entregarMut = useMutation({
+    mutationFn: (idMesa: string) => entregarListosMesa({ idMesa }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+    },
+    onError: (e) =>
+      toast.error("No se pudo marcar como entregado", {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
@@ -133,7 +163,7 @@ export function AlertasMeseroBanner() {
     ...listos.map<Card>((m) => ({
       kind: "listo",
       mesa: m,
-      key: `listo:${m.id_mesa}`,
+      key: keyListo(m),
     })),
     ...asignaciones
       .filter((m) => {
@@ -154,12 +184,24 @@ export function AlertasMeseroBanner() {
     // limpie el backend), así que sin esto quedaban "congeladas" tras confirmar.
     // `bus.sync` retira la key de `acked` cuando el backend resuelve el origen, así
     // que la alerta puede reaparecer si vuelve a ocurrir.
-    .filter((c) => !bus.acked.has(c.key));
+    .filter((c) => !bus.acked.has(c.key) && !bus.dismissed.has(c.key));
 
   if (cards.length === 0) return null;
 
   return (
     <div className="sticky top-0 z-30 -mx-4 px-4 py-2 space-y-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+      {cards.length >= 3 && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-muted-foreground"
+            onClick={() => cards.forEach((c) => bus.dismiss(c.key))}
+          >
+            Descartar todas ({cards.length})
+          </Button>
+        </div>
+      )}
       {cards.map((c) => (
         <AlertaCard
           key={c.key}
@@ -168,10 +210,13 @@ export function AlertasMeseroBanner() {
           onConfirmar={() => {
             if (c.kind === "sol") {
               limpiarMut.mutate(c.mesa.id_mesa);
+            } else if (c.kind === "listo") {
+              entregarMut.mutate(c.mesa.id_mesa);
             }
             bus.ack(c.key);
           }}
-          confirmando={limpiarMut.isPending}
+          onDescartar={() => bus.dismiss(c.key)}
+          confirmando={limpiarMut.isPending || entregarMut.isPending}
         />
       ))}
     </div>
@@ -182,6 +227,7 @@ function AlertaCard({
   card,
   onIr,
   onConfirmar,
+  onDescartar,
   confirmando,
 }: {
   card:
@@ -190,6 +236,7 @@ function AlertaCard({
     | { kind: "asig"; mesa: MesaServicio; key: string };
   onIr: () => void;
   onConfirmar: () => void;
+  onDescartar: () => void;
   confirmando: boolean;
 }) {
   const mesa = card.mesa;
@@ -242,6 +289,19 @@ function AlertaCard({
           <p className="font-bold leading-tight">{titulo}</p>
           {card.kind !== "listo" && <p className="text-xs opacity-80">Hace {tiempo} min</p>}
         </div>
+        {/* Descartar: oculta la alerta solo para este usuario, sin tocar el
+            backend. Un admin ve las mesas de todo el salón y no puede atenderlas
+            él, así que necesita poder quitarse de encima lo que no le compete. */}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="shrink-0 h-11 w-11 -mr-2 -mt-1 opacity-70 hover:opacity-100"
+          onClick={onDescartar}
+          aria-label="Descartar notificación"
+          title="Descartar (no la atiendo yo)"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
       <div className="mt-2 flex gap-2">
         <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={onIr}>
