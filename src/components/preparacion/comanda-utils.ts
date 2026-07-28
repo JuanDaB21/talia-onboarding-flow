@@ -21,12 +21,24 @@ export function minutosTranscurridos(from: string | null): number {
   return (Date.now() - new Date(from).getTime()) / 60000;
 }
 
+/**
+ * Base del reloj de una comanda: la CONFIRMACIÓN del mesero. `pedido_created_at`
+ * no sirve — el pedido se crea al abrir la pantalla de la mesa, cuando el cliente
+ * todavía está leyendo la carta. El fallback cubre pedidos previos al cambio.
+ */
+export function inicioComanda(c: {
+  confirmado_at: string | null;
+  pedido_created_at: string;
+}): string {
+  return c.confirmado_at ?? c.pedido_created_at;
+}
+
 export function retrasoItem(item: ItemPreparacion): number {
   const planeado = item.tiempo_planeado_min ?? 0;
   if (planeado <= 0) return 0;
   if (item.estado_preparacion === "EN_PREPARACION" || item.estado_preparacion === "EN_COLA") {
-    // Items legacy en cola no tienen iniciado_at: se cronometran desde el pedido.
-    const t = minutosTranscurridos(item.iniciado_at ?? item.pedido_created_at);
+    // Items legacy en cola no tienen iniciado_at: se cronometran desde la confirmación.
+    const t = minutosTranscurridos(item.iniciado_at ?? inicioComanda(item));
     return Math.max(0, Math.floor(t - planeado));
   }
   return 0;

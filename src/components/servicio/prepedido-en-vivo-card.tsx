@@ -19,6 +19,8 @@ import {
   type PrepedidoData,
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
+import { obtenerMesaSesion } from "@/lib/servicio.functions";
+import { imprimirComandasDePedido } from "@/lib/comandas";
 import { PrepedidoItemEditorStaff } from "./prepedido-item-editor-staff";
 
 const fmt = new Intl.NumberFormat("es-CO", {
@@ -44,11 +46,24 @@ export function PrepedidoEnVivoCard({ idMesa, data }: Props) {
 
   const aceptarMut = useMutation({
     mutationFn: () => aceptarPrepedido({ idMesa }),
-    onSuccess: (r) => {
+    onSuccess: async (r) => {
       toast.success(`Pre-pedido aceptado: ${r.aceptados} items pasaron a la comanda`, {
         icon: <CheckCircle2 className="h-4 w-4" />,
       });
       invalidar();
+      // Si el pedido ya estaba CONFIRMADO, la preparación arrancó en el backend y
+      // nadie más va a imprimir estos items: la impresión automática solo ocurre
+      // al confirmar. Sacamos la comanda aquí, con lo nuevo únicamente.
+      if (r.estado_pedido !== "CONFIRMADO" || !r.id_pedido || r.id_items.length === 0) return;
+      try {
+        const fresh = await obtenerMesaSesion(idMesa);
+        const pedido = fresh.pedidos.find((p) => p.id_pedido === r.id_pedido);
+        if (!pedido) return;
+        // fire-and-forget: la impresión nunca bloquea ni rompe el flujo.
+        imprimirComandasDePedido(fresh.identificador, fresh.mesero_nombre, pedido, r.id_items);
+      } catch {
+        /* si el refetch falla, no interrumpimos el servicio */
+      }
     },
     onError: (e) =>
       toast.error("No se pudo aceptar el pre-pedido", {

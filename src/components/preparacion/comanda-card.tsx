@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { ComandaEstacion } from "@/lib/preparacion.functions";
-import { estadoComanda, maxRetrasoMin, minutosTranscurridos } from "./comanda-utils";
+import { estadoComanda, inicioComanda, maxRetrasoMin, minutosTranscurridos } from "./comanda-utils";
 
 interface Props {
   comanda: ComandaEstacion;
@@ -35,7 +35,7 @@ export function ComandaCard({ comanda, onOpen }: Props) {
   const tieneAlergia = comanda.items.some((i) => i.tiene_alergia);
   const tieneNotas = comanda.items.filter((i) => i.nota).length;
   const retraso = maxRetrasoMin(comanda.items);
-  const transcurrido = Math.floor(minutosTranscurridos(comanda.pedido_created_at));
+  const transcurrido = Math.floor(minutosTranscurridos(inicioComanda(comanda)));
 
   return (
     <button

@@ -188,8 +188,22 @@ export function eliminarItemPrepedido(input: {
 // Staff — aceptar prepedido (REST autenticado)
 // ============================================================
 
-export function aceptarPrepedido(input: { idMesa: string }): Promise<{ aceptados: number }> {
-  return api.post<{ aceptados: number }>(`/prepedido/mesas/${input.idMesa}/aceptar`);
+export interface AceptarPrepedidoResult {
+  aceptados: number;
+  id_pedido: string | null;
+  /**
+   * Estado que tenía el pedido destino ANTES de recibir los items. Si era
+   * CONFIRMADO, la preparación ya arrancó en el backend y el front debe imprimir
+   * la comanda de los items nuevos (nadie más la va a imprimir); si era ABIERTO,
+   * la comanda saldrá al confirmar.
+   */
+  estado_pedido: "ABIERTO" | "CONFIRMADO" | null;
+  /** Items materializados en pedido_items, en orden de creación. */
+  id_items: string[];
+}
+
+export function aceptarPrepedido(input: { idMesa: string }): Promise<AceptarPrepedidoResult> {
+  return api.post<AceptarPrepedidoResult>(`/prepedido/mesas/${input.idMesa}/aceptar`);
 }
 
 // ============================================================
