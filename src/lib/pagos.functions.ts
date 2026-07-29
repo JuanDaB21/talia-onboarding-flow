@@ -65,6 +65,15 @@ export function cerrarMesa(idMesa: string) {
   return api.post<{ ok: true }>(`/pagos/mesas/${idMesa}/cerrar`);
 }
 
+/**
+ * Separa una línea de N unidades del mismo producto en N líneas de 1, para que cada
+ * comensal pueda pagar la suya por separado. Rechaza líneas con adiciones (se cobran
+ * juntas). Devuelve cuántas unidades quedaron.
+ */
+export function desglosarItem(idItem: string) {
+  return api.post<{ ok: true; unidades: number }>(`/pagos/items/${idItem}/desglosar`);
+}
+
 export interface EstadoCierreMesa {
   items_pendientes: number;
   monto_pendiente: number;

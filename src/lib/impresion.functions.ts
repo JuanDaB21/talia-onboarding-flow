@@ -5,6 +5,7 @@ import type { ComandaPrintData } from "@/components/preparacion/comanda-print";
 
 export interface ImpresionConfig {
   id_espacio: string;
+  slug: string;
   requiere_impresora: boolean;
   ancho_papel_mm: number;
   codepage: string;
@@ -45,20 +46,32 @@ export function enqueueComandas(comandas: ComandaPrintData[]) {
 }
 
 /**
- * Imprime la precuenta completa de la mesa en la impresora del espacio CAJA.
- * El backend arma los items desde la DB; aquí solo viaja el preview no persistido
- * (propina elegida y descuentos bono/reserva en pantalla).
+ * Imprime la precuenta de la mesa en la impresora del espacio CAJA. El backend arma
+ * los items desde la DB; aquí solo viaja el preview no persistido (propina elegida y
+ * descuentos bono/reserva). Con `itemIds` imprime SOLO ese subconjunto (precuenta
+ * parcial por cliente); sin él, toda la mesa.
  */
 export function imprimirCuenta(
   idMesa: string,
   extras: {
     propina?: number | null;
     descuentos?: { etiqueta: string; monto: number }[];
+    itemIds?: string[];
   } = {},
 ) {
   return api.post<{ ok: true; encolado: boolean; agenteConectado: boolean }>(
     `/impresion/cuenta/${idMesa}`,
     extras,
+  );
+}
+
+/**
+ * Reimprime el ticket de un pago como COPIA en la impresora del espacio CAJA (para
+ * cuando el cliente pide su comprobante). Cada llamada saca una copia.
+ */
+export function imprimirCopiaTicket(idPago: string) {
+  return api.post<{ ok: true; encolado: boolean; agenteConectado: boolean }>(
+    `/impresion/ticket/${idPago}`,
   );
 }
 

@@ -19,10 +19,11 @@ function MetodosPagoPage() {
       <header>
         <h1 className="text-2xl font-bold">Métodos de pago</h1>
         <p className="text-sm text-muted-foreground">
-          Carga los QR de Nequi, Daviplata, Bancolombia u otras plataformas.
+          Configura los métodos de pago de tu negocio con los nombres que uses. Son los que
+          aparecerán al cobrar.
         </p>
       </header>
-      <MetodosPagoTab idNegocio={idNegocio} />
+      <MetodosPagoTab />
     </div>
   );
 }
