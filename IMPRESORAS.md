@@ -33,6 +33,7 @@ que no conoce e imprime como siempre.
 
 | Versión | Qué agrega |
 |---|---|
+| 0.6.0 | Marca `*** COPIA ***` en la reimpresión de un ticket y `PRECUENTA (PARCIAL)` cuando la cuenta se imprime por cliente. Sin ella la copia y la parcial salen sin distintivo. |
 | 0.5.0 | Cierre de caja con **productos agrupados por categoría** (con subtotal) y sección de **propinas**. Sin ella el cierre sale en lista plana y sin propinas. |
 | 0.4.0 | Agrupa líneas iguales y detalla modificadores en comanda, precuenta y ticket. |
 | 0.3.0 | Impresión del reporte de cierre (`tipo: 'cierre'`). |

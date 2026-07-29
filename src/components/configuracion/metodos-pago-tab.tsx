@@ -8,33 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  listarMetodosPagoQr,
-  guardarMetodoPagoQr,
-  eliminarMetodoPagoQr,
-  PLATAFORMAS,
-  type MetodoPagoQr,
-  type Plataforma,
+  listarMetodosPago,
+  guardarMetodoPago,
+  eliminarMetodoPago,
+  type MetodoPago,
 } from "@/lib/metodos-pago.functions";
 
-interface Props {
-  idNegocio: string;
-}
-
-const FIJAS: Plataforma[] = ["Nequi", "Daviplata", "Bancolombia"];
-
-export function MetodosPagoTab({ idNegocio }: Props) {
+export function MetodosPagoTab() {
   const qc = useQueryClient();
 
   const q = useQuery({
-    queryKey: ["metodosPagoQr"],
-    queryFn: () => listarMetodosPagoQr(),
+    queryKey: ["metodosPago"],
+    queryFn: () => listarMetodosPago(),
   });
 
   const elimMut = useMutation({
-    mutationFn: (idQr: string) => eliminarMetodoPagoQr({ idQr }),
+    mutationFn: (idQr: string) => eliminarMetodoPago({ idQr }),
     onSuccess: () => {
-      toast.success("QR eliminado");
-      qc.invalidateQueries({ queryKey: ["metodosPagoQr"] });
+      toast.success("Método eliminado");
+      qc.invalidateQueries({ queryKey: ["metodosPago"] });
     },
     onError: (e) =>
       toast.error("No se pudo eliminar", {
@@ -42,18 +34,17 @@ export function MetodosPagoTab({ idNegocio }: Props) {
       }),
   });
 
-  const [edit, setEdit] = useState<{
-    plataforma: Plataforma;
-    registro: MetodoPagoQr | null;
-  } | null>(null);
+  // null = crear nuevo; un registro = editar existente.
+  const [edit, setEdit] = useState<{ registro: MetodoPago | null } | null>(null);
 
   const all = q.data ?? [];
-  const otras = all.filter((m) => m.plataforma === "Otra");
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Sube el QR de cada plataforma. El mesero podrá mostrarlo al cliente al cobrar.
+        Crea los métodos de pago que usa tu negocio con el nombre que quieras (ej. Nequi, Movii,
+        Datáfono). Aparecerán tal cual al momento de cobrar. El QR es opcional: si lo subes, el
+        mesero podrá mostrarlo al cliente.
       </p>
 
       {q.isLoading ? (
@@ -62,26 +53,11 @@ export function MetodosPagoTab({ idNegocio }: Props) {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FIJAS.map((p) => {
-            const r = all.find((m) => m.plataforma === p) ?? null;
-            return (
-              <QrCard
-                key={p}
-                plataforma={p}
-                registro={r}
-                onEdit={() => setEdit({ plataforma: p, registro: r })}
-                onDelete={() => r && elimMut.mutate(r.id_qr)}
-                deleting={elimMut.isPending}
-              />
-            );
-          })}
-
-          {otras.map((r) => (
-            <QrCard
+          {all.map((r) => (
+            <MetodoCard
               key={r.id_qr}
-              plataforma="Otra"
               registro={r}
-              onEdit={() => setEdit({ plataforma: "Otra", registro: r })}
+              onEdit={() => setEdit({ registro: r })}
               onDelete={() => elimMut.mutate(r.id_qr)}
               deleting={elimMut.isPending}
             />
@@ -89,23 +65,27 @@ export function MetodosPagoTab({ idNegocio }: Props) {
 
           <button
             type="button"
-            onClick={() => setEdit({ plataforma: "Otra", registro: null })}
+            onClick={() => setEdit({ registro: null })}
             className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card p-6 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground min-h-[200px]"
           >
             <Plus className="h-6 w-6" />
-            <span className="text-sm font-medium">Agregar otra plataforma</span>
+            <span className="text-sm font-medium">Agregar método de pago</span>
           </button>
         </div>
       )}
 
+      {!q.isLoading && all.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Aún no tienes métodos de pago configurados. Crea el primero con el botón de arriba.
+        </p>
+      )}
+
       {edit && (
-        <EditarQrDialog
-          idNegocio={idNegocio}
-          plataforma={edit.plataforma}
+        <EditarMetodoDialog
           registro={edit.registro}
           onClose={() => setEdit(null)}
           onSaved={() => {
-            qc.invalidateQueries({ queryKey: ["metodosPagoQr"] });
+            qc.invalidateQueries({ queryKey: ["metodosPago"] });
             setEdit(null);
           }}
         />
@@ -114,70 +94,65 @@ export function MetodosPagoTab({ idNegocio }: Props) {
   );
 }
 
-function QrCard({
-  plataforma,
+function MetodoCard({
   registro,
   onEdit,
   onDelete,
   deleting,
 }: {
-  plataforma: Plataforma;
-  registro: MetodoPagoQr | null;
+  registro: MetodoPago;
   onEdit: () => void;
   onDelete: () => void;
   deleting: boolean;
 }) {
-  const titulo = plataforma === "Otra" && registro?.etiqueta ? registro.etiqueta : plataforma;
-  const qrUrl = usePrivImage(registro?.signed_url);
+  const qrUrl = usePrivImage(registro.signed_url);
   return (
     <div className="rounded-xl border bg-card p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold">{titulo}</h3>
-          {registro?.titular && (
+          <h3 className="font-semibold">{registro.nombre}</h3>
+          {registro.titular && (
             <p className="text-xs text-muted-foreground mt-0.5">{registro.titular}</p>
           )}
         </div>
-        {registro && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-            disabled={deleting}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+          onClick={onDelete}
+          disabled={deleting}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
       <div className="aspect-square rounded-lg bg-muted flex items-center justify-center overflow-hidden">
         {qrUrl ? (
-          <img src={qrUrl} alt={`QR ${titulo}`} className="h-full w-full object-contain bg-white" />
+          <img
+            src={qrUrl}
+            alt={`QR ${registro.nombre}`}
+            className="h-full w-full object-contain bg-white"
+          />
         ) : (
           <QrCode className="h-12 w-12 text-muted-foreground/50" />
         )}
       </div>
-      <Button variant={registro ? "outline" : "default"} size="sm" onClick={onEdit}>
-        {registro ? "Cambiar QR" : "Subir QR"}
+      <Button variant="outline" size="sm" onClick={onEdit}>
+        Editar
       </Button>
     </div>
   );
 }
 
-function EditarQrDialog({
-  idNegocio,
-  plataforma,
+function EditarMetodoDialog({
   registro,
   onClose,
   onSaved,
 }: {
-  idNegocio: string;
-  plataforma: Plataforma;
-  registro: MetodoPagoQr | null;
+  registro: MetodoPago | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [etiqueta, setEtiqueta] = useState(registro?.etiqueta ?? "");
+  const [nombre, setNombre] = useState(registro?.nombre ?? "");
   const [titular, setTitular] = useState(registro?.titular ?? "");
   const [path, setPath] = useState<string | null>(registro?.url_qr ?? null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
@@ -210,24 +185,19 @@ function EditarQrDialog({
   }
 
   async function handleGuardar() {
-    if (!path) {
-      toast.error("Sube una imagen del QR");
-      return;
-    }
-    if (plataforma === "Otra" && !etiqueta.trim()) {
-      toast.error("Pon un nombre a la plataforma");
+    if (!nombre.trim()) {
+      toast.error("Pon un nombre al método de pago");
       return;
     }
     setGuardando(true);
     try {
-      await guardarMetodoPagoQr({
+      await guardarMetodoPago({
         idQr: registro?.id_qr,
-        plataforma,
-        etiqueta: plataforma === "Otra" ? etiqueta.trim() : null,
+        nombre: nombre.trim(),
         titular: titular.trim() || null,
-        path,
+        path: path || null,
       });
-      toast.success("QR guardado");
+      toast.success("Método guardado");
       onSaved();
     } catch (err) {
       toast.error("No se pudo guardar", {
@@ -242,22 +212,18 @@ function EditarQrDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {registro ? "Editar" : "Subir"} QR · {plataforma}
-          </DialogTitle>
+          <DialogTitle>{registro ? "Editar" : "Nuevo"} método de pago</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {plataforma === "Otra" && (
-            <div>
-              <Label htmlFor="etiqueta">Nombre de la plataforma</Label>
-              <Input
-                id="etiqueta"
-                value={etiqueta}
-                onChange={(e) => setEtiqueta(e.target.value.slice(0, 40))}
-                placeholder="Ej. Movii, RappiPay"
-              />
-            </div>
-          )}
+          <div>
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value.slice(0, 40))}
+              placeholder="Ej. Nequi, Movii, Datáfono"
+            />
+          </div>
           <div>
             <Label htmlFor="titular">Titular / referencia (opcional)</Label>
             <Input
@@ -268,7 +234,7 @@ function EditarQrDialog({
             />
           </div>
           <div>
-            <Label>Imagen del QR</Label>
+            <Label>Imagen del QR (opcional)</Label>
             <div className="mt-1 aspect-square rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden">
               {previewUrl ? (
                 <img
@@ -306,7 +272,7 @@ function EditarQrDialog({
             <Button variant="ghost" onClick={onClose} disabled={guardando}>
               Cancelar
             </Button>
-            <Button onClick={handleGuardar} disabled={guardando || !path}>
+            <Button onClick={handleGuardar} disabled={guardando || !nombre.trim()}>
               {guardando && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Guardar
             </Button>

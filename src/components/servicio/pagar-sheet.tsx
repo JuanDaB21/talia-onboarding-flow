@@ -10,6 +10,7 @@ import {
   Printer,
   QrCode as QrCodeIcon,
   Smartphone,
+  Split,
   Ticket,
   User,
   X,
@@ -36,10 +37,11 @@ import {
   listarItemsCobrables,
   registrarPago,
   registrarPagoDividido,
+  desglosarItem,
   type ItemCobrable,
 } from "@/lib/pagos.functions";
-import { imprimirCuenta } from "@/lib/impresion.functions";
-import { listarMetodosPagoQr, type MetodoPagoQr } from "@/lib/metodos-pago.functions";
+import { imprimirCuenta, imprimirCopiaTicket, getImpresionConfigs } from "@/lib/impresion.functions";
+import { listarMetodosPago, type MetodoPago } from "@/lib/metodos-pago.functions";
 import { listarBonos, previsualizarBono, type Bono } from "@/lib/bonos.functions";
 import {
   listarReservasAplicablesHoy,
@@ -87,6 +89,25 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   });
   const pctSugerido = (negocioQ.data?.propina_pct_sugerida ?? 10) / 100;
   const pctSugeridoRef = useRef(pctSugerido);
+
+  // ¿CAJA imprime tickets? Mismo criterio que el backend (getConfigCaja): imprime por
+  // defecto, salvo que exista una config de CAJA con requiere_impresora=false. Solo si
+  // imprime ofrecemos la copia tras el pago.
+  const impresionQ = useQuery({
+    queryKey: ["impresionConfigs"],
+    queryFn: () => getImpresionConfigs(),
+    staleTime: 5 * 60_000,
+    enabled: open,
+  });
+  const cajaImprimeTickets = (() => {
+    const cfg = (impresionQ.data ?? []).find((c) => c.slug === "CAJA");
+    return !cfg || cfg.requiere_impresora;
+  })();
+  // Pago recién registrado del que se puede imprimir una copia (diálogo tras el cobro).
+  const [ticketCopia, setTicketCopia] = useState<{ idPago: string; esperaTransfer: boolean } | null>(
+    null,
+  );
+  const [imprimiendoCopia, setImprimiendoCopia] = useState(false);
   pctSugeridoRef.current = pctSugerido;
 
   const [paso, setPaso] = useState<Paso>("items");
@@ -156,14 +177,15 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const selectMany = (ids: string[]) => setSelected((s) => new Set([...s, ...ids]));
   const clear = () => setSelected(new Set());
 
-  // Precuenta completa de la mesa en la impresora de CAJA. Propina/descuentos solo
-  // viajan si la selección en pantalla cubre TODO lo pendiente (si no, el papel
-  // mostraría descuentos calculados sobre una selección parcial).
+  // Precuenta en la impresora de CAJA. Si hay items marcados, imprime SOLO esos
+  // (precuenta parcial por cliente) con la propina/descuentos calculados sobre esa
+  // selección — bono y abono ya se calculan sobre `selected`, así que el papel cuadra
+  // con lo que muestra la pantalla. Sin selección, imprime toda la mesa con la propina
+  // sugerida del negocio.
   const [imprimiendoCuenta, setImprimiendoCuenta] = useState(false);
   const onImprimirCuenta = () => {
-    const seleccionCompleta =
-      pendientes.length > 0 && pendientes.every((i) => selected.has(i.id_item));
-    const descuentos = seleccionCompleta
+    const haySeleccion = selected.size > 0;
+    const descuentos = haySeleccion
       ? [
           ...(descuentoBono > 0
             ? [{ etiqueta: bonoInfo ? `Bono ${bonoInfo.nombre}` : "Bono", monto: descuentoBono }]
@@ -178,11 +200,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             : []),
         ]
       : [];
-    // Solo se manda la propina si el cajero ya la fijó sobre TODA la cuenta; si
-    // se omite, el backend imprime la sugerida del negocio sobre el total real.
-    const propinaFijada = seleccionCompleta && !reservaCubreTodo && propina > 0;
+    // Con selección, la propina fijada aplica sobre ese subconjunto; sin selección se
+    // omite para que el backend imprima la sugerida del negocio sobre el total real.
+    const propinaFijada = haySeleccion && !reservaCubreTodo && propina > 0;
     setImprimiendoCuenta(true);
     imprimirCuenta(idMesa, {
+      ...(haySeleccion ? { itemIds: Array.from(selected) } : {}),
       ...(propinaFijada ? { propina } : {}),
       descuentos,
     })
@@ -219,9 +242,29 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     idReserva: string | null;
     montoRecibido: number | null;
   };
+  // Cierre del cobro: si la mesa quedó saldada (y no hay transferencia esperando
+  // confirmación) se cierra el sheet y se vuelve a /servicio; si no, se resetea para el
+  // siguiente cobro. Se difiere hasta que el cajero cierre el diálogo de copia de ticket.
+  const finalizarCobro = (esperaTransfer: boolean) => {
+    itemsQ.refetch().then((r) => {
+      const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
+      if (restantes.length === 0 && !esperaTransfer) {
+        onOpenChange(false);
+        navigate({ to: "/servicio" });
+      } else {
+        setPaso("items");
+        setSelected(new Set());
+        setPropinaPct(pctSugeridoRef.current);
+        setPropinaCustom(null);
+        setIdBono(null);
+        setIdReservaAbono(null);
+      }
+    });
+  };
+
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => registrarPago(input),
-    onSuccess: (_res, vars) => {
+    onSuccess: (res, vars) => {
       const esTransfer = vars.metodo === "TRANSFERENCIA";
       toast.success(
         esTransfer ? "Pago registrado · esperando confirmación del admin" : "Pago registrado",
@@ -233,20 +276,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       qc.invalidateQueries({ queryKey: ["caja"] });
       qc.invalidateQueries({ queryKey: ["bonos"] });
 
-      itemsQ.refetch().then((r) => {
-        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
-        if (restantes.length === 0 && !esTransfer) {
-          onOpenChange(false);
-          navigate({ to: "/servicio" });
-        } else {
-          setPaso("items");
-          setSelected(new Set());
-          setPropinaPct(pctSugeridoRef.current);
-          setPropinaCustom(null);
-          setIdBono(null);
-          setIdReservaAbono(null);
-        }
-      });
+      // El backend ya encoló el ticket automático; ofrecemos copia opcional antes de cerrar.
+      if (res?.idPago && cajaImprimeTickets) {
+        setTicketCopia({ idPago: res.idPago, esperaTransfer: esTransfer });
+      } else {
+        finalizarCobro(esTransfer);
+      }
     },
     onError: (e) =>
       toast.error("No se pudo registrar el pago", {
@@ -271,7 +306,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         idReserva: abonoActivo ? idReservaAbono : null,
         partes,
       }),
-    onSuccess: (_res, partes) => {
+    onSuccess: (res, partes) => {
       const hayTransfer = partes.some((p) => p.metodo === "TRANSFERENCIA");
       const nTransfer = partes.filter((p) => p.metodo === "TRANSFERENCIA").length;
       toast.success(
@@ -285,20 +320,11 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       qc.invalidateQueries({ queryKey: ["pagos"] });
       qc.invalidateQueries({ queryKey: ["caja"] });
       qc.invalidateQueries({ queryKey: ["bonos"] });
-      itemsQ.refetch().then((r) => {
-        const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
-        if (restantes.length === 0 && !hayTransfer) {
-          onOpenChange(false);
-          navigate({ to: "/servicio" });
-        } else {
-          setPaso("items");
-          setSelected(new Set());
-          setPropinaPct(pctSugeridoRef.current);
-          setPropinaCustom(null);
-          setIdBono(null);
-          setIdReservaAbono(null);
-        }
-      });
+      if (res?.idPago && cajaImprimeTickets) {
+        setTicketCopia({ idPago: res.idPago, esperaTransfer: hayTransfer });
+      } else {
+        finalizarCobro(hayTransfer);
+      }
     },
     onError: (e) =>
       toast.error("No se pudo registrar el pago dividido", {
@@ -340,6 +366,19 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }),
   });
 
+  // Separa una línea de N unidades en N líneas de 1 (cada comensal paga la suya).
+  const desglosarMut = useMutation({
+    mutationFn: (idItem: string) => desglosarItem(idItem),
+    onSuccess: (r) => {
+      toast.success(`Separado en ${r.unidades} para cobrar por separado`);
+      itemsQ.refetch();
+    },
+    onError: (e) =>
+      toast.error("No se pudo separar el producto", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
   const tituloPaso = paso === "items" ? "Selecciona los productos a cobrar" : "Método de pago";
 
   const backTo: Paso | null = paso === "metodo" ? "items" : null;
@@ -357,7 +396,41 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     },
   };
 
+  // Copia del ticket: cada clic encola una copia (mismos toasts que la precuenta). No
+  // cierra el diálogo, para poder pedir más de una.
+  const onImprimirCopia = () => {
+    if (!ticketCopia) return;
+    setImprimiendoCopia(true);
+    imprimirCopiaTicket(ticketCopia.idPago)
+      .then((r) => {
+        if (!r.encolado) {
+          toast.info("CAJA no tiene impresora configurada");
+        } else if (!r.agenteConectado) {
+          toast.warning("No hay un agente de impresión conectado", {
+            description: "La copia quedó en cola y se imprimirá al reconectar el PC de impresoras.",
+          });
+        } else {
+          toast.success("Copia enviada a la impresora de caja", {
+            icon: <Printer className="h-4 w-4" />,
+          });
+        }
+      })
+      .catch((e) =>
+        toast.error("No se pudo imprimir la copia", {
+          description: e instanceof Error ? e.message : undefined,
+        }),
+      )
+      .finally(() => setImprimiendoCopia(false));
+  };
+
+  const onCerrarCopia = () => {
+    const espera = ticketCopia?.esperaTransfer ?? false;
+    setTicketCopia(null);
+    finalizarCobro(espera);
+  };
+
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
         <SheetHeader className="px-5 pt-5 pb-3 border-b">
@@ -387,6 +460,8 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
             onToggle={toggle}
             onSelectAll={selectAll}
             onSelectMany={selectMany}
+            onDesglosar={(id) => desglosarMut.mutate(id)}
+            desglosandoId={desglosarMut.isPending ? desglosarMut.variables ?? null : null}
             onClear={clear}
             totalSeleccionado={totalSeleccionado}
             totalPendiente={itemsQ.data?.totalPendiente ?? 0}
@@ -441,6 +516,34 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         )}
       </SheetContent>
     </Sheet>
+
+    <Dialog open={!!ticketCopia} onOpenChange={(o) => !o && onCerrarCopia()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Pago registrado
+          </DialogTitle>
+          <DialogDescription>
+            El ticket ya salió en la impresora de caja. ¿Imprimir una copia para el cliente?
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={onImprimirCopia} disabled={imprimiendoCopia}>
+            {imprimiendoCopia ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Printer className="h-4 w-4 mr-2" />
+            )}
+            Imprimir copia
+          </Button>
+          <Button variant="ghost" onClick={onCerrarCopia}>
+            Listo
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -721,6 +824,8 @@ function PasoItems({
   onToggle,
   onSelectAll,
   onSelectMany,
+  onDesglosar,
+  desglosandoId,
   onClear,
   totalSeleccionado,
   totalPendiente,
@@ -746,6 +851,8 @@ function PasoItems({
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onSelectMany: (ids: string[]) => void;
+  onDesglosar: (id: string) => void;
+  desglosandoId: string | null;
   onClear: () => void;
   totalSeleccionado: number;
   totalPendiente: number;
@@ -878,6 +985,24 @@ function PasoItems({
                             {it.nombre_producto}
                           </p>
                           <p className="text-[11px] text-muted-foreground">Pedido #{it.pedido_numero}</p>
+                          {it.cantidad > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDesglosar(it.id_item);
+                              }}
+                              disabled={desglosandoId === it.id_item}
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline disabled:opacity-60"
+                            >
+                              {desglosandoId === it.id_item ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Split className="h-3 w-3" />
+                              )}
+                              Separar en {it.cantidad} para cobrar por separado
+                            </button>
+                          )}
                         </div>
                         <p className="text-sm font-semibold tabular-nums shrink-0">
                           {fmt.format(it.subtotal)}
@@ -1411,71 +1536,47 @@ function TransferenciaSection({
   handleFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const qrQ = useQuery({
-    queryKey: ["metodosPagoQr"],
-    queryFn: () => listarMetodosPagoQr(),
+    queryKey: ["metodosPago"],
+    queryFn: () => listarMetodosPago(),
   });
-  const qrs = qrQ.data ?? [];
-  const [qrOpen, setQrOpen] = useState<MetodoPagoQr | null>(null);
+  const metodos = qrQ.data ?? [];
+  const [qrOpen, setQrOpen] = useState<MetodoPago | null>(null);
   const qrModalUrl = usePrivImage(qrOpen?.signed_url);
 
-  const plataformasFijas: Array<"Nequi" | "Daviplata" | "Bancolombia"> = [
-    "Nequi",
-    "Daviplata",
-    "Bancolombia",
-  ];
-  const otras = qrs.filter((q) => q.plataforma === "Otra");
-
-  const handleClick = (label: string, registro: MetodoPagoQr | null) => {
-    setSubtipo(label);
-    if (registro?.signed_url) setQrOpen(registro);
+  const handleClick = (registro: MetodoPago) => {
+    setSubtipo(registro.nombre);
+    if (registro.signed_url) setQrOpen(registro);
   };
+
+  const seleccionado = metodos.find((m) => m.nombre === subtipo) ?? null;
 
   return (
     <div className="space-y-3">
       <div>
-        <Label>Plataforma</Label>
-        <div className="grid grid-cols-2 gap-2 mt-1">
-          {plataformasFijas.map((s) => {
-            const r = qrs.find((q) => q.plataforma === s) ?? null;
-            return (
+        <Label>Método</Label>
+        {metodos.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            No hay métodos de pago configurados. Pídele al admin que los cree en Configuración →
+            Métodos de pago.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {metodos.map((m) => (
               <PlataformaBtn
-                key={s}
-                label={s}
-                active={subtipo === s}
-                hasQr={!!r?.signed_url}
-                onClick={() => handleClick(s, r)}
+                key={m.id_qr}
+                label={m.nombre}
+                active={subtipo === m.nombre}
+                hasQr={!!m.signed_url}
+                onClick={() => handleClick(m)}
               />
-            );
-          })}
-          {otras.map((r) => {
-            const label = r.etiqueta || "Otra";
-            return (
-              <PlataformaBtn
-                key={r.id_qr}
-                label={label}
-                active={subtipo === label}
-                hasQr={!!r.signed_url}
-                onClick={() => handleClick(label, r)}
-              />
-            );
-          })}
-          {otras.length === 0 && (
-            <PlataformaBtn
-              label="Otra"
-              active={subtipo === "Otra"}
-              hasQr={false}
-              onClick={() => handleClick("Otra", null)}
-            />
-          )}
-        </div>
-        {subtipo &&
-          !qrs.find(
-            (q) => q.plataforma === subtipo || (q.plataforma === "Otra" && q.etiqueta === subtipo),
-          )?.signed_url && (
-            <p className="text-[11px] text-muted-foreground mt-1.5">
-              Sin QR configurado. Pídele al admin que lo cargue en Configuración → Métodos de pago.
-            </p>
-          )}
+            ))}
+          </div>
+        )}
+        {subtipo && seleccionado && !seleccionado.signed_url && (
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Sin QR configurado. Pídele al admin que lo cargue en Configuración → Métodos de pago.
+          </p>
+        )}
       </div>
       <div>
         <Label>Comprobante</Label>
@@ -1518,7 +1619,7 @@ function TransferenciaSection({
       <Dialog open={!!qrOpen} onOpenChange={(o) => !o && setQrOpen(null)}>
         <DialogContent className="sm:max-w-md" translate="no">
           <DialogHeader>
-            <DialogTitle>Escanea con {qrOpen?.etiqueta || qrOpen?.plataforma}</DialogTitle>
+            <DialogTitle>Escanea con {qrOpen?.nombre}</DialogTitle>
           </DialogHeader>
           {/* `empty:hidden` en vez de render condicional: el nodo sigue en el DOM
               (React conserva su referencia) pero no deja hueco si no hay titular. */}
@@ -1530,7 +1631,7 @@ function TransferenciaSection({
               {qrModalUrl ? (
                 <img
                   src={qrModalUrl}
-                  alt={`QR ${qrOpen?.plataforma ?? ""}`}
+                  alt={`QR ${qrOpen?.nombre ?? ""}`}
                   className="w-full h-full object-contain"
                 />
               ) : (

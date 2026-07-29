@@ -30,7 +30,7 @@ import {
 } from "@/lib/reservas.schemas";
 import { fechaLocalISO, formatMoney } from "@/lib/format";
 import { actualizarReserva, crearReserva, type Reserva } from "@/lib/reservas.functions";
-import { listarMetodosPagoQr } from "@/lib/metodos-pago.functions";
+import { listarMetodosPago } from "@/lib/metodos-pago.functions";
 import { crearDecoracion, listarDecoraciones } from "@/lib/decoraciones.functions";
 
 interface Props {
@@ -187,8 +187,8 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
     });
 
   const cuentasQ = useQuery({
-    queryKey: ["metodosPagoQr"],
-    queryFn: () => listarMetodosPagoQr(),
+    queryKey: ["metodosPago"],
+    queryFn: () => listarMetodosPago(),
     enabled: open,
   });
   const cuentas = cuentasQ.data ?? [];
@@ -365,15 +365,12 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={CUENTA_EFECTIVO}>{MEDIO_ABONO_EFECTIVO}</SelectItem>
-                    {cuentas.map((c) => {
-                      const label = c.plataforma === "Otra" ? c.etiqueta || "Otra" : c.plataforma;
-                      return (
-                        <SelectItem key={c.id_qr} value={c.id_qr}>
-                          {label}
-                          {c.titular ? ` · ${c.titular}` : ""}
-                        </SelectItem>
-                      );
-                    })}
+                    {cuentas.map((c) => (
+                      <SelectItem key={c.id_qr} value={c.id_qr}>
+                        {c.nombre}
+                        {c.titular ? ` · ${c.titular}` : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {cuentas.length === 0 && (
