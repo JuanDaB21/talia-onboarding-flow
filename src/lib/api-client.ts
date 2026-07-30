@@ -75,7 +75,7 @@ interface Options {
  * Se usa AbortController manual en vez de `AbortSignal.timeout`/`any` porque esos
  * solo existen desde Safari 17 y aquí hay iPhones viejos en el salón.
  */
-function fetchConTimeout(url: string, init: RequestInit, ms: number, externo?: AbortSignal): Promise<Response> {
+export function fetchConTimeout(url: string, init: RequestInit, ms: number, externo?: AbortSignal): Promise<Response> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(new DOMException("Tiempo de espera agotado", "TimeoutError")), ms);
   const alAbortar = () => ctrl.abort(externo?.reason);
