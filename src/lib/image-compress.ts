@@ -1,9 +1,13 @@
-// Compresión de imágenes en el navegador antes de subir al bucket.
-// La subida usa URL prefirmada (PUT directo a S3), así que los bytes nunca
-// pasan por el backend: comprimir aquí es la única forma de optimizar peso y
-// velocidad. Se aplica por `scope` con perfiles distintos según la necesidad.
+// Compresión de imágenes en el navegador antes de subir por el backend.
+// Menos bytes = subida más rápida y barata sobre la red móvil del mesero.
+// Se aplica por `scope` con perfiles distintos según la necesidad.
 import imageCompression from "browser-image-compression";
 import type { StorageScope } from "@/lib/storage";
+
+// Techo para la compresión: en un celular de poca RAM, decodificar una foto de
+// 12+ MP en el web-worker puede colgarse sin resolver ni lanzar. Sin este límite,
+// el `await compressForScope` quedaría pendiente para siempre y trabaría el pago.
+const COMPRESS_TIMEOUT_MS = 8_000;
 
 type Profile = {
   maxSizeMB: number;
@@ -45,18 +49,31 @@ export async function compressForScope(
   }
 
   const p = PROFILES[scope];
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const compressed = await imageCompression(file as File, {
-      maxSizeMB: p.maxSizeMB,
-      maxWidthOrHeight: p.maxWidthOrHeight,
-      initialQuality: p.initialQuality,
-      useWebWorker: true,
-      fileType: p.fileType,
-    });
+    // Race contra un timeout: si el worker se cuelga, seguimos con el original en
+    // vez de dejar la promesa pendiente para siempre (mismo espíritu que el catch).
+    const compressed = await Promise.race([
+      imageCompression(file as File, {
+        maxSizeMB: p.maxSizeMB,
+        maxWidthOrHeight: p.maxWidthOrHeight,
+        initialQuality: p.initialQuality,
+        useWebWorker: true,
+        fileType: p.fileType,
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("compress-timeout")),
+          COMPRESS_TIMEOUT_MS,
+        );
+      }),
+    ]);
     // Si por alguna razón quedó igual o más grande, usa el original.
     return compressed.size < (file as File).size ? compressed : file;
   } catch {
     // Fallback: subir el original antes que bloquear el flujo de pago/carga.
     return file;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }

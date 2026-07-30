@@ -2,10 +2,16 @@
 // (/storage/upload y /storage/pub|priv): el navegador solo habla con el backend,
 // nunca hace fetch directo al bucket (evita "Failed to fetch" por CORS/alcance).
 import { useEffect, useState } from "react";
-import { api, getTokens } from "@/lib/api-client";
+import { api, getTokens, fetchConTimeout } from "@/lib/api-client";
 import { compressForScope } from "@/lib/image-compress";
 
 export type StorageScope = "producto" | "logo" | "qr" | "comprobante";
+
+// Subir bytes tarda más que una llamada JSON, así que el techo es más generoso
+// que el de `api-client`. Pero DEBE existir: sin timeout, un POST que se estanca
+// sobre una red móvil no rechaza nunca → el `finally` del que sube jamás corre y
+// el spinner queda congelado, dejando el botón de pago deshabilitado para siempre.
+const UPLOAD_TIMEOUT_MS = 30_000;
 
 function backendOrigin(): string {
   try {
@@ -36,14 +42,28 @@ export async function uploadToStorage(
   const toUpload = await compressForScope(scope, file);
   const contentType = (toUpload as File).type || "application/octet-stream";
   const tokens = getTokens();
-  const res = await fetch(`${api.url}/storage/upload?scope=${encodeURIComponent(scope)}`, {
-    method: "POST",
-    headers: {
-      "content-type": contentType,
-      ...(tokens ? { authorization: `Bearer ${tokens.access}` } : {}),
-    },
-    body: toUpload,
-  });
+  let res: Response;
+  try {
+    res = await fetchConTimeout(
+      `${api.url}/storage/upload?scope=${encodeURIComponent(scope)}`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": contentType,
+          ...(tokens ? { authorization: `Bearer ${tokens.access}` } : {}),
+        },
+        body: toUpload,
+      },
+      UPLOAD_TIMEOUT_MS,
+    );
+  } catch (err) {
+    // El AbortController de `fetchConTimeout` rechaza con TimeoutError al vencer;
+    // lo traducimos a un mensaje accionable para el mesero (red lenta, reintentar).
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error("La red está lenta, no se pudo subir. Intenta de nuevo.");
+    }
+    throw err;
+  }
   if (!res.ok) throw new Error("No se pudo subir el archivo");
   return (await res.json()) as { path: string; key: string };
 }

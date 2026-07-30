@@ -1580,11 +1580,17 @@ function TransferenciaSection({
       </div>
       <div>
         <Label>Comprobante</Label>
+        {/*
+          Sin `capture`: en Android ese atributo abre la cámara directo y OCULTA
+          la galería/archivos, pero el comprobante de transferencia casi siempre
+          es un screenshot ya guardado (galería o WhatsApp). Así el mesero puede
+          elegir la captura existente o tomar foto. `accept` admite además PDF y
+          HEIC (fotos de Samsung/Xiaomi) — el backend ya los acepta.
+        */}
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
-          capture="environment"
+          accept="image/*,.heic,.heif,application/pdf"
           className="hidden"
           onChange={handleFile}
         />
@@ -1600,7 +1606,7 @@ function TransferenciaSection({
           ) : (
             <Camera className="h-4 w-4 mr-2" />
           )}
-          {urlComprobante ? "Comprobante subido — cambiar" : "Tomar / subir foto"}
+          {urlComprobante ? "Comprobante subido — cambiar" : "Subir comprobante"}
         </Button>
         <p className="text-[11px] text-muted-foreground mt-1">
           Se enviará al administrador para que confirme la recepción.
