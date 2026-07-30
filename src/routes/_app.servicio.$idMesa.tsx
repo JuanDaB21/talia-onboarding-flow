@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   Bell,
   CalendarCheck,
   CheckCircle2,
@@ -59,6 +60,10 @@ import {
   EditarItemDialog,
   type EditarItemDialogItem,
 } from "@/components/servicio/editar-item-dialog";
+import {
+  CancelarItemAdminDialog,
+  type CancelarItemAdminItem,
+} from "@/components/servicio/cancelar-item-admin-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { AsignarReservaDialog } from "@/components/servicio/asignar-reserva-dialog";
 import {
@@ -321,8 +326,10 @@ function MesaEnServicio() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [reasignarOpen, setReasignarOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
+  const [cancelAdminItem, setCancelAdminItem] = useState<CancelarItemAdminItem | null>(null);
 
   const { rol } = useMiStaff();
+  const esAdmin = rol === "ADMIN" || rol === "SUPERADMIN";
   const puedeReasignar =
     rol === "MESERO" || rol === "ADMIN" || rol === "SUPERADMIN" || rol === "CAJERO";
 
@@ -412,6 +419,8 @@ function MesaEnServicio() {
           onDeleteItem={(idItem) => delMut.mutate(idItem)}
           onAddMore={() => setAddingTo(p.id_pedido)}
           onPrint={() => imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, p)}
+          esAdmin={esAdmin}
+          onCancelAdmin={(it) => setCancelAdminItem(it)}
         />
       ))}
 
@@ -455,6 +464,12 @@ function MesaEnServicio() {
         open={!!editing}
         onOpenChange={(o) => !o && setEditing(null)}
         item={editing}
+      />
+      <CancelarItemAdminDialog
+        open={!!cancelAdminItem}
+        onOpenChange={(o) => !o && setCancelAdminItem(null)}
+        idMesa={idMesa}
+        item={cancelAdminItem}
       />
       <AgregarProductoSheet
         open={!!addingTo}
@@ -662,6 +677,8 @@ function PedidoConfirmadoCard({
   onDeleteItem,
   onAddMore,
   onPrint,
+  esAdmin,
+  onCancelAdmin,
 }: {
   pedido: PedidoSesion;
   numero: number;
@@ -671,6 +688,8 @@ function PedidoConfirmadoCard({
   onDeleteItem: (idItem: string) => void;
   onAddMore: () => void;
   onPrint: () => void;
+  esAdmin: boolean;
+  onCancelAdmin: (it: CancelarItemAdminItem) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [vista, setVista] = useState<"detallado" | "resumen">("detallado");
@@ -761,7 +780,14 @@ function PedidoConfirmadoCard({
           {vista === "detallado" ? (
             <ul className="space-y-2 divide-y">
               {pedido.items.map((it) => (
-                <ItemRow key={it.id_item} item={it} onEdit={onEditItem} onDelete={onDeleteItem} />
+                <ItemRow
+                  key={it.id_item}
+                  item={it}
+                  onEdit={onEditItem}
+                  onDelete={onDeleteItem}
+                  esAdmin={esAdmin}
+                  onCancelAdmin={onCancelAdmin}
+                />
               ))}
             </ul>
           ) : (
@@ -832,12 +858,19 @@ function ItemRow({
   item,
   onEdit,
   onDelete,
+  esAdmin,
+  onCancelAdmin,
 }: {
   item: ItemPedidoSesion;
   onEdit: (it: EditarItemDialogItem) => void;
   onDelete: (idItem: string) => void;
+  esAdmin?: boolean;
+  onCancelAdmin?: (it: CancelarItemAdminItem) => void;
 }) {
   const enCola = item.estado_preparacion === "EN_COLA";
+  const entregado = item.estado_preparacion === "ENTREGADO";
+  // Cancelación excepcional (admin): el item ya está en preparación y aún no se entregó.
+  const puedeCancelarAdmin = Boolean(esAdmin && onCancelAdmin && !enCola && !entregado);
   const estado = ESTADO_LABEL[item.estado_preparacion] ?? ESTADO_LABEL.EN_COLA;
   return (
     <li className="pt-2 first:pt-0">
@@ -913,6 +946,24 @@ function ItemRow({
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
+            {puedeCancelarAdmin && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-destructive"
+                title="Cancelar (admin)"
+                onClick={() =>
+                  onCancelAdmin?.({
+                    id_item: item.id_item,
+                    nombre_producto: item.nombre_producto,
+                    cantidad: item.cantidad,
+                  })
+                }
+              >
+                <Ban className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
