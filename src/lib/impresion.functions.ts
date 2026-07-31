@@ -89,7 +89,7 @@ export function imprimirCierre(idCaja: string) {
 export interface PrintJob {
   id_job: string;
   espacio_slug: string;
-  estado: "PENDIENTE" | "IMPRESO" | "ERROR";
+  estado: "PENDIENTE" | "IMPRESO" | "ERROR" | "DESCARTADO";
   error: string | null;
   created_at: string;
   printed_at: string | null;
@@ -101,6 +101,10 @@ export function listarPrintJobs(limit = 30) {
 
 export function reintentarPrintJob(idJob: string) {
   return api.post<{ ok: true; agenteConectado: boolean }>(`/impresion/jobs/${idJob}/reintentar`);
+}
+
+export function descartarPrintJob(idJob: string) {
+  return api.post<{ ok: true }>(`/impresion/jobs/${idJob}/descartar`);
 }
 
 export interface PrintAgent {
