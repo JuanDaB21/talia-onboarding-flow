@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Printer, RefreshCcw } from "lucide-react";
+import { Printer, RefreshCcw, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { listarPrintJobs, reintentarPrintJob } from "@/lib/impresion.functions";
+import { listarPrintJobs, reintentarPrintJob, descartarPrintJob } from "@/lib/impresion.functions";
 
 /**
  * Monitor de impresión: muestra los trabajos con problema (ERROR) y los pendientes
@@ -19,9 +19,10 @@ export function AlertasImpresion() {
     refetchInterval: 8000,
   });
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const jobs = data ?? [];
-  const problemas = jobs.filter((j) => j.estado === "ERROR");
+  const problemas = jobs.filter((j) => j.estado === "ERROR" && !dismissed.has(j.id_job));
   const pendientes = jobs.filter((j) => j.estado === "PENDIENTE");
 
   const handleRetry = async (id: string) => {
@@ -36,6 +37,23 @@ export function AlertasImpresion() {
       toast.error("No se pudo reintentar", { description: e instanceof Error ? e.message : "" });
     } finally {
       setRetrying(null);
+    }
+  };
+
+  const handleDescartar = async (id: string) => {
+    // Oculta de inmediato y persiste en el backend (estado DESCARTADO) para que no
+    // reaparezca al recargar. Si falla, se revierte la ocultación.
+    setDismissed((s) => new Set(s).add(id));
+    try {
+      await descartarPrintJob(id);
+      await refetch();
+    } catch (e) {
+      setDismissed((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
+      toast.error("No se pudo descartar", { description: e instanceof Error ? e.message : "" });
     }
   };
 
@@ -54,7 +72,9 @@ export function AlertasImpresion() {
       </CardHeader>
       <CardContent className="space-y-3">
         {problemas.length === 0 && pendientes.length === 0 && (
-          <p className="text-sm text-muted-foreground">Todas las comandas se están imprimiendo bien.</p>
+          <p className="text-sm text-muted-foreground">
+            Todas las comandas se están imprimiendo bien.
+          </p>
         )}
 
         {pendientes.length > 0 && problemas.length === 0 && (
@@ -72,7 +92,9 @@ export function AlertasImpresion() {
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">No se pudo imprimir en {j.espacio_slug}</p>
-                <p className="text-xs text-muted-foreground break-words">{j.error ?? "Error desconocido"}</p>
+                <p className="text-xs text-muted-foreground break-words">
+                  {j.error ?? "Error desconocido"}
+                </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {new Date(j.created_at).toLocaleTimeString("es-CO", {
                     hour: "2-digit",
@@ -80,6 +102,16 @@ export function AlertasImpresion() {
                   })}
                 </p>
               </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="shrink-0 h-8 w-8 opacity-60 hover:opacity-100"
+                aria-label="Descartar alerta"
+                title="Descartar"
+                onClick={() => handleDescartar(j.id_job)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
             <Button
               size="sm"

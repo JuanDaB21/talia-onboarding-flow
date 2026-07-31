@@ -2,14 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Users,
-  UserX,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, Clock, Users, UserX, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +73,7 @@ function PagosPendientes() {
     ...POLL.LIVE,
   });
   const [busy, setBusy] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const handle = async (idPago: string, aprobar: boolean) => {
     setBusy(idPago);
@@ -95,7 +89,7 @@ function PagosPendientes() {
     }
   };
 
-  const pagos = data?.pagos ?? [];
+  const pagos = (data?.pagos ?? []).filter((p) => !dismissed.has(p.id_pago));
 
   return (
     <Card>
@@ -126,15 +120,27 @@ function PagosPendientes() {
                   {new Date(p.created_at).toLocaleTimeString()}
                 </div>
               </div>
-              {p.url_comprobante && (
-                <StorageImage
-                  path={p.url_comprobante}
-                  visibility="private"
-                  alt="Comprobante"
-                  className="h-16 w-16 shrink-0 rounded border"
-                  imgClassName="h-full w-full object-cover"
-                />
-              )}
+              <div className="flex shrink-0 items-start gap-2">
+                {p.url_comprobante && (
+                  <StorageImage
+                    path={p.url_comprobante}
+                    visibility="private"
+                    alt="Comprobante"
+                    className="h-16 w-16 shrink-0 rounded border"
+                    imgClassName="h-full w-full object-cover"
+                  />
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="shrink-0 h-8 w-8 opacity-60 hover:opacity-100"
+                  aria-label="Descartar alerta"
+                  title="Descartar"
+                  onClick={() => setDismissed((s) => new Set(s).add(p.id_pago))}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -168,7 +174,8 @@ function Alertas() {
     queryFn: () => getAlertasOperacion(),
     ...POLL.LIVE,
   });
-  const alertas = data?.alertas ?? [];
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const alertas = (data?.alertas ?? []).filter((a) => !dismissed.has(a.id_item));
   return (
     <Card>
       <CardHeader>
@@ -198,11 +205,27 @@ function Alertas() {
                     {a.destino ?? "—"} · {a.estado_preparacion}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-bold text-destructive">+{a.retraso_min} min</div>
-                  <div className="text-xs text-muted-foreground">
-                    {a.minutos_transcurridos}/{a.minutos_planeados} min
+                <div className="flex shrink-0 items-start gap-2">
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-destructive">+{a.retraso_min} min</div>
+                    <div className="text-xs text-muted-foreground">
+                      {a.minutos_transcurridos}/{a.minutos_planeados} min
+                    </div>
                   </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 h-8 w-8 opacity-60 hover:opacity-100"
+                    aria-label="Descartar alerta"
+                    title="Descartar"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDismissed((s) => new Set(s).add(a.id_item));
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -355,8 +378,7 @@ function MesasGrid() {
           {mesas.map((m) => {
             // Ocupación aparente: además del estado, un prepedido en curso o una solicitud
             // del cliente cuentan como "en servicio" (mismas señales que Mesas en servicio).
-            const enServicio =
-              m.estado === "OCUPADA" || m.tiene_prepedido || !!m.solicitud_cliente;
+            const enServicio = m.estado === "OCUPADA" || m.tiene_prepedido || !!m.solicitud_cliente;
             const color = m.solicitud_cliente
               ? "bg-destructive/15 text-destructive border-destructive/40"
               : m.estado === "OCUPADA"
