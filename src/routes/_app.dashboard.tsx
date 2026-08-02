@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -31,7 +32,10 @@ const searchSchema = z.object({
 
 function resolveRange(search: z.infer<typeof searchSchema>): Required<DateRangeValue> {
   const rango = search.rango ?? "hoy";
-  if (rango === "custom" && search.desde && search.hasta) {
+  // Si el URL ya trae el rango resuelto (lo escribe RangeSelector al navegar), úsalo tal cual:
+  // así el rango es estable y reproducible en refresh/back-forward. Solo la primera carga sin
+  // params cae a presetToDates() (que usa now()), y ese caso lo congela el useMemo del render.
+  if (search.desde && search.hasta) {
     return { rango, desde: search.desde, hasta: search.hasta };
   }
   const { desde, hasta } = presetToDates(rango);
@@ -51,7 +55,17 @@ export const Route = createFileRoute("/_app/dashboard")({
 function DashboardPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const range = resolveRange(search);
+  // Memoizar el rango es CRÍTICO: sin esto, presetToDates() genera un `hasta` = new Date()
+  // nuevo en cada render, lo que cambia el queryKey de KPIs/paneles cada vez → React Query
+  // refetchea sin parar → bucle infinito de peticiones → 429. Con el memo, la key solo
+  // cambia cuando cambia el `search` (elegir otro preset o rango custom).
+  const range = useMemo(
+    () => resolveRange(search),
+    // Dependemos de los campos primitivos, NO del objeto `search` (referencia nueva cada
+    // render que rompería el memo y devolvería el bucle de refetch).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [search.rango, search.desde, search.hasta],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["kpis", range.desde, range.hasta],
