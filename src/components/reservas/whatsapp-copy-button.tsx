@@ -8,6 +8,17 @@ const fmt = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
 
+/**
+ * Deja el número listo para un link `wa.me`, que exige indicativo de país.
+ * Quita todo lo no numérico; si son 10 dígitos (móvil colombiano típico) antepone
+ * el indicativo por defecto; si ya trae indicativo, lo respeta. "" si no hay número.
+ */
+function normalizarTelefonoWa(telefono: string, indicativoDefault = "57"): string {
+  const soloDigitos = telefono.replace(/\D/g, "");
+  if (!soloDigitos) return "";
+  return soloDigitos.length === 10 ? indicativoDefault + soloDigitos : soloDigitos;
+}
+
 interface Props {
   nombre: string;
   fecha: string;
@@ -30,7 +41,7 @@ export function WhatsappCopyButton({ nombre, fecha, hora, codigo, monto, telefon
     try {
       await navigator.clipboard.writeText(msg);
       toast.success("Mensaje copiado");
-      const tel = (telefono ?? "").replace(/\D/g, "");
+      const tel = normalizarTelefonoWa(telefono ?? "");
       if (tel) {
         const url = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
         window.open(url, "_blank", "noopener,noreferrer");
