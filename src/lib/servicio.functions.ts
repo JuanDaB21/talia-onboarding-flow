@@ -228,6 +228,8 @@ export interface PedidoSesion {
   entregado_at: string | null;
   pagado_at: string | null;
   seguimiento_visto_at: string | null;
+  /** true si el pedido tiene ítems y todos están cobrados (habilita "Cerrar pedido"). */
+  todos_items_pagados: boolean;
   estado_global: "ABIERTO" | "EN_COLA" | "EN_PREPARACION" | "LISTO" | "ENTREGADO";
   items: ItemPedidoSesion[];
 }
