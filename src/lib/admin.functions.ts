@@ -1,5 +1,6 @@
 // Analítica / operación vía REST del backend Talia (/analytics/*). Solo lectura.
 import { api } from "@/lib/api-client";
+import type { DateRange } from "@/lib/analytics.functions";
 
 export interface KpisHoy {
   ventas_dia: number;
@@ -14,6 +15,14 @@ export interface KpisHoy {
 
 export function getKpisHoy() {
   return api.get<KpisHoy>("/analytics/kpis-hoy");
+}
+
+/**
+ * KPIs para un rango de fechas (mismo shape que `KpisHoy`). Ventas, ticket y tiempo
+ * de preparación se filtran por el rango; la ocupación es siempre un dato en vivo.
+ */
+export function getKpis(range: DateRange) {
+  return api.post<KpisHoy>("/analytics/kpis", range);
 }
 
 export interface AlertaItem {

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminGate } from "@/components/admin/admin-gate";
-import { getKpisHoy } from "@/lib/admin.functions";
+import { getKpis } from "@/lib/admin.functions";
 import { formatMoney } from "@/lib/format";
 import {
   RangeSelector,
@@ -54,10 +54,14 @@ function DashboardPage() {
   const range = resolveRange(search);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["kpis-hoy"],
-    queryFn: () => getKpisHoy(),
+    queryKey: ["kpis", range.desde, range.hasta],
+    queryFn: () => getKpis({ desde: range.desde, hasta: range.hasta }),
     ...POLL.NORMAL,
   });
+
+  // El bloque superior deja de ser "solo hoy": ventas, ticket y tiempo de prep siguen
+  // el mismo rango que la analítica de abajo. La ocupación es la excepción (dato en vivo).
+  const esHoy = range.rango === "hoy";
 
   const setRange = (v: DateRangeValue) => {
     navigate({ search: { tab: search.tab, rango: v.rango, desde: v.desde, hasta: v.hasta } });
@@ -97,7 +101,7 @@ function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           icon={<DollarSign className="h-4 w-4" />}
-          label="Ventas del día"
+          label={esHoy ? "Ventas del día" : "Ventas del periodo"}
           value={isLoading ? "…" : formatMoney(data?.ventas_dia ?? 0)}
           hint={`${data?.mesas_cerradas ?? 0} mesa(s) cerradas`}
         />
@@ -110,7 +114,7 @@ function DashboardPage() {
           icon={<Users className="h-4 w-4" />}
           label="Ocupación"
           value={isLoading ? "…" : `${Math.round(data?.ocupacion_pct ?? 0)}%`}
-          hint={`${data?.mesas_ocupadas ?? 0} / ${data?.mesas_totales ?? 0} mesas`}
+          hint={`${data?.mesas_ocupadas ?? 0} / ${data?.mesas_totales ?? 0} mesas · en vivo`}
         />
         <Kpi
           icon={<Timer className="h-4 w-4" />}

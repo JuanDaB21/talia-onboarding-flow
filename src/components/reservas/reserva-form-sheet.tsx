@@ -53,7 +53,10 @@ type FormState = {
   fecha_reserva: string;
   hora_reserva: string;
   cantidad_personas: string;
+  // El motivo ya no se escribe a mano: cuando la reserva lleva decoración, guarda el
+  // nombre del tipo de decoración (para reportes); si no, queda vacío.
   tipo_reserva: string;
+  con_decoracion: boolean;
   estado: EstadoReserva;
   monto_abonado: string;
   id_metodo_pago_qr: string;
@@ -68,27 +71,13 @@ const empty = (): FormState => ({
   hora_reserva: "",
   cantidad_personas: "2",
   tipo_reserva: "",
+  con_decoracion: false,
   estado: "intencion",
   monto_abonado: "0",
   id_metodo_pago_qr: "",
   id_decoracion: "",
   costo_decoracion: "0",
 });
-
-const TIPO_SUGERENCIAS = ["Cumpleaños", "Aniversario", "Grado", "Cena", "Reunión"];
-
-/**
- * ¿El motivo de la reserva es un cumpleaños? `tipo_reserva` es texto libre, así que
- * se compara sin tildes ni mayúsculas: "cumpleanos", "CUMPLEAÑOS" y "Cumpleaños de
- * Ana" cuentan igual.
- */
-function esCumpleanos(tipo: string): boolean {
-  return tipo
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .includes("cumpleanos");
-}
 
 export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
   const qc = useQueryClient();
@@ -107,6 +96,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         hora_reserva: reserva.hora_reserva,
         cantidad_personas: String(reserva.cantidad_personas),
         tipo_reserva: reserva.tipo_reserva ?? "",
+        con_decoracion: !!reserva.id_decoracion,
         estado: reserva.estado,
         monto_abonado: String(reserva.monto_abonado),
         id_metodo_pago_qr: reserva.id_metodo_pago_qr ?? "",
@@ -123,17 +113,18 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
     mutationFn: async () => {
       const monto = Number(form.monto_abonado) || 0;
       const cuenta = form.id_metodo_pago_qr;
-      // La decoración solo se envía si el motivo sigue siendo cumpleaños: si el
-      // usuario cambia el motivo después de elegirla, la fila desaparece de la UI y
-      // guardar una decoración invisible dejaría un cobro sorpresa en la cuenta.
-      const conDeco = esCumpleanos(form.tipo_reserva) && !!form.id_decoracion;
+      // La decoración solo se envía si el tipo de reserva es "con decoración" y se
+      // eligió una: si el usuario cambia a "sin decoración", la fila desaparece de la
+      // UI y guardar una decoración invisible dejaría un cobro sorpresa en la cuenta.
+      const conDeco = form.con_decoracion && !!form.id_decoracion;
       const parsed = reservaCrearSchema.safeParse({
         customer_name: form.customer_name,
         customer_phone: form.customer_phone || null,
         fecha_reserva: form.fecha_reserva,
         hora_reserva: form.hora_reserva,
         cantidad_personas: Number(form.cantidad_personas) || 0,
-        tipo_reserva: form.tipo_reserva || null,
+        // El motivo es el nombre de la decoración; sin decoración no hay motivo.
+        tipo_reserva: conDeco ? form.tipo_reserva || null : null,
         estado: form.estado,
         monto_abonado: monto,
         // NULL = efectivo/otro: el abono no siempre entra por una cuenta QR.
@@ -220,7 +211,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             )}
           </div>
           <div>
-            <Label htmlFor="tel">Teléfono</Label>
+            <Label htmlFor="tel">Teléfono (opcional)</Label>
             <Input
               id="tel"
               value={form.customer_phone}
@@ -228,6 +219,9 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
               placeholder="Ej: 3001234567"
               maxLength={30}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Sin número no se podrá enviar el mensaje de WhatsApp.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -283,35 +277,46 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             )}
           </div>
           <div>
-            <Label htmlFor="tipo">Tipo / motivo</Label>
-            <Input
-              id="tipo"
-              value={form.tipo_reserva}
-              onChange={(e) => set("tipo_reserva", e.target.value)}
-              placeholder="Cumpleaños, Aniversario, Grado..."
-              maxLength={50}
-              list="tipo-suggestions"
-            />
-            <datalist id="tipo-suggestions">
-              {TIPO_SUGERENCIAS.map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
+            <Label htmlFor="tipo-reserva">Tipo de reserva</Label>
+            <Select
+              value={form.con_decoracion ? "con" : "sin"}
+              onValueChange={(v) => {
+                const con = v === "con";
+                setForm((s) => ({
+                  ...s,
+                  con_decoracion: con,
+                  // Al pasar a "sin decoración" se limpia todo lo de la decoración
+                  // para no dejar un cobro fantasma en la cuenta.
+                  id_decoracion: con ? s.id_decoracion : "",
+                  costo_decoracion: con ? s.costo_decoracion : "0",
+                  tipo_reserva: con ? s.tipo_reserva : "",
+                }));
+              }}
+            >
+              <SelectTrigger id="tipo-reserva">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sin">Sin decoración</SelectItem>
+                <SelectItem value="con">Con decoración</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Solo para cumpleaños: es el caso donde el negocio vende decoración. */}
-          {esCumpleanos(form.tipo_reserva) && (
+          {form.con_decoracion && (
             <DecoracionRow
               open={open}
               idDecoracion={form.id_decoracion}
               costo={form.costo_decoracion}
-              onSelect={(id, costoCatalogo) =>
+              onSelect={(id, costoCatalogo, nombre) =>
                 setForm((s) => ({
                   ...s,
                   id_decoracion: id,
                   // Al elegir se copia el precio del catálogo, pero queda editable:
                   // el costo guardado es un snapshot de esta reserva.
                   costo_decoracion: id ? String(costoCatalogo) : "0",
+                  // El nombre de la decoración pasa a ser el motivo de la reserva.
+                  tipo_reserva: id ? nombre : "",
                 }))
               }
               onCostoChange={(v) => set("costo_decoracion", v)}
@@ -425,7 +430,7 @@ function DecoracionRow({
   open: boolean;
   idDecoracion: string;
   costo: string;
-  onSelect: (idDecoracion: string, costoCatalogo: number) => void;
+  onSelect: (idDecoracion: string, costoCatalogo: number, nombre: string) => void;
   onCostoChange: (v: string) => void;
   error?: string;
 }) {
@@ -447,7 +452,7 @@ function DecoracionRow({
     onSuccess: (nueva) => {
       toast.success(`Decoración "${nueva.nombre}" creada`);
       qc.invalidateQueries({ queryKey: ["decoraciones"] });
-      onSelect(nueva.id_decoracion, nueva.costo);
+      onSelect(nueva.id_decoracion, nueva.costo, nueva.nombre);
       setCreando(false);
       setNombreNuevo("");
       setCostoNuevo("0");
@@ -463,16 +468,16 @@ function DecoracionRow({
           <Select
             value={idDecoracion || SIN_DECORACION}
             onValueChange={(v) => {
-              if (v === SIN_DECORACION) return onSelect("", 0);
+              if (v === SIN_DECORACION) return onSelect("", 0, "");
               const d = decoraciones.find((x) => x.id_decoracion === v);
-              onSelect(v, d?.costo ?? 0);
+              onSelect(v, d?.costo ?? 0, d?.nombre ?? "");
             }}
           >
             <SelectTrigger id="decoracion" className="flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={SIN_DECORACION}>Sin decoración</SelectItem>
+              <SelectItem value={SIN_DECORACION}>Sin elegir</SelectItem>
               {decoraciones.map((d) => (
                 <SelectItem key={d.id_decoracion} value={d.id_decoracion}>
                   {d.nombre} · {formatMoney(d.costo)}
