@@ -87,7 +87,7 @@ import { beepListo } from "@/components/servicio/alerta-sound";
 import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
-import { cerrarMesa, estadoCierreMesa } from "@/lib/pagos.functions";
+import { cerrarMesa, cerrarPedido, estadoCierreMesa } from "@/lib/pagos.functions";
 import { POLL, pollWhen } from "@/lib/query-config";
 import {
   AlertDialog,
@@ -322,6 +322,25 @@ function MesaEnServicio() {
       }),
   });
 
+  // Cierre de un pedido individual de la mesa (deja los demás abiertos). Se mantiene en la
+  // mesa, así que invalida las queries en vez de navegar (a diferencia de cerrarMut).
+  const [cerrarPedidoTarget, setCerrarPedidoTarget] = useState<string | null>(null);
+  const cerrarPedidoMut = useMutation({
+    mutationFn: (idPedido: string) => cerrarPedido(idPedido),
+    onSuccess: () => {
+      toast.success("Pedido cerrado");
+      setCerrarPedidoTarget(null);
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["estadoCierre", idMesa] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+    },
+    onError: (e) =>
+      toast.error("No se pudo cerrar el pedido", {
+        description: e instanceof Error ? e.message : undefined,
+      }),
+  });
+
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [reasignarOpen, setReasignarOpen] = useState(false);
@@ -356,6 +375,9 @@ function MesaEnServicio() {
   const pedidoAbierto = mesa.pedidos.find((p) => p.estado === "ABIERTO");
   const pedidosConfirmados = mesa.pedidos.filter((p) => p.estado === "CONFIRMADO");
   const hayConfirmados = pedidosConfirmados.length > 0;
+  // El botón "Cerrar pedido" por-pedido solo tiene sentido cuando la mesa tiene VARIOS
+  // pedidos activos (con uno solo basta "Cerrar mesa"); evita duplicar la acción.
+  const pedidosActivos = pedidosConfirmados.length + (pedidoAbierto ? 1 : 0);
 
   return (
     <div className="space-y-4">
@@ -421,6 +443,9 @@ function MesaEnServicio() {
           onPrint={() => imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, p)}
           esAdmin={esAdmin}
           onCancelAdmin={(it) => setCancelAdminItem(it)}
+          mostrarCerrar={pedidosActivos > 1}
+          pedidoPagado={p.todos_items_pagados}
+          onCerrarPedido={() => setCerrarPedidoTarget(p.id_pedido)}
         />
       ))}
 
@@ -512,6 +537,39 @@ function MesaEnServicio() {
                 <LockKeyhole className="h-4 w-4 mr-2" />
               )}
               Cerrar mesa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cerrarPedidoTarget != null}
+        onOpenChange={(o) => !o && setCerrarPedidoTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar este pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se marcará como pagado y saldrá de la cuenta de la mesa; los demás pedidos siguen
+              abiertos. No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrarPedidoMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (cerrarPedidoTarget) cerrarPedidoMut.mutate(cerrarPedidoTarget);
+              }}
+              disabled={cerrarPedidoMut.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {cerrarPedidoMut.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LockKeyhole className="h-4 w-4 mr-2" />
+              )}
+              Cerrar pedido
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -679,6 +737,9 @@ function PedidoConfirmadoCard({
   onPrint,
   esAdmin,
   onCancelAdmin,
+  mostrarCerrar = false,
+  pedidoPagado = false,
+  onCerrarPedido,
 }: {
   pedido: PedidoSesion;
   numero: number;
@@ -690,6 +751,9 @@ function PedidoConfirmadoCard({
   onPrint: () => void;
   esAdmin: boolean;
   onCancelAdmin: (it: CancelarItemAdminItem) => void;
+  mostrarCerrar?: boolean;
+  pedidoPagado?: boolean;
+  onCerrarPedido?: () => void;
 }) {
   const [open, setOpen] = useState(true);
   const [vista, setVista] = useState<"detallado" | "resumen">("detallado");
@@ -832,6 +896,18 @@ function PedidoConfirmadoCard({
             <Button variant="outline" size="sm" onClick={onPrint} className="gap-1">
               <Printer className="h-3.5 w-3.5" /> Imprimir comanda
             </Button>
+            {mostrarCerrar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCerrarPedido}
+                disabled={!pedidoPagado}
+                title={pedidoPagado ? undefined : "Faltan ítems por cobrar en este pedido"}
+                className="gap-1"
+              >
+                <LockKeyhole className="h-3.5 w-3.5" /> Cerrar pedido
+              </Button>
+            )}
             {necesitaEntrega && (
               <Button
                 size="sm"

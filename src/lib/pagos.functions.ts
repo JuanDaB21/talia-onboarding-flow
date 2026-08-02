@@ -66,6 +66,14 @@ export function cerrarMesa(idMesa: string) {
 }
 
 /**
+ * Cierra UN pedido individual de la mesa (lo marca PAGADO), dejando los demás abiertos.
+ * Solo si todos sus ítems están cobrados. El backend imprime un ticket consolidado.
+ */
+export function cerrarPedido(idPedido: string) {
+  return api.post<{ ok: true }>(`/pagos/pedidos/${idPedido}/cerrar`);
+}
+
+/**
  * Separa una línea de N unidades del mismo producto en N líneas de 1, para que cada
  * comensal pueda pagar la suya por separado. Rechaza líneas con adiciones (se cobran
  * juntas). Devuelve cuántas unidades quedaron.
