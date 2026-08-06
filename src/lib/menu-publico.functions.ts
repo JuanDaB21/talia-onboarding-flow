@@ -52,6 +52,17 @@ export async function getMenuPublico(idMesa: string): Promise<MenuPublico> {
   return { mesa: s.mesa, negocio: s.negocio, categorias: s.categorias, productos: s.productos };
 }
 
+// Menú público del NEGOCIO (sin mesa), para compartir en redes/WhatsApp. Solo lectura.
+export interface MenuNegocioPublico {
+  negocio: CartaNegocio;
+  categorias: CartaCategoria[];
+  productos: CartaProducto[];
+}
+
+export function getMenuPublicoNegocio(idNegocio: string): Promise<MenuNegocioPublico> {
+  return api.get<MenuNegocioPublico>(`/carta/negocio/${idNegocio}/menu`);
+}
+
 export function llamarMesero(idMesa: string): Promise<{ ok: true }> {
   return api.post<{ ok: true }>(`/carta/${idMesa}/llamar-mesero`);
 }

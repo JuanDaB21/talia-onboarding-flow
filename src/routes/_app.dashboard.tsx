@@ -117,7 +117,7 @@ function DashboardPage() {
           icon={<DollarSign className="h-4 w-4" />}
           label={esHoy ? "Ventas del día" : "Ventas del periodo"}
           value={isLoading ? "…" : formatMoney(data?.ventas_dia ?? 0)}
-          hint={`${data?.mesas_cerradas ?? 0} mesa(s) cerradas`}
+          hint={`${data?.mesas_cerradas ?? 0} cuenta(s) cerradas`}
         />
         <Kpi
           icon={<Receipt className="h-4 w-4" />}

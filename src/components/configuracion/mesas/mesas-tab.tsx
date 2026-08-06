@@ -7,6 +7,7 @@ import type { Mesa } from "@/lib/mesas-schemas";
 import { MesaCard } from "./mesa-card";
 import { MesaDetailDialog } from "./mesa-detail-dialog";
 import { NuevaMesaDialog } from "./nueva-mesa-dialog";
+import { MenuPublicoCard } from "./menu-publico-card";
 
 export function MesasTab({ idNegocio }: { idNegocio: string }) {
   const [items, setItems] = useState<Mesa[]>([]);
@@ -30,7 +31,6 @@ export function MesasTab({ idNegocio }: { idNegocio: string }) {
     return () => {
       realtime.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idNegocio]);
 
   const openDetail = (m: Mesa) => {
@@ -40,7 +40,10 @@ export function MesasTab({ idNegocio }: { idNegocio: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <MenuPublicoCard idNegocio={idNegocio} />
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">Mesas del local</h2>
         <Button onClick={() => setNewOpen(true)}>
           <Plus className="h-4 w-4 mr-1" /> Nueva mesa
         </Button>
