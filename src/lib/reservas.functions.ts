@@ -50,9 +50,10 @@ export function listarReservas(params?: { fecha?: string; estado?: string; searc
   return api.get<Reserva[]>(`/reservas${suffix}`);
 }
 
-export function getMetricasReservasHoy() {
+export function getMetricasReservasHoy(params?: { fecha?: string }) {
+  const suffix = params?.fecha ? `?fecha=${encodeURIComponent(params.fecha)}` : "";
   return api.get<{ total: number; abonado: number; devuelto: number; retenido: number }>(
-    "/reservas/metricas-hoy",
+    `/reservas/metricas-hoy${suffix}`,
   );
 }
 

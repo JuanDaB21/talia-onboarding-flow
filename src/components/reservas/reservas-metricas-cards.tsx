@@ -12,24 +12,27 @@ interface Props {
   abonado: number;
   devuelto: number;
   retenido: number;
+  /** Las métricas reflejan la fecha seleccionada; con otra fecha el sufijo pasa de "hoy" a "del día". */
+  esHoy?: boolean;
 }
 
-export function ReservasMetricasCards({ total, abonado, devuelto, retenido }: Props) {
+export function ReservasMetricasCards({ total, abonado, devuelto, retenido, esHoy = true }: Props) {
+  const cuando = esHoy ? "hoy" : "del día";
   const items = [
     {
-      label: "Reservas hoy",
+      label: `Reservas ${cuando}`,
       value: String(total),
       icon: CalendarCheck,
       color: "text-primary",
     },
     {
-      label: "Abonado hoy",
+      label: `Abonado ${cuando}`,
       value: fmt.format(abonado),
       icon: Wallet,
       color: "text-emerald-600",
     },
     {
-      label: "Devuelto hoy",
+      label: `Devuelto ${cuando}`,
       value: fmt.format(devuelto),
       icon: Undo2,
       color: "text-amber-600",
