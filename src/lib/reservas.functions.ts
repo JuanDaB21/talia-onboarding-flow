@@ -25,6 +25,8 @@ export interface Reserva {
   id_mesa_asignada: string | null;
   /** Línea de la cuenta donde se cargó la decoración. */
   id_item_decoracion: string | null;
+  /** Nota libre opcional (decoración especial, forma/arreglo, instrucciones). */
+  notas: string | null;
 }
 
 export interface ReservaInput {
@@ -39,6 +41,7 @@ export interface ReservaInput {
   id_metodo_pago_qr?: string | null;
   id_decoracion?: string | null;
   costo_decoracion?: number;
+  notas?: string | null;
 }
 
 export function listarReservas(params?: { fecha?: string; estado?: string; search?: string }) {

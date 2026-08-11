@@ -22,6 +22,7 @@ import {
   Pencil,
   X,
   Trash2,
+  StickyNote,
 } from "lucide-react";
 import type { Reserva } from "@/lib/reservas.functions";
 import { ESTADO_LABEL, MEDIO_ABONO_EFECTIVO, type EstadoReserva } from "@/lib/reservas.schemas";
@@ -131,6 +132,12 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                       </Badge>
                     )}
                   </div>
+                  {reserva.notas && (
+                    <div className="flex items-start gap-1 mt-1 text-xs text-muted-foreground">
+                      <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span className="whitespace-pre-wrap break-words">{reserva.notas}</span>
+                    </div>
+                  )}
                 </div>
                 <Badge className={ESTADO_STYLE[reserva.estado]} variant="secondary">
                   {ESTADO_LABEL[reserva.estado]}

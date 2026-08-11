@@ -33,6 +33,8 @@ export const reservaBaseSchema = z.object({
   // `costo_decoracion` es un snapshot del catálogo al momento de reservar.
   id_decoracion: z.string().uuid().optional().nullable(),
   costo_decoracion: z.number().min(0).max(100_000_000).default(0),
+  // Nota libre opcional (decoración especial, forma/arreglo, instrucciones).
+  notas: z.string().trim().max(500).optional().nullable(),
 });
 
 export const reservaCrearSchema = reservaBaseSchema
