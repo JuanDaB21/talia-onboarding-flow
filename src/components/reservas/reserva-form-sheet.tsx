@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -62,6 +63,7 @@ type FormState = {
   id_metodo_pago_qr: string;
   id_decoracion: string;
   costo_decoracion: string;
+  notas: string;
 };
 
 const empty = (): FormState => ({
@@ -77,6 +79,7 @@ const empty = (): FormState => ({
   id_metodo_pago_qr: "",
   id_decoracion: "",
   costo_decoracion: "0",
+  notas: "",
 });
 
 export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
@@ -102,6 +105,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         id_metodo_pago_qr: reserva.id_metodo_pago_qr ?? "",
         id_decoracion: reserva.id_decoracion ?? "",
         costo_decoracion: String(reserva.costo_decoracion ?? 0),
+        notas: reserva.notas ?? "",
       });
     } else {
       setForm(empty());
@@ -131,6 +135,7 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
         id_metodo_pago_qr: monto > 0 && cuenta && cuenta !== CUENTA_EFECTIVO ? cuenta : null,
         id_decoracion: conDeco ? form.id_decoracion : null,
         costo_decoracion: conDeco ? Number(form.costo_decoracion) || 0 : 0,
+        notas: form.notas || null,
       });
       if (!parsed.success) {
         const e: Record<string, string> = {};
@@ -222,6 +227,18 @@ export function ReservaFormSheet({ open, onOpenChange, reserva }: Props) {
             <p className="text-xs text-muted-foreground mt-1">
               Sin número no se podrá enviar el mensaje de WhatsApp.
             </p>
+          </div>
+          <div>
+            <Label htmlFor="notas">Notas (opcional)</Label>
+            <Textarea
+              id="notas"
+              value={form.notas}
+              onChange={(e) => set("notas", e.target.value)}
+              placeholder="Ej: decoración especial, forma de la mesa, instrucciones…"
+              maxLength={500}
+              rows={3}
+            />
+            {errors.notas && <p className="text-xs text-destructive mt-1">{errors.notas}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

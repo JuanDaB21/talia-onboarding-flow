@@ -47,9 +47,11 @@ function ReservasPage() {
       }),
   });
 
+  // `fecha` en la key para que la card se recalcule al cambiar la fecha; la misma
+  // `fecha` que alimenta la lista, así card y lista siempre coinciden.
   const metricasQ = useQuery({
-    queryKey: ["reservas", "metricas-hoy"],
-    queryFn: () => getMetricasReservasHoy(),
+    queryKey: ["reservas", "metricas", { fecha }],
+    queryFn: () => getMetricasReservasHoy({ fecha: fecha || undefined }),
   });
 
   const grupos = useMemo(() => {
@@ -91,6 +93,7 @@ function ReservasPage() {
         abonado={metricasQ.data?.abonado ?? 0}
         devuelto={metricasQ.data?.devuelto ?? 0}
         retenido={metricasQ.data?.retenido ?? 0}
+        esHoy={fecha === today()}
       />
 
       <div className="flex items-center gap-2 flex-wrap">
