@@ -147,6 +147,8 @@ export interface CierreDetalle {
    */
   propinas_total: number;
   propinas_efectivo: number;
+  propinas_transferencia: number;
+  propinas_datafono: number;
   /** Hora con más ventas, calculada en la timezone del negocio. */
   hora_pico: { hora: number; total: number } | null;
   ajustes: Array<{

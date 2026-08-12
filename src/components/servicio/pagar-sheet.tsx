@@ -49,6 +49,18 @@ import {
   type ReservaAplicable,
 } from "@/lib/reservas.functions";
 import { useNavigate } from "@tanstack/react-router";
+import { ApiError } from "@/lib/api-client";
+
+/** Muestra un toast dedicado si el error es "no hay caja abierta"; devuelve true si lo manejó. */
+function avisarSiNoCaja(e: unknown): boolean {
+  if (e instanceof ApiError && e.code === "NO_CAJA") {
+    toast.error("No hay caja abierta", {
+      description: "Abre la caja para poder cobrar.",
+    });
+    return true;
+  }
+  return false;
+}
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -283,10 +295,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         finalizarCobro(esTransfer);
       }
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo registrar el pago", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   type PartePagoInput = {
@@ -326,10 +340,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         finalizarCobro(hayTransfer);
       }
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo registrar el pago dividido", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   const abonoMut = useMutation({
@@ -360,10 +376,12 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         }
       });
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo aplicar el abono", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   // Separa una línea de N unidades en N líneas de 1 (cada comensal paga la suya).

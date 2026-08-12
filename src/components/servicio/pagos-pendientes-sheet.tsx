@@ -97,8 +97,13 @@ export function PagosPendientesSheet({
                   <Badge variant="secondary">{p.subtipo ?? "Transfer"}</Badge>
                 </div>
                 <p className="text-2xl font-bold tabular-nums text-primary">
-                  {fmt.format(p.monto)}
+                  {fmt.format(p.monto_a_confirmar)}
                 </p>
+                {p.monto_a_confirmar > p.monto && (
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    Incluye propina {fmt.format(p.monto_a_confirmar - p.monto)}
+                  </p>
+                )}
                 {p.url_comprobante ? (
                   <StorageImage
                     path={p.url_comprobante}

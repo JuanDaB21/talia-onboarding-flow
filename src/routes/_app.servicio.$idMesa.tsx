@@ -88,6 +88,8 @@ import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, cerrarPedido, estadoCierreMesa } from "@/lib/pagos.functions";
+import { getEstadoCaja } from "@/lib/caja.functions";
+import { ApiError } from "@/lib/api-client";
 import { POLL, pollWhen } from "@/lib/query-config";
 import {
   AlertDialog,
@@ -309,6 +311,14 @@ function MesaEnServicio() {
     ...pollWhen(!pagarOpen, POLL.LIVE),
   });
 
+  // No se puede cobrar ni cerrar cuenta sin una caja ABIERTA (regla del backend).
+  const cajaQ = useQuery({
+    queryKey: ["estado-caja"],
+    queryFn: () => getEstadoCaja(),
+    ...pollWhen(!pagarOpen, POLL.LIVE),
+  });
+  const hayCaja = cajaQ.data?.caja?.estado === "ABIERTA";
+
   const cerrarMut = useMutation({
     mutationFn: () => cerrarMesa(idMesa),
     onSuccess: () => {
@@ -316,10 +326,17 @@ function MesaEnServicio() {
       setCerrarOpen(false);
       navigate({ to: "/servicio" });
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === "NO_CAJA") {
+        toast.error("No hay caja abierta", {
+          description: "Abre la caja para poder cerrar cuentas.",
+        });
+        return;
+      }
       toast.error("No se pudo cerrar la mesa", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   // Cierre de un pedido individual de la mesa (deja los demás abiertos). Se mantiene en la
@@ -335,10 +352,17 @@ function MesaEnServicio() {
       qc.invalidateQueries({ queryKey: ["pagos"] });
       qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === "NO_CAJA") {
+        toast.error("No hay caja abierta", {
+          description: "Abre la caja para poder cerrar cuentas.",
+        });
+        return;
+      }
       toast.error("No se pudo cerrar el pedido", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   const [editing, setEditing] = useState<EditarItemDialogItem | null>(null);
@@ -421,6 +445,7 @@ function MesaEnServicio() {
         pagando={false}
         onCerrar={() => setCerrarOpen(true)}
         estado={estadoQ.data ?? null}
+        hayCaja={hayCaja}
         onReasignar={puedeReasignar ? () => setReasignarOpen(true) : undefined}
       />
 
@@ -591,6 +616,7 @@ function MesaHeader({
   pagando,
   onCerrar,
   estado,
+  hayCaja,
   onReasignar,
 }: {
   mesa: MesaSesion;
@@ -598,20 +624,23 @@ function MesaHeader({
   pagando: boolean;
   onCerrar: () => void;
   estado: import("@/lib/pagos.functions").EstadoCierreMesa | null;
+  hayCaja: boolean;
   onReasignar?: () => void;
 }) {
   const tiempo = mesa.asignada_at
     ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
     : 0;
   const hayPagar = mesa.pedidos.some((p) => p.estado !== "ABIERTO");
-  const puedeCerrar = estado?.puede_cerrar ?? false;
-  const motivoCerrar = !estado?.hay_pedidos
-    ? "No hay pedidos activos"
-    : (estado?.items_pendientes ?? 0) > 0
-      ? `Faltan ${estado?.items_pendientes} items por cobrar`
-      : (estado?.pagos_pendientes ?? 0) > 0
-        ? `Hay ${estado?.pagos_pendientes} transferencias por confirmar`
-        : "";
+  const puedeCerrar = (estado?.puede_cerrar ?? false) && hayCaja;
+  const motivoCerrar = !hayCaja
+    ? "No hay caja abierta"
+    : !estado?.hay_pedidos
+      ? "No hay pedidos activos"
+      : (estado?.items_pendientes ?? 0) > 0
+        ? `Faltan ${estado?.items_pendientes} items por cobrar`
+        : (estado?.pagos_pendientes ?? 0) > 0
+          ? `Hay ${estado?.pagos_pendientes} transferencias por confirmar`
+          : "";
   return (
     <div className="rounded-2xl border bg-card p-4 sm:p-5 shadow-sm">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -648,7 +677,8 @@ function MesaHeader({
         <Button
           size="lg"
           onClick={onPagar}
-          disabled={!hayPagar || pagando}
+          disabled={!hayPagar || pagando || !hayCaja}
+          title={!hayCaja ? "No hay caja abierta" : undefined}
           className="gap-2 w-full sm:w-auto"
         >
           {pagando ? (
@@ -673,7 +703,7 @@ function MesaHeader({
           Cerrar mesa
         </Button>
       </div>
-      {!puedeCerrar && estado?.hay_pedidos && motivoCerrar && (
+      {!puedeCerrar && (!hayCaja || estado?.hay_pedidos) && motivoCerrar && (
         <p className="mt-2 text-right text-xs text-muted-foreground">{motivoCerrar}</p>
       )}
     </div>

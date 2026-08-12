@@ -17,7 +17,13 @@ export interface ComandaPrintData {
   destino: ComandaDestino;
   mesa_identificador: string;
   pedido_id: string;
+  /** Creación del pedido ≈ apertura de la mesa. Fallback cuando no hay confirmación. */
   pedido_created_at?: string | null;
+  /**
+   * Hora en que el mesero mandó a preparar (confirmó el pedido). Es la hora que se
+   * estampa en la comanda: el tiempo de cocina cuenta desde aquí, no desde la apertura.
+   */
+  confirmado_at?: string | null;
   mesero?: string | null;
   items: ComandaItemPrint[];
 }
@@ -152,7 +158,7 @@ function renderComanda(c: ComandaPrintData, negocio: string): string {
     <div class="destino">${c.destino}</div>
     ${negocio ? `<div class="negocio">${escapeHtml(negocio)}</div>` : ""}
     <div class="mesa">Mesa ${escapeHtml(c.mesa_identificador)}</div>
-    <div class="meta">${fechaCorta(c.pedido_created_at)}</div>
+    <div class="meta">${fechaCorta(c.confirmado_at ?? c.pedido_created_at)}</div>
     <div class="meta">Pedido #${escapeHtml(pedidoCorto)}${mesero}</div>
   </header>
   <hr />

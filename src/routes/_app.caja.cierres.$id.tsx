@@ -86,7 +86,11 @@ function ReportePage() {
 
         <Section title="Propinas">
           <Row label="Propinas cobradas" value={formatMoney(data.propinas_total)} bold />
-          <Row label="De las cuales en efectivo" value={formatMoney(data.propinas_efectivo)} />
+          <Row label="En efectivo" value={formatMoney(data.propinas_efectivo)} />
+          <Row label="En transferencia" value={formatMoney(data.propinas_transferencia)} />
+          {data.propinas_datafono > 0 && (
+            <Row label="En datáfono" value={formatMoney(data.propinas_datafono)} />
+          )}
           <p className="text-xs text-muted-foreground">
             No están incluidas en el total de ventas ni en el cuadre.
           </p>
