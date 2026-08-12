@@ -113,7 +113,9 @@ export function ComandaSheet({
                     destino,
                     mesa_identificador: comanda.mesa_identificador,
                     pedido_id: comanda.id_pedido,
-                    pedido_created_at: inicioComanda(comanda),
+                    // La hora impresa cuenta desde la confirmación (ver comandas.ts).
+                    confirmado_at: comanda.confirmado_at,
+                    pedido_created_at: comanda.pedido_created_at,
                     mesero: comanda.mesero_nombre,
                     // Agrupado igual que la comanda original: `x2` en vez de dos
                     // líneas `x1`, separando lo que lleve notas o modificadores.

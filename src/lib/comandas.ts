@@ -37,6 +37,10 @@ export function imprimirComandasDePedido(
       destino,
       mesa_identificador: mesaIdentificador,
       pedido_id: pedido.id_pedido,
+      // La hora de la comanda cuenta desde la confirmación (mandado a preparar), no
+      // desde la apertura de la mesa. `confirmado_at` es la fuente explícita; se deja
+      // `pedido_created_at` como fallback para pedidos aún no confirmados.
+      confirmado_at: pedido.confirmado_at,
       pedido_created_at: pedido.confirmado_at ?? pedido.created_at,
       mesero,
       // Agrupado: 2 hamburguesas iguales salen como `x2`, pero la que va sin

@@ -105,7 +105,15 @@ export interface PagoPendiente {
   mesero_nombre: string | null;
   metodo: string;
   subtipo: string | null;
+  /** Subtotal (sin propina en pago simple). */
   monto: number;
+  /** Propina del pago (0 en las partes hijas de un dividido). */
+  propina: number;
+  /**
+   * Monto REALMENTE transferido a conciliar contra el comprobante: en un pago simple
+   * incluye la propina; en un dividido la propina ya está embebida y no se re-suma.
+   */
+  monto_a_confirmar: number;
   url_comprobante: string | null;
   created_at: string;
 }
