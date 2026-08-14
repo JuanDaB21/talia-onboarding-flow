@@ -25,8 +25,21 @@ export interface ResumenCajaDia {
 }
 
 // GET /caja/estado → resumen_caja_dia() (jsonb) agregado en el backend.
+// OJO: es admin-only (expone finanzas). Para saber solo si hay caja abierta desde
+// roles no-admin (meseros), usar getCajaAbierta() — de lo contrario el mesero recibe
+// 403 "Solo administradores".
 export function getEstadoCaja() {
   return api.get<ResumenCajaDia>("/caja/estado");
+}
+
+// GET /caja/abierta → chequeo liviano de caja ABIERTA para gating de UI de cualquier rol.
+export interface CajaAbierta {
+  abierta: boolean;
+  idCaja: string | null;
+  estado: "ABIERTA" | "CERRADA" | null;
+}
+export function getCajaAbierta() {
+  return api.get<CajaAbierta>("/caja/abierta");
 }
 
 export function abrirCaja(base: number) {

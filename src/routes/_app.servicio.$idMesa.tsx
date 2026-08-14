@@ -88,7 +88,7 @@ import { useAlertaBus } from "@/components/servicio/alerta-bus";
 import { LlamadoPanel } from "@/components/servicio/llamado-panel";
 import { SolicitudBanner } from "@/components/servicio/solicitud-banner";
 import { cerrarMesa, cerrarPedido, estadoCierreMesa } from "@/lib/pagos.functions";
-import { getEstadoCaja } from "@/lib/caja.functions";
+import { getCajaAbierta } from "@/lib/caja.functions";
 import { ApiError } from "@/lib/api-client";
 import { POLL, pollWhen } from "@/lib/query-config";
 import {
@@ -314,10 +314,10 @@ function MesaEnServicio() {
   // No se puede cobrar ni cerrar cuenta sin una caja ABIERTA (regla del backend).
   const cajaQ = useQuery({
     queryKey: ["estado-caja"],
-    queryFn: () => getEstadoCaja(),
+    queryFn: () => getCajaAbierta(),
     ...pollWhen(!pagarOpen, POLL.LIVE),
   });
-  const hayCaja = cajaQ.data?.caja?.estado === "ABIERTA";
+  const hayCaja = cajaQ.data?.abierta === true;
 
   const cerrarMut = useMutation({
     mutationFn: () => cerrarMesa(idMesa),
