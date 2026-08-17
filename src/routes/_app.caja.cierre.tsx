@@ -90,9 +90,17 @@ function CierreWizard() {
     [ajustes],
   );
   const base = data?.caja?.base_inicial ?? 0;
-  const efectivoEsperado = base + (data?.efectivo ?? 0) + sumAjustesPrevios + sumAjustes;
+  // El backend (0044+) ya calcula `efectivo_esperado` = base + efectivo + propina en efectivo +
+  // ajustes YA registrados. Solo le sumamos los ajustes NUEVOS del wizard (aún no persistidos),
+  // así el preview coincide exacto con lo que calculará cerrar_caja. Fallback al cálculo viejo
+  // (sin propina) si el backend no envía el campo.
+  const efectivoEsperado =
+    data?.efectivo_esperado != null
+      ? data.efectivo_esperado + sumAjustes
+      : base + (data?.efectivo ?? 0) + sumAjustesPrevios + sumAjustes;
 
-  const datafonoEsperado = data?.datafono ?? 0;
+  // El datáfono también se cuadra con su propina (recibido_datafono = ventas + propina).
+  const datafonoEsperado = data?.recibido_datafono ?? data?.datafono ?? 0;
   const difEfectivo = useMemo(
     () => Number(efectivoFisico || 0) - efectivoEsperado,
     [efectivoFisico, efectivoEsperado],
@@ -138,29 +146,15 @@ function CierreWizard() {
       toast.error("Ingresa una nota de cuadre");
       return;
     }
-    // Si hay ajustes (previos o nuevos), el RPC valida diferencia sin considerarlos,
-    // así que construimos una nota automática para que la validación del servidor pase.
-    let notaFinal = nota.trim();
-    const detallePartes: string[] = [];
-    for (const a of ajustesPrevios ?? []) {
-      detallePartes.push(`${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`);
-    }
-    for (const a of ajustes) {
-      detallePartes.push(`${a.nombre}: ${a.signo === "POSITIVO" ? "+" : "-"}${a.monto}`);
-    }
-    if (detallePartes.length > 0) {
-      const detalle = detallePartes.join("; ");
-      notaFinal = notaFinal
-        ? `${notaFinal} | Ajustes: ${detalle}`
-        : `Ajustes registrados: ${detalle}`;
-    }
-
+    // El backend (0044+) inserta estos `ajustes` y los cuenta dentro del cuadre, igual que la
+    // propina en efectivo. Ya no hace falta la "nota automática" que compensaba que el RPC
+    // ignoraba los ajustes: la nota es solo la que escribe el cajero si hay diferencia real.
     setBusy(true);
     try {
       const { idCaja } = await cerrarCaja({
         efectivoFisico: Number(efectivoFisico),
         datafonoFisico: Number(datafonoFisico),
-        nota: notaFinal || null,
+        nota: nota.trim() || null,
         ajustes: ajustes.map((a) => ({ idTipo: a.idTipo, monto: a.monto })),
       });
       toast.success("Caja cerrada");
@@ -238,10 +232,19 @@ function CierreWizard() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Row label="Base inicial" value={formatMoney(base)} />
-            <Row label="Efectivo cobrado" value={formatMoney(data.efectivo)} />
+            <Row label="Efectivo cobrado (ventas)" value={formatMoney(data.efectivo)} />
+            {(data.propina_efectivo ?? 0) > 0 && (
+              <Row label="Propina en efectivo" value={formatMoney(data.propina_efectivo ?? 0)} />
+            )}
+            {sumAjustesPrevios !== 0 && (
+              <Row label="Ajustes ya registrados" value={formatMoney(sumAjustesPrevios)} />
+            )}
+            {sumAjustes !== 0 && (
+              <Row label="Ajustes nuevos (este cierre)" value={formatMoney(sumAjustes)} />
+            )}
             <Row label="Efectivo esperado en caja" value={formatMoney(efectivoEsperado)} bold />
             <Separator />
-            <Row label="Transferencias" value={formatMoney(data.transferencia_confirmada)} />
+            <Row label="Transferencias" value={formatMoney(data.recibido_transferencia ?? data.transferencia_confirmada)} />
             <Row label="Datáfono esperado" value={formatMoney(datafonoEsperado)} bold />
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep(1)}>
