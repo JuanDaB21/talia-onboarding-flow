@@ -109,8 +109,13 @@ function PagosPendientes() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold">
-                  Mesa {p.identificador_mesa} · {formatMoney(p.monto)}
+                  Mesa {p.identificador_mesa} · {formatMoney(p.monto_a_confirmar)}
                 </div>
+                {p.monto_a_confirmar > p.monto && (
+                  <div className="text-xs text-muted-foreground">
+                    Incluye propina {formatMoney(p.monto_a_confirmar - p.monto)}
+                  </div>
+                )}
                 <div className="text-xs text-muted-foreground">
                   {p.metodo}
                   {p.subtipo ? ` · ${p.subtipo}` : ""}
