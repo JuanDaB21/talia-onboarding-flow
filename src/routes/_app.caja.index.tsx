@@ -317,23 +317,37 @@ function CajaResumen({ data }: { data: NonNullable<Awaited<ReturnType<typeof get
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <Row label="Base inicial" value={formatMoney(data.caja!.base_inicial)} />
-          <Row label="Efectivo cobrado" value={formatMoney(data.efectivo)} />
+          <Row label="Efectivo cobrado (ventas)" value={formatMoney(data.efectivo)} />
+          {(data.propina_efectivo ?? 0) > 0 && (
+            <Row label="Propina en efectivo" value={formatMoney(data.propina_efectivo ?? 0)} />
+          )}
           <Row
             label="Transferencias confirmadas"
-            value={formatMoney(data.transferencia_confirmada)}
+            value={formatMoney(data.recibido_transferencia ?? data.transferencia_confirmada)}
           />
           <Row
             label="Transferencias pendientes"
             value={formatMoney(data.transferencia_pendiente)}
             highlight={data.transferencia_pendiente > 0}
           />
-          <Row label="Datáfono" value={formatMoney(data.datafono)} />
+          <Row label="Datáfono" value={formatMoney(data.recibido_datafono ?? data.datafono)} />
+          {(data.total_ajustes ?? 0) !== 0 && (
+            <Row label="Ajustes (neto)" value={formatMoney(data.total_ajustes ?? 0)} />
+          )}
           <Row label="Total sistema (sin base)" value={formatMoney(data.total_sistema)} bold />
-          <Row
-            label="Total sistema (con base)"
-            value={formatMoney(data.total_sistema + Number(data.caja!.base_inicial))}
-            bold
-          />
+          {data.efectivo_esperado != null ? (
+            <Row
+              label="Efectivo esperado en caja"
+              value={formatMoney(data.efectivo_esperado)}
+              bold
+            />
+          ) : (
+            <Row
+              label="Total sistema (con base)"
+              value={formatMoney(data.total_sistema + Number(data.caja!.base_inicial))}
+              bold
+            />
+          )}
         </div>
 
         {data.efectivo_por_mesero.length > 0 && (
@@ -493,14 +507,12 @@ function AjustesCajaLive() {
   const [newSigno, setNewSigno] = useState<"POSITIVO" | "NEGATIVO">("NEGATIVO");
   const [creandoTipo, setCreandoTipo] = useState(false);
 
-  const total = useMemo(
-    () =>
-      (ajustes.data ?? []).reduce(
-        (acc, a) => acc + (a.signo === "POSITIVO" ? a.monto : -a.monto),
-        0,
-      ),
-    [ajustes.data],
-  );
+  const { ingresos, egresos, total } = useMemo(() => {
+    const rows = ajustes.data ?? [];
+    const ing = rows.filter((a) => a.signo === "POSITIVO").reduce((s, a) => s + a.monto, 0);
+    const egr = rows.filter((a) => a.signo === "NEGATIVO").reduce((s, a) => s + a.monto, 0);
+    return { ingresos: ing, egresos: egr, total: ing - egr };
+  }, [ajustes.data]);
 
   const agregar = async () => {
     const m = Number(monto);
@@ -659,12 +671,22 @@ function AjustesCajaLive() {
       )}
 
       {(ajustes.data ?? []).length > 0 && (
-        <div className="flex items-center justify-between rounded-md border bg-muted/30 px-2 py-1 text-sm">
-          <span className="text-muted-foreground">Total ajustes</span>
-          <span className="font-bold">
-            {total >= 0 ? "+" : ""}
-            {formatMoney(total)}
-          </span>
+        <div className="space-y-1 rounded-md border bg-muted/30 px-2 py-1 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Total ingresos</span>
+            <span className="font-medium">+{formatMoney(ingresos)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Total egresos</span>
+            <span className="font-medium">−{formatMoney(egresos)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t pt-1">
+            <span className="text-muted-foreground">Neto</span>
+            <span className="font-bold">
+              {total >= 0 ? "+" : ""}
+              {formatMoney(total)}
+            </span>
+          </div>
         </div>
       )}
 

@@ -22,6 +22,21 @@ export interface ResumenCajaDia {
   pagos_pendientes: number;
   mesas_abiertas: number;
   efectivo_por_mesero: Array<{ id_mesero: string | null; nombre: string; monto: number }>;
+  // Cuadre con propinas + ajustes (backend 0044). Opcionales: un backend anterior no los envía.
+  /** Propina de pagos SIMPLES por método (la que entra al cuadre; en divididos ya va en el monto). */
+  propina_efectivo?: number;
+  propina_transferencia?: number;
+  propina_datafono?: number;
+  /** Total recibido por método = ventas + propina (lo realmente cobrado). */
+  recibido_efectivo?: number;
+  recibido_transferencia?: number;
+  recibido_datafono?: number;
+  /** Ajustes de efectivo del día: ingresos (POSITIVO), egresos (NEGATIVO) y neto. */
+  total_ingresos?: number;
+  total_egresos?: number;
+  total_ajustes?: number;
+  /** Efectivo que el cajero debe contar = base + recibido efectivo + neto ajustes. */
+  efectivo_esperado?: number;
 }
 
 // GET /caja/estado → resumen_caja_dia() (jsonb) agregado en el backend.
@@ -104,6 +119,10 @@ export interface CierreListItem {
   fecha: string;
   estado: string;
   total: number;
+  /** Ventas + propinas (lo realmente cobrado). Opcional: backend 0044+. */
+  recibido?: number;
+  /** Neto de ajustes de la caja (POSITIVO − NEGATIVO). Opcional: backend 0044+. */
+  ajustes?: number;
   diferencia: number;
   abierta_at: string | null;
   cerrada_at: string | null;
@@ -153,15 +172,23 @@ export interface CierreDetalle {
     productos: Array<{ nombre: string; cantidad: number; total: number }>;
   }>;
   unidades_totales: number;
-  /**
-   * Propinas cobradas en esta caja. Informativas: NO entran en el total de ventas
-   * ni en el cuadre (`pagos.monto` ya las incluye en los pagos divididos pero no en
-   * los simples, así que sumarlas las contaría dos veces en la mitad de los casos).
-   */
+  /** Propinas TOTALES cobradas en esta caja por método (SUM completo, informativo). */
   propinas_total: number;
   propinas_efectivo: number;
   propinas_transferencia: number;
   propinas_datafono: number;
+  /**
+   * true si este cierre incluye las propinas en el cuadre (cierres desde backend 0044).
+   * En cierres históricos es false/undefined: las propinas se muestran aparte y el
+   * esperado no las incluía. Sirve para mostrar u ocultar el texto "no entra al cuadre".
+   */
+  propina_en_cuadre?: boolean;
+  /** Total recibido por método = ventas + propina que entra al cuadre. Opcional: backend 0044+. */
+  recibido_efectivo?: number;
+  recibido_transferencia?: number;
+  recibido_datafono?: number;
+  /** Efectivo que el sistema esperaba contar = efectivo_fisico − diferencia_efectivo. Opcional: 0044+. */
+  efectivo_esperado?: number;
   /** Hora con más ventas, calculada en la timezone del negocio. */
   hora_pico: { hora: number; total: number } | null;
   ajustes: Array<{
@@ -171,6 +198,10 @@ export interface CierreDetalle {
     monto: number;
     nota: string | null;
   }>;
+  /** Ajustes POSITIVO (ingresos) y NEGATIVO (egresos). Opcional: backend 0044+. */
+  total_ingresos?: number;
+  total_egresos?: number;
+  /** Neto de ajustes = total_ingresos − total_egresos. */
   total_ajustes: number;
 }
 
@@ -189,6 +220,11 @@ export interface ComprobantePago {
   subtipo: string | null;
   monto: number;
   propina: number;
+  /**
+   * Total realmente transferido a verificar contra el comprobante = monto + propina en pago
+   * simple; en dividido ya está embebida en `monto`. Opcional: un backend anterior no lo envía.
+   */
+  monto_a_confirmar?: number;
   estado_confirmacion: "CONFIRMADO" | "RECHAZADO";
   confirmado_at: string | null;
   /** `null` si nunca hubo comprobante o si ya se purgó (ver `comprobante_purgado_at`). */

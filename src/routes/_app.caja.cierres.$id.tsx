@@ -32,7 +32,23 @@ function ReportePage() {
       </p>
     );
 
-  const total = data.efectivo_sistema + data.transferencia_sistema + data.datafono_sistema;
+  // Cierres desde backend 0044 incluyen la propina en el cuadre y exponen recibido/esperado.
+  // Para históricos (propina_en_cuadre ausente) se hace fallback a las ventas (sin propina).
+  const nuevo = data.propina_en_cuadre === true;
+  const recEfe = data.recibido_efectivo ?? data.efectivo_sistema;
+  const recTra = data.recibido_transferencia ?? data.transferencia_sistema;
+  const recDat = data.recibido_datafono ?? data.datafono_sistema;
+  const propEfe = recEfe - data.efectivo_sistema;
+  const propTra = recTra - data.transferencia_sistema;
+  const propDat = recDat - data.datafono_sistema;
+  const esperadoEfe = data.efectivo_esperado ?? data.base_inicial + data.efectivo_sistema;
+  const ingresos =
+    data.total_ingresos ??
+    data.ajustes.filter((a) => a.signo === "POSITIVO").reduce((s, a) => s + a.monto, 0);
+  const egresos =
+    data.total_egresos ??
+    data.ajustes.filter((a) => a.signo === "NEGATIVO").reduce((s, a) => s + a.monto, 0);
+  const total = recEfe + recTra + recDat;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -62,7 +78,18 @@ function ReportePage() {
 
         <Section title="Conciliación">
           <Row label="Base inicial" value={formatMoney(data.base_inicial)} />
-          <Row label="Efectivo cobrado (sistema)" value={formatMoney(data.efectivo_sistema)} />
+          <Separator className="my-2" />
+          {/* Efectivo: ventas + propina = recibido, + ingresos − egresos = esperado, vs contado */}
+          <Row label="Efectivo cobrado (ventas)" value={formatMoney(data.efectivo_sistema)} />
+          {nuevo && propEfe > 0 && (
+            <Row label="Propina en efectivo" value={formatMoney(propEfe)} />
+          )}
+          {nuevo && (
+            <Row label="Efectivo recibido" value={formatMoney(recEfe)} />
+          )}
+          {nuevo && ingresos > 0 && <Row label="Ingresos (ajustes +)" value={`+${formatMoney(ingresos)}`} />}
+          {nuevo && egresos > 0 && <Row label="Egresos (ajustes −)" value={`−${formatMoney(egresos)}`} />}
+          <Row label="Efectivo esperado" value={formatMoney(esperadoEfe)} bold />
           <Row label="Efectivo contado" value={formatMoney(data.efectivo_fisico)} />
           <Row
             label="Diferencia efectivo"
@@ -70,7 +97,12 @@ function ReportePage() {
             highlight={data.diferencia_efectivo !== 0}
           />
           <Separator className="my-2" />
-          <Row label="Datáfono (sistema)" value={formatMoney(data.datafono_sistema)} />
+          {/* Datáfono */}
+          <Row label="Datáfono (ventas)" value={formatMoney(data.datafono_sistema)} />
+          {nuevo && propDat > 0 && <Row label="Propina en datáfono" value={formatMoney(propDat)} />}
+          {nuevo && recDat !== data.datafono_sistema && (
+            <Row label="Datáfono recibido" value={formatMoney(recDat)} bold />
+          )}
           <Row label="Datáfono (cierre de lote)" value={formatMoney(data.datafono_fisico)} />
           <Row
             label="Diferencia datáfono"
@@ -78,8 +110,20 @@ function ReportePage() {
             highlight={data.diferencia_datafono !== 0}
           />
           <Separator className="my-2" />
-          <Row label="Transferencias confirmadas" value={formatMoney(data.transferencia_sistema)} />
-          <Row label="TOTAL VENTAS DEL CIERRE" value={formatMoney(total)} bold />
+          {/* Transferencia (no se cuadra contra físico; se verifica pago a pago) */}
+          <Row label="Transferencias (ventas)" value={formatMoney(data.transferencia_sistema)} />
+          {nuevo && propTra > 0 && (
+            <Row label="Propina en transferencia" value={formatMoney(propTra)} />
+          )}
+          {nuevo && (
+            <Row label="Transferencias recibidas" value={formatMoney(recTra)} />
+          )}
+          <Separator className="my-2" />
+          <Row
+            label={nuevo ? "TOTAL RECIBIDO DEL CIERRE" : "TOTAL VENTAS DEL CIERRE"}
+            value={formatMoney(total)}
+            bold
+          />
         </Section>
 
         <Separator className="my-4" />
@@ -92,7 +136,9 @@ function ReportePage() {
             <Row label="En datáfono" value={formatMoney(data.propinas_datafono)} />
           )}
           <p className="text-xs text-muted-foreground">
-            No están incluidas en el total de ventas ni en el cuadre.
+            {nuevo
+              ? "Ya incluidas en el total recibido de cada método (arriba)."
+              : "No están incluidas en el total de ventas ni en el cuadre."}
           </p>
         </Section>
 
@@ -100,6 +146,14 @@ function ReportePage() {
           <>
             <Separator className="my-4" />
             <Section title="Ajustes adicionales">
+              <Row label="Total ingresos" value={`+${formatMoney(ingresos)}`} />
+              <Row label="Total egresos" value={`−${formatMoney(egresos)}`} />
+              <Row
+                label="Neto"
+                value={`${data.total_ajustes >= 0 ? "+" : ""}${formatMoney(data.total_ajustes)}`}
+                bold
+              />
+              <Separator className="my-2" />
               <ul className="space-y-1">
                 {data.ajustes.map((a) => (
                   <li key={a.id_ajuste} className="flex items-center justify-between text-sm">
@@ -119,11 +173,6 @@ function ReportePage() {
                   </li>
                 ))}
               </ul>
-              <Row
-                label="Total ajustes"
-                value={`${data.total_ajustes >= 0 ? "+" : ""}${formatMoney(data.total_ajustes)}`}
-                bold
-              />
             </Section>
           </>
         )}
