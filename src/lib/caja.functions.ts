@@ -220,6 +220,11 @@ export interface ComprobantePago {
   subtipo: string | null;
   monto: number;
   propina: number;
+  /**
+   * Total realmente transferido a verificar contra el comprobante = monto + propina en pago
+   * simple; en dividido ya está embebida en `monto`. Opcional: un backend anterior no lo envía.
+   */
+  monto_a_confirmar?: number;
   estado_confirmacion: "CONFIRMADO" | "RECHAZADO";
   confirmado_at: string | null;
   /** `null` si nunca hubo comprobante o si ya se purgó (ver `comprobante_purgado_at`). */

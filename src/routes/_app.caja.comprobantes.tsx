@@ -168,10 +168,16 @@ function ComprobanteCard({ pago, retencion }: { pago: ComprobantePago; retencion
       </div>
 
       <div>
-        <p className="text-2xl font-bold tabular-nums text-primary">{formatMoney(pago.monto)}</p>
+        {/* Número grande = total transferido (con propina), para cuadrar con el comprobante del
+            banco. `monto_a_confirmar` ya suma la propina en pagos simples y la deja embebida en los
+            divididos; fallback a `monto` si el backend aún no envía el campo. */}
+        <p className="text-2xl font-bold tabular-nums text-primary">
+          {formatMoney(pago.monto_a_confirmar ?? pago.monto)}
+        </p>
         <p className="text-xs text-muted-foreground">
           {pago.subtipo ?? "Transferencia"}
-          {pago.propina > 0 && ` · Propina ${formatMoney(pago.propina)}`}
+          {(pago.monto_a_confirmar ?? pago.monto) > pago.monto &&
+            ` · Incluye propina ${formatMoney((pago.monto_a_confirmar ?? pago.monto) - pago.monto)}`}
           {pago.confirmado_por_nombre && ` · Revisó: ${pago.confirmado_por_nombre}`}
         </p>
       </div>
