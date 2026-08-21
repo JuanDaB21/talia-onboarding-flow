@@ -61,3 +61,13 @@ export type ReservaCrearInput = z.input<typeof reservaCrearSchema>;
 
 /** Etiqueta del medio del abono cuando no se registró contra una cuenta QR. */
 export const MEDIO_ABONO_EFECTIVO = "Efectivo / otro";
+
+// Roles que pueden GESTIONAR reservas (crear/editar/cancelar/eliminar/sentar/cobrar
+// con abono). El resto (COCINA/BARRA/ESTACION) solo las VE. Espejo del gate del backend
+// (`gestionaReservas` en reservas.ts) y de la visibilidad histórica del módulo.
+export const ROLES_GESTION_RESERVAS = ["ADMIN", "SUPERADMIN", "CAJERO", "MESERO"] as const;
+
+/** true si el rol puede gestionar reservas (no solo verlas). */
+export function puedeGestionarReservas(rol: string | null | undefined): boolean {
+  return !!rol && (ROLES_GESTION_RESERVAS as readonly string[]).includes(rol);
+}

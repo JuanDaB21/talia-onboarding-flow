@@ -86,6 +86,16 @@ export function imprimirCierre(idCaja: string) {
   );
 }
 
+/**
+ * Imprime una reserva tipo comanda en la impresora del espacio CAJA (los campos que
+ * se llenan al crearla). Es lectura: disponible para cualquier rol staff.
+ */
+export function imprimirReserva(idReserva: string) {
+  return api.post<{ ok: true; encolado: boolean; agenteConectado: boolean }>(
+    `/impresion/reserva/${idReserva}`,
+  );
+}
+
 export interface PrintJob {
   id_job: string;
   espacio_slug: string;

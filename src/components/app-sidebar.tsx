@@ -278,8 +278,10 @@ export function AppSidebar() {
     </SidebarGroup>
   );
 
-  const mostrarGrupoServicio =
-    grupos.operacion || grupos.servicio || espaciosVisibles.length > 0;
+  // Reservas es visible (solo lectura) para TODOS los roles → el grupo Servicio
+  // siempre se muestra (como mínimo contiene "Reservas"). Operación/Mesas/estaciones
+  // siguen gateadas por rol dentro del grupo.
+  const mostrarGrupoServicio = true;
 
   return (
     <Sidebar collapsible="icon">
@@ -310,7 +312,7 @@ export function AppSidebar() {
             SERVICIO_NAV.filter((item) => {
               if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
-              if (item.to === "/reservas") return grupos.operacion || grupos.servicio;
+              if (item.to === "/reservas") return true; // visible para todos (solo lectura)
               return false;
             }),
             espaciosVisibles.map(renderEspacioItem),

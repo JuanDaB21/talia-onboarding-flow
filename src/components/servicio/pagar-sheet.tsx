@@ -171,10 +171,13 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const subtotalConDescuentos = Math.max(0, totalSeleccionado - descuentoBono - descuentoReserva);
   const reservaCubreTodo =
     abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
+  // La propina sugerida se calcula sobre el TOTAL BRUTO de los productos, no sobre el
+  // restante a pagar: ni el abono de reserva ni el bono la reducen. Un abono es un anticipo
+  // (los productos siguen costando lo mismo), así que la propina no debe bajar por él.
   const propina =
     propinaCustom !== null
       ? Math.max(0, Math.floor(propinaCustom))
-      : Math.round(subtotalConDescuentos * (propinaPct ?? 0));
+      : Math.round(totalSeleccionado * (propinaPct ?? 0));
   const totalConPropina = subtotalConDescuentos + propina;
 
   const toggle = (id: string) =>
