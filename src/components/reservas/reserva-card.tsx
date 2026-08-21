@@ -20,13 +20,22 @@ import {
   MoreVertical,
   PartyPopper,
   Pencil,
+  Printer,
+  Loader2,
   X,
   Trash2,
   StickyNote,
 } from "lucide-react";
 import type { Reserva } from "@/lib/reservas.functions";
-import { ESTADO_LABEL, MEDIO_ABONO_EFECTIVO, type EstadoReserva } from "@/lib/reservas.schemas";
+import {
+  ESTADO_LABEL,
+  MEDIO_ABONO_EFECTIVO,
+  puedeGestionarReservas,
+  type EstadoReserva,
+} from "@/lib/reservas.schemas";
 import { cancelarReserva, eliminarReserva } from "@/lib/reservas.functions";
+import { imprimirReserva } from "@/lib/impresion.functions";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { WhatsappCopyButton } from "./whatsapp-copy-button";
 import { CancelarReservaDialog } from "./cancelar-reserva-dialog";
 
@@ -57,6 +66,18 @@ export function ReservaCard({ reserva, onEdit }: Props) {
     staleTime: 5 * 60 * 1000,
   });
   const [cancelOpen, setCancelOpen] = useState(false);
+  const { rol } = useMiStaff();
+  const puedeGestionar = puedeGestionarReservas(rol);
+
+  const imprimirMut = useMutation({
+    mutationFn: () => imprimirReserva(reserva.id_reserva),
+    onSuccess: (r) => {
+      if (!r.encolado) toast.error("No se pudo encolar la impresión (¿impresora de CAJA apagada?)");
+      else if (!r.agenteConectado) toast.warning("Reserva encolada; el agente de impresión no está conectado");
+      else toast.success("Reserva enviada a la impresora de CAJA");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al imprimir"),
+  });
 
   const cancelarMut = useMutation({
     mutationFn: (devolver: boolean) =>
@@ -167,37 +188,54 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                     telefono={reserva.customer_phone}
                     negocio={negocioQ.data?.nombre_comercial ?? null}
                   />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(reserva)}>
-                        <Pencil className="h-3.5 w-3.5 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      {cancelable && (
-                        <DropdownMenuItem onClick={() => setCancelOpen(true)}>
-                          <X className="h-3.5 w-3.5 mr-2" />
-                          Cancelar reserva
+                  {/* Imprimir tipo comanda: lectura, disponible para todos los roles. */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title="Imprimir reserva"
+                    disabled={imprimirMut.isPending}
+                    onClick={() => imprimirMut.mutate()}
+                  >
+                    {imprimirMut.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4" />
+                    )}
+                  </Button>
+                  {puedeGestionar && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(reserva)}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" />
+                          Editar
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => {
-                          if (confirm("¿Eliminar definitivamente esta reserva?")) {
-                            eliminarMut.mutate();
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {cancelable && (
+                          <DropdownMenuItem onClick={() => setCancelOpen(true)}>
+                            <X className="h-3.5 w-3.5 mr-2" />
+                            Cancelar reserva
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (confirm("¿Eliminar definitivamente esta reserva?")) {
+                              eliminarMut.mutate();
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
             </div>

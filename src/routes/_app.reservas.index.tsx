@@ -16,8 +16,9 @@ import {
   listarReservas,
   type Reserva,
 } from "@/lib/reservas.functions";
-import { ESTADOS_RESERVA, ESTADO_LABEL } from "@/lib/reservas.schemas";
+import { ESTADOS_RESERVA, ESTADO_LABEL, puedeGestionarReservas } from "@/lib/reservas.schemas";
 import { fechaLocalISO } from "@/lib/format";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { ReservasMetricasCards } from "@/components/reservas/reservas-metricas-cards";
 import { ReservaCard } from "@/components/reservas/reserva-card";
 import { ReservaFormSheet } from "@/components/reservas/reserva-form-sheet";
@@ -36,6 +37,8 @@ function ReservasPage() {
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Reserva | null>(null);
+  const { rol } = useMiStaff();
+  const puedeGestionar = puedeGestionarReservas(rol);
 
   const reservasQ = useQuery({
     queryKey: ["reservas", { fecha, estado, search }],
@@ -82,10 +85,12 @@ function ReservasPage() {
             Agenda diaria, abonos y aplicación en checkout
           </p>
         </div>
-        <Button onClick={openNueva}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nueva reserva
-        </Button>
+        {puedeGestionar && (
+          <Button onClick={openNueva}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva reserva
+          </Button>
+        )}
       </div>
 
       <ReservasMetricasCards
