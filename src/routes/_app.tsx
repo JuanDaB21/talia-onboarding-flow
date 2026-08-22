@@ -62,7 +62,11 @@ function RoleRedirect() {
     if (rol === "ADMIN" || rol === "SUPERADMIN") return;
 
     if (rol === "MESERO") {
-      if (!pathname.startsWith("/servicio")) navigate({ to: "/servicio" });
+      // Reservas es accesible en solo lectura para todos los roles (el módulo se
+      // muestra en el sidebar); sin `/reservas` aquí el mesero quedaba rebotado.
+      if (!pathname.startsWith("/servicio") && !pathname.startsWith("/reservas")) {
+        navigate({ to: "/servicio" });
+      }
       return;
     }
     if (rol === "COCINA" || rol === "BARRA" || rol === "ESTACION") {
@@ -70,7 +74,12 @@ function RoleRedirect() {
         staff?.espacio_slug ??
         (rol === "COCINA" ? "COCINA" : rol === "BARRA" ? "BARRA" : null);
       const home = slug ? `/estacion/${slug}` : "/";
-      if (!pathname.startsWith(home) && !pathname.startsWith("/estacion/")) {
+      // Igual que MESERO: dejarlos entrar a /reservas (solo lectura).
+      if (
+        !pathname.startsWith(home) &&
+        !pathname.startsWith("/estacion/") &&
+        !pathname.startsWith("/reservas")
+      ) {
         navigate({ to: home });
       }
       return;
