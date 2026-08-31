@@ -158,7 +158,8 @@ function renderComanda(c: ComandaPrintData, negocio: string): string {
     <div class="destino">${c.destino}</div>
     ${negocio ? `<div class="negocio">${escapeHtml(negocio)}</div>` : ""}
     <div class="mesa">Mesa ${escapeHtml(c.mesa_identificador)}</div>
-    <div class="meta">${fechaCorta(c.confirmado_at ?? c.pedido_created_at)}</div>
+    <div class="meta">Pedido:&nbsp; ${fechaCorta(c.confirmado_at ?? c.pedido_created_at)}</div>
+    <div class="meta">Impreso: ${fechaCorta()}</div>
     <div class="meta">Pedido #${escapeHtml(pedidoCorto)}${mesero}</div>
   </header>
   <hr />

@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Dialog,
@@ -22,10 +23,12 @@ export interface CancelarItemAdminItem {
   cantidad: number;
 }
 
+type DestinoInventario = "reintegrar" | "merma";
+
 /**
- * Diálogo EXCEPCIONAL (solo admin) para cancelar un item que ya está en preparación.
- * Incluye el toggle "Reponer inventario": ON si el producto no llegó a prepararse
- * (devuelve el stock descontado), OFF si ya se desperdició.
+ * Diálogo (admin o caja) para cancelar/devolver un item aunque ya esté en preparación
+ * o entregado (mientras la cuenta no se haya pagado). Exige elegir explícitamente qué
+ * pasa con el inventario (reintegrar vs. merma) y permite un motivo opcional.
  */
 export function CancelarItemAdminDialog({
   open,
@@ -39,15 +42,25 @@ export function CancelarItemAdminDialog({
   item: CancelarItemAdminItem | null;
 }) {
   const qc = useQueryClient();
-  const [reponer, setReponer] = useState(false);
+  // Sin default: obliga a que quien cancela decida merma vs. reintegro.
+  const [destino, setDestino] = useState<DestinoInventario | "">("");
+  const [motivo, setMotivo] = useState("");
 
-  // Resetea el toggle cada vez que se abre para un item nuevo.
+  // Resetea la elección cada vez que se abre para un item nuevo.
   useEffect(() => {
-    if (item) setReponer(false);
+    if (item) {
+      setDestino("");
+      setMotivo("");
+    }
   }, [item]);
 
   const mut = useMutation({
-    mutationFn: () => cancelarItemAdmin({ idItem: item!.id_item, reponerInventario: reponer }),
+    mutationFn: () =>
+      cancelarItemAdmin({
+        idItem: item!.id_item,
+        reponerInventario: destino === "reintegrar",
+        motivo: motivo.trim() || undefined,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
       toast.success("Item cancelado");
@@ -63,23 +76,52 @@ export function CancelarItemAdminDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cancelar {item?.nombre_producto ?? "item"}</DialogTitle>
+          <DialogTitle>Cancelar / devolver {item?.nombre_producto ?? "item"}</DialogTitle>
           <DialogDescription>
-            Acción excepcional: este producto ya está en preparación. Se retirará de la comanda, se
-            avisará a la estación y quedará registrado quién lo canceló.
+            Se retirará de la cuenta, se avisará a la estación y quedará registrado quién lo hizo.
+            Solo funciona mientras la cuenta no se haya pagado.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label>Reponer inventario</Label>
-              <p className="text-xs text-muted-foreground">
-                Actívalo si el producto <strong>no</strong> se llegó a preparar (se devuelve el
-                stock). Déjalo apagado si ya se desperdició.
-              </p>
-            </div>
-            <Switch checked={reponer} onCheckedChange={setReponer} />
+          <div className="space-y-2">
+            <Label>¿Qué pasa con el inventario?</Label>
+            <RadioGroup
+              value={destino}
+              onValueChange={(v) => setDestino(v as DestinoInventario)}
+              className="gap-2"
+            >
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[:checked]:border-primary">
+                <RadioGroupItem value="reintegrar" id="reintegrar" className="mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium">Reintegrar al inventario</span>
+                  <p className="text-xs text-muted-foreground">
+                    El producto no se usó: se devuelve el stock descontado.
+                  </p>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[:checked]:border-primary">
+                <RadioGroupItem value="merma" id="merma" className="mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium">Descontar como merma</span>
+                  <p className="text-xs text-muted-foreground">
+                    El producto ya se preparó/desperdició: no se devuelve el stock.
+                  </p>
+                </div>
+              </label>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="motivo-cancelacion">Motivo (opcional)</Label>
+            <Textarea
+              id="motivo-cancelacion"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ej: el cliente lo devolvió, llegó mal preparado…"
+              rows={2}
+              maxLength={300}
+            />
           </div>
         </div>
 
@@ -90,7 +132,7 @@ export function CancelarItemAdminDialog({
           <Button
             variant="destructive"
             onClick={() => mut.mutate()}
-            disabled={mut.isPending || !item}
+            disabled={mut.isPending || !item || destino === ""}
           >
             {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancelar item"}
           </Button>

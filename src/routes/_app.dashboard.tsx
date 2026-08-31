@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminGate } from "@/components/admin/admin-gate";
 import { getKpis } from "@/lib/admin.functions";
+import { getEstadoCaja } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
 import {
   RangeSelector,
@@ -73,9 +74,18 @@ function DashboardPage() {
     ...POLL.NORMAL,
   });
 
-  // El bloque superior deja de ser "solo hoy": ventas, ticket y tiempo de prep siguen
-  // el mismo rango que la analítica de abajo. La ocupación es la excepción (dato en vivo).
-  const esHoy = range.rango === "hoy";
+  // Tarjeta de ventas: la caja vigente (abierta) o la última del día operativo. No depende del
+  // rango de la analítica — es el número del turno que le importa a caja en el momento.
+  const { data: cajaResumen, isLoading: cajaLoading } = useQuery({
+    queryKey: ["caja", "estado", "dashboard"],
+    queryFn: getEstadoCaja,
+    ...POLL.NORMAL,
+  });
+  const caja = cajaResumen?.caja ?? null;
+  const cajaHint = caja == null ? "Sin caja" : caja.estado === "ABIERTA" ? "Caja abierta" : "Última caja";
+
+  // Ticket, ocupación y tiempo de prep siguen el rango de la analítica de abajo; la ocupación
+  // es dato en vivo.
 
   const setRange = (v: DateRangeValue) => {
     navigate({ search: { tab: search.tab, rango: v.rango, desde: v.desde, hasta: v.hasta } });
@@ -115,9 +125,9 @@ function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi
           icon={<DollarSign className="h-4 w-4" />}
-          label={esHoy ? "Ventas del día" : "Ventas del periodo"}
-          value={isLoading ? "…" : formatMoney(data?.ventas_dia ?? 0)}
-          hint={`${data?.mesas_cerradas ?? 0} cuenta(s) cerradas`}
+          label="Ventas de caja"
+          value={cajaLoading ? "…" : caja == null ? "—" : formatMoney(cajaResumen?.total_sistema ?? 0)}
+          hint={cajaHint}
         />
         <Kpi
           icon={<Receipt className="h-4 w-4" />}

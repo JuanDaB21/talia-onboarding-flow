@@ -18,6 +18,8 @@ export interface ResumenCajaDia {
   transferencia_confirmada: number;
   transferencia_pendiente: number;
   datafono: number;
+  /** Ventas cobradas con abono de reserva aplicado (0048). Entra a total_sistema, no al efectivo esperado. */
+  abono_reserva?: number;
   total_sistema: number;
   pagos_pendientes: number;
   mesas_abiertas: number;
@@ -146,6 +148,8 @@ export interface CierreDetalle {
   efectivo_sistema: number;
   transferencia_sistema: number;
   datafono_sistema: number;
+  /** Ventas cobradas con abono de reserva (0048; 0 en cierres previos). Entra a TOTAL VENTAS. */
+  abono_reserva_sistema?: number;
   efectivo_fisico: number;
   datafono_fisico: number;
   diferencia_efectivo: number;

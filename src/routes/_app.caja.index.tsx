@@ -331,6 +331,9 @@ function CajaResumen({ data }: { data: NonNullable<Awaited<ReturnType<typeof get
             highlight={data.transferencia_pendiente > 0}
           />
           <Row label="Datáfono" value={formatMoney(data.recibido_datafono ?? data.datafono)} />
+          {(data.abono_reserva ?? 0) > 0 && (
+            <Row label="Abonos de reserva" value={formatMoney(data.abono_reserva ?? 0)} />
+          )}
           {(data.total_ajustes ?? 0) !== 0 && (
             <Row label="Ajustes (neto)" value={formatMoney(data.total_ajustes ?? 0)} />
           )}

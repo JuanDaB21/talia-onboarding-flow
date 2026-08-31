@@ -373,6 +373,8 @@ function MesaEnServicio() {
 
   const { rol } = useMiStaff();
   const esAdmin = rol === "ADMIN" || rol === "SUPERADMIN";
+  // Cancelar/devolver items (incl. entregados sin pagar) lo pueden hacer admin o caja.
+  const esAdminOCaja = esAdmin || rol === "CAJERO";
   const puedeReasignar =
     rol === "MESERO" || rol === "ADMIN" || rol === "SUPERADMIN" || rol === "CAJERO";
 
@@ -466,7 +468,7 @@ function MesaEnServicio() {
           onDeleteItem={(idItem) => delMut.mutate(idItem)}
           onAddMore={() => setAddingTo(p.id_pedido)}
           onPrint={() => imprimirComandasDePedido(mesa.identificador, mesa.mesero_nombre, p)}
-          esAdmin={esAdmin}
+          esAdmin={esAdminOCaja}
           onCancelAdmin={(it) => setCancelAdminItem(it)}
           mostrarCerrar={pedidosActivos > 1}
           pedidoPagado={p.todos_items_pagados}
@@ -974,9 +976,9 @@ function ItemRow({
   onCancelAdmin?: (it: CancelarItemAdminItem) => void;
 }) {
   const enCola = item.estado_preparacion === "EN_COLA";
-  const entregado = item.estado_preparacion === "ENTREGADO";
-  // Cancelación excepcional (admin): el item ya está en preparación y aún no se entregó.
-  const puedeCancelarAdmin = Boolean(esAdmin && onCancelAdmin && !enCola && !entregado);
+  // Cancelar/devolver (admin o caja): items ya en preparación o entregados. Los items EN_COLA
+  // usan el borrado normal (eliminar_item_pedido). El backend bloquea si ya se pagó.
+  const puedeCancelarAdmin = Boolean(esAdmin && onCancelAdmin && !enCola);
   const estado = ESTADO_LABEL[item.estado_preparacion] ?? ESTADO_LABEL.EN_COLA;
   return (
     <li className="pt-2 first:pt-0">
