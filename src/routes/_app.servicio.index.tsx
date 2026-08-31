@@ -186,7 +186,9 @@ function ServicioIndex() {
 }
 
 function MesaCard({ m, esAdmin }: { m: MesaServicio; esAdmin: boolean }) {
-  const ocupada = m.estado === "OCUPADA";
+  // Mismo criterio que el backend/dashboard (estado <> 'LIBRE'): cualquier estado que no sea
+  // LIBRE cuenta como ocupada, para no mostrar como libre una mesa con pedido activo.
+  const ocupada = m.estado !== "LIBRE";
   const [reasignarOpen, setReasignarOpen] = useState(false);
   const [abrirOpen, setAbrirOpen] = useState(false);
   const qc = useQueryClient();

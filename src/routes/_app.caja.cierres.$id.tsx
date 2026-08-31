@@ -48,7 +48,10 @@ function ReportePage() {
   const egresos =
     data.total_egresos ??
     data.ajustes.filter((a) => a.signo === "NEGATIVO").reduce((s, a) => s + a.monto, 0);
-  const total = recEfe + recTra + recDat;
+  // Abonos de reserva aplicados: son ventas del día que entran al total, pero no a ningún
+  // cajón físico (el dinero entró antes, al reservar). Ausente/0 en cierres previos a 0048.
+  const abonoReserva = data.abono_reserva_sistema ?? 0;
+  const total = recEfe + recTra + recDat + abonoReserva;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -117,6 +120,12 @@ function ReportePage() {
           )}
           {nuevo && (
             <Row label="Transferencias recibidas" value={formatMoney(recTra)} />
+          )}
+          {abonoReserva > 0 && (
+            <>
+              <Separator className="my-2" />
+              <Row label="Abonos de reserva" value={formatMoney(abonoReserva)} />
+            </>
           )}
           <Separator className="my-2" />
           <Row

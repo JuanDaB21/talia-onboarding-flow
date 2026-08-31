@@ -183,14 +183,15 @@ export function editarItem(input: {
 /**
  * Cancela un item AUNQUE ya esté en preparación (EN_PREPARACION/LISTO). Acción
  * excepcional SOLO para ADMIN/SUPERADMIN — el backend rechaza a los demás con 403,
- * así como pedidos pagados/cerrados o items ya entregados/pagados.
- * `reponerInventario`: true si el producto no llegó a usarse (devuelve el stock),
- * false si se desperdició (no toca inventario).
+ * Permite items en preparación o ENTREGADOS mientras la cuenta no se haya pagado;
+ * bloquea pedidos pagados/cerrados o items ya pagados. Rol: ADMIN/SUPERADMIN o CAJERO.
+ * `reponerInventario`: true reintegra el stock, false lo descuenta como merma (obligatorio).
+ * `motivo`: opcional.
  */
-export function cancelarItemAdmin(input: { idItem: string; reponerInventario: boolean }) {
+export function cancelarItemAdmin(input: { idItem: string; reponerInventario: boolean; motivo?: string }) {
   return api.post<{ ok: true; cancelado: unknown }>(
     `/servicio/items/${input.idItem}/cancelar-admin`,
-    { reponerInventario: input.reponerInventario },
+    { reponerInventario: input.reponerInventario, motivo: input.motivo },
   );
 }
 

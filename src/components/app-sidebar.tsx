@@ -24,6 +24,7 @@ import {
   Wallet,
   Settings,
   CalendarDays,
+  Users,
 } from "lucide-react";
 import {
   Sidebar,
@@ -87,6 +88,7 @@ const CONFIG_NAV = [
 const ADMIN_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/caja", label: "Caja", icon: Wallet },
+  { to: "/clientes", label: "Clientes", icon: Users },
 ] as const;
 
 function iconoEspacio(slug: string) {
@@ -303,6 +305,7 @@ export function AppSidebar() {
             ADMIN_NAV.filter((item) => {
               if (item.to === "/dashboard") return grupos.dashboard;
               if (item.to === "/caja") return grupos.caja;
+              if (item.to === "/clientes") return grupos.admin; // admin/caja
               return false;
             }),
           )}
