@@ -11,6 +11,7 @@ import {
   X,
   Plus,
   Receipt,
+  Ticket,
   Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,11 +108,18 @@ function CajaPage() {
           <h1 className="text-2xl font-bold tracking-tight">Caja</h1>
           <p className="text-sm text-muted-foreground">Gestión y arqueo diario</p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/caja/comprobantes">
-            <Receipt className="mr-1 h-4 w-4" /> Comprobantes
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/caja/tickets">
+              <Ticket className="mr-1 h-4 w-4" /> Tickets
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/caja/comprobantes">
+              <Receipt className="mr-1 h-4 w-4" /> Comprobantes
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
