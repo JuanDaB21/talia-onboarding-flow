@@ -142,3 +142,9 @@
     color: var(--color-foreground);
   }
 }
+
+/* Carta pública/QR: nombres blindados contra el traductor del navegador (ver
+   components/menu-publico/texto-fijo.tsx). El texto sale del atributo, no de un nodo de texto. */
+.texto-fijo::before {
+  content: attr(data-texto-fijo);
+}

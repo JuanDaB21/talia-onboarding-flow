@@ -4,6 +4,7 @@ import type { CartaProducto } from "@/lib/menu-publico.functions";
 import { publicUrl } from "@/lib/storage";
 import type { MenuTheme } from "@/lib/menu-themes";
 import { PriceTag } from "./price-tag";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 interface ProductoCardProps {
   p: CartaProducto;
@@ -52,7 +53,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
             className="font-bold leading-tight line-clamp-2 text-sm"
             style={{ fontFamily: "var(--menu-heading-font)" }}
           >
-            {p.nombre_producto}
+            <TextoFijo texto={p.nombre_producto} />
           </h3>
           <PriceTag theme={theme} precio={p.precio_venta} />
         </div>
@@ -103,7 +104,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
             className="text-lg font-bold leading-tight"
             style={{ fontFamily: "var(--menu-heading-font)" }}
           >
-            {p.nombre_producto}
+            <TextoFijo texto={p.nombre_producto} />
           </h3>
           {p.descripcion_producto && (
             <p
@@ -135,7 +136,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
               className="font-semibold leading-tight"
               style={{ fontFamily: "var(--menu-heading-font)" }}
             >
-              {p.nombre_producto}
+              <TextoFijo texto={p.nombre_producto} />
             </h3>
             <PriceTag theme={theme} precio={p.precio_venta} />
           </div>
@@ -209,7 +210,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
           className="font-semibold leading-tight line-clamp-1"
           style={{ fontFamily: "var(--menu-heading-font)" }}
         >
-          {p.nombre_producto}
+          <TextoFijo texto={p.nombre_producto} />
         </h3>
         {p.descripcion_producto && (
           <p className="mt-0.5 text-xs line-clamp-2" style={{ color: "var(--menu-muted)" }}>

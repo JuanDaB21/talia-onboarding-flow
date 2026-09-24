@@ -6,8 +6,11 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { instalarGuardTraductor } from "@/lib/guard-traductor";
 
 import appCss from "../styles.css?url";
 
@@ -73,12 +76,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      // Chrome Android traducía la app (el shell declaraba lang="en" con todo el
-      // contenido en español): Translate envuelve los nodos de texto en <font> y
-      // re-parenta hermanos, así que React perdía sus referencias de DOM y
-      // reventaba con "insertBefore ... no es un hijo de este nodo" al insertar
-      // nodos asíncronos — p. ej. el QR de transferencia dentro de su modal.
-      { name: "google", content: "notranslate" },
       { title: "Talia tu IA para restaurantes" },
       { name: "description", content: "Talia Restaurant Hub is a SaaS application for restaurant management." },
       { name: "author", content: "Lovable" },
@@ -105,15 +102,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+// Rutas del comensal (carta pública y carta QR): se dejan traducir para turistas. Los nombres de
+// productos/categorías/negocio van blindados con <TextoFijo> (components/menu-publico/texto-fijo.tsx).
+function esCartaPublica(pathname: string) {
+  return pathname.startsWith("/carta/") || pathname.startsWith("/carta-publica/");
+}
+
 function RootShell({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const permiteTraducir = esCartaPublica(pathname);
   return (
-    // lang="es" + translate="no": la app es 100% en español y ninguna parte debe
-    // ser reescrita por el traductor del navegador (ver el meta `notranslate`).
-    <html lang="es" translate="no">
+    // lang="es": la app es 100% en español. Fuera de la carta, translate="no" + meta
+    // `notranslate`: Chrome Android traducía el panel y Translate envuelve los nodos de texto
+    // en <font> y re-parenta hermanos, así que React perdía sus referencias de DOM y reventaba
+    // con "insertBefore ... no es un hijo de este nodo" (p. ej. el QR de transferencia).
+    <html lang="es" translate={permiteTraducir ? undefined : "no"}>
       <head>
+        {!permiteTraducir && <meta name="google" content="notranslate" />}
         <HeadContent />
       </head>
-      <body className="notranslate">
+      <body className={permiteTraducir ? undefined : "notranslate"}>
         {children}
         <Scripts />
       </body>
@@ -123,6 +131,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Red de seguridad para cuando el traductor sí actúa (la carta, o navegadores que ignoran
+  // `notranslate`): evita que React reviente al tocar nodos que el traductor movió.
+  useEffect(() => {
+    instalarGuardTraductor();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

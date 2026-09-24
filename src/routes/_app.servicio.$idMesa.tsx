@@ -56,6 +56,7 @@ import { ItemEditorSheet } from "@/components/servicio/item-editor-sheet";
 import { AgregarProductoSheet } from "@/components/servicio/agregar-producto-sheet";
 import { StorageImage } from "@/components/shared/storage-image";
 import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
+import { TomarMesaButton } from "@/components/servicio/tomar-mesa-button";
 import {
   EditarItemDialog,
   type EditarItemDialogItem,
@@ -371,7 +372,7 @@ function MesaEnServicio() {
   const [reservaOpen, setReservaOpen] = useState(false);
   const [cancelAdminItem, setCancelAdminItem] = useState<CancelarItemAdminItem | null>(null);
 
-  const { rol } = useMiStaff();
+  const { rol, staff } = useMiStaff();
   const esAdmin = rol === "ADMIN" || rol === "SUPERADMIN";
   // Cancelar/devolver items (incl. entregados sin pagar) lo pueden hacer admin o caja.
   const esAdminOCaja = esAdmin || rol === "CAJERO";
@@ -439,6 +440,25 @@ function MesaEnServicio() {
           tipo={mesa.solicitud_cliente as "CUENTA" | "PEDIR_MAS" | "TOMAR_PEDIDO"}
           solicitudAt={mesa.solicitud_at}
         />
+      )}
+
+      {/* Autogestión: el mesero que entra a una mesa ajena (o que se la acaban de tomar) lo ve
+          explícito y puede tomarla. Sin esto seguía operando una mesa que ya no era suya. */}
+      {rol === "MESERO" && staff && mesa.id_mesero_asignado !== staff.id_usuario && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+          <p className="text-sm">
+            {mesa.id_mesero_asignado
+              ? `Esta mesa la atiende ${mesa.mesero_nombre ?? "otro mesero"}.`
+              : "Esta mesa no tiene mesero asignado."}
+          </p>
+          <TomarMesaButton
+            idMesa={mesa.id_mesa}
+            identificador={mesa.identificador}
+            meseroActualNombre={mesa.mesero_nombre}
+            ocupadaPorOtro={!!mesa.id_mesero_asignado}
+            className="gap-1.5"
+          />
+        </div>
       )}
 
       <MesaHeader

@@ -16,6 +16,7 @@ import {
 } from "@/lib/prepedido.functions";
 import { solicitarAccionCliente } from "@/lib/menu-publico.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -179,7 +180,7 @@ export function PrepedidoSheet({
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-sm leading-snug">
                                 <span className="tabular-nums">{it.cantidad}× </span>
-                                {it.nombre_producto}
+                                <TextoFijo texto={it.nombre_producto} />
                               </p>
                               {it.tiene_alergia && (
                                 <p

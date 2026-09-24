@@ -16,6 +16,7 @@ import {
   type PrepedidoItem,
 } from "@/lib/prepedido.functions";
 import type { MenuTheme } from "@/lib/menu-themes";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 const fmt = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -212,7 +213,7 @@ export function PrepedidoItemEditor({
             className="text-xl font-bold"
             style={{ fontFamily: "var(--menu-heading-font)" }}
           >
-            {nombreProducto}
+            <TextoFijo texto={nombreProducto} />
           </SheetTitle>
           <SheetDescription style={{ color: "var(--menu-muted)" }}>
             Personaliza tu pedido como lo prefieras.
@@ -304,7 +305,7 @@ export function PrepedidoItemEditor({
                       className="text-sm font-semibold uppercase tracking-wider"
                       style={{ color: "var(--menu-muted)" }}
                     >
-                      {g.nombre}
+                      <TextoFijo texto={g.nombre} />
                       <span className="ml-2 text-[10px] normal-case opacity-70">
                         {g.seleccion === "UNICA" ? "Elige 1" : "Puedes elegir varias"}
                       </span>
@@ -329,7 +330,9 @@ export function PrepedidoItemEditor({
                             }}
                           >
                             <span className="min-w-0 flex-1">
-                              <span className="block font-medium text-sm">{o.nombre_opcion}</span>
+                              <span className="block font-medium text-sm">
+                                <TextoFijo texto={o.nombre_opcion} />
+                              </span>
                               {o.cantidad_porcion > 0 && (
                                 <span
                                   className="block text-xs mt-0.5"
@@ -388,7 +391,9 @@ export function PrepedidoItemEditor({
                           }}
                         >
                           <span className="min-w-0 flex-1">
-                            <span className="block font-medium text-sm">{nombre}</span>
+                            <span className="block font-medium text-sm">
+                              <TextoFijo texto={nombre} />
+                            </span>
                             {cantidad > 0 && (
                               <span
                                 className="block text-xs mt-0.5"
@@ -443,7 +448,7 @@ export function PrepedidoItemEditor({
                             textDecoration: off ? "line-through" : "none",
                           }}
                         >
-                          {nombre}
+                          <TextoFijo texto={nombre} />
                         </button>
                       );
                     })}

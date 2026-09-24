@@ -12,6 +12,7 @@ import type { CartaProducto } from "@/lib/menu-publico.functions";
 import { publicUrl } from "@/lib/storage";
 import type { MenuTheme } from "@/lib/menu-themes";
 import { PriceTag } from "./price-tag";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 interface ProductoDetalleDialogProps {
   producto: CartaProducto | null;
@@ -81,7 +82,7 @@ export default function ProductoDetalleDialog({
                 className="text-2xl font-bold leading-tight"
                 style={{ fontFamily: "var(--menu-heading-font)" }}
               >
-                {producto.nombre_producto}
+                <TextoFijo texto={producto.nombre_producto} />
               </DialogTitle>
               <DialogDescription
                 className="text-sm leading-relaxed"

@@ -35,6 +35,7 @@ import { ThemedHeader, CategoryNav } from "@/components/menu-publico/menu-chrome
 import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
 import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
 import { useClienteMesa } from "@/hooks/use-cliente-mesa";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 // El detalle de producto solo se carga cuando el cliente toca un producto.
 const LazyProductoDetalleDialog = lazy(
@@ -667,7 +668,7 @@ function CuentaDialog({
                     </span>
 
                     <div className="min-w-0">
-                      <p className="font-medium leading-tight break-words">{it.nombre_producto}</p>
+                      <p className="font-medium leading-tight break-words"><TextoFijo texto={it.nombre_producto} /></p>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {fmt.format(it.precio_unitario)} c/u
                       </p>
@@ -675,7 +676,7 @@ function CuentaDialog({
                         <ul className="mt-0.5 text-xs text-muted-foreground">
                           {it.extras.map((e, i) => (
                             <li key={i} className="flex justify-between gap-2">
-                              <span>+ {e.nombre}</span>
+                              <span>+ <TextoFijo texto={e.nombre} /></span>
                               {e.precio > 0 && (
                                 <span className="tabular-nums">{fmt.format(e.precio)}</span>
                               )}
@@ -685,7 +686,7 @@ function CuentaDialog({
                       )}
                       {it.exclusiones.length > 0 && (
                         <p className="text-xs text-muted-foreground italic">
-                          sin {it.exclusiones.map((x) => x.nombre).join(", ")}
+                          sin <TextoFijo texto={it.exclusiones.map((x) => x.nombre).join(", ")} />
                         </p>
                       )}
                       {it.nota && (
