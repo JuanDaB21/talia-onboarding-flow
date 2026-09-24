@@ -20,8 +20,19 @@ export interface MesaServicio {
 }
 
 // GET /servicio/mesas → agregación (alertas, nombre mesero, filtro por rol) en el backend.
-export function listarMesasServicio() {
-  return api.get<{ mesas: MesaServicio[]; esAdmin: boolean; userId: string }>("/servicio/mesas");
+// `todas`: el mesero ve también las libres y las de sus compañeros (autogestión). Usar con una
+// queryKey propia: el banner de alertas lee ["servicio","mesas"] asumiendo que son solo las suyas.
+export function listarMesasServicio(alcance: "mias" | "todas" = "mias") {
+  return api.get<{ mesas: MesaServicio[]; esAdmin: boolean; userId: string }>(
+    alcance === "todas" ? "/servicio/mesas?alcance=todas" : "/servicio/mesas",
+  );
+}
+
+// Autogestión: el mesero se asigna la mesa (libre → la abre; de otro mesero → se la quita).
+export function tomarMesa(idMesa: string) {
+  return api.post<{ id_mesero_anterior: string | null; abierta: boolean }>(
+    `/servicio/mesas/${idMesa}/tomar`,
+  );
 }
 
 // Abrir una mesa LIBRE. Si no se pasa idMesero, el backend autoasigna al llamante (mesero).

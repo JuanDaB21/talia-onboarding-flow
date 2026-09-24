@@ -1,4 +1,5 @@
 import type { MenuTheme } from "@/lib/menu-themes";
+import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
 // Cromo compartido del menú público (header temático + navegación de categorías).
 // Lo usan la carta por mesa (`/carta/$idMesa`) y el menú público del negocio
@@ -57,7 +58,7 @@ export function ThemedHeader({
             fontSize: "clamp(1.25rem, 6vw, 1.875rem)",
           }}
         >
-          {nombreNegocio || "Nuestra carta"}
+          {nombreNegocio ? <TextoFijo texto={nombreNegocio} /> : "Nuestra carta"}
         </h1>
         <div className="mx-auto mt-3 h-px w-16" style={{ background: "var(--menu-accent)" }} />
       </header>
@@ -91,7 +92,7 @@ export function ThemedHeader({
               fontSize: "clamp(1.125rem, 5.5vw, 1.5rem)",
             }}
           >
-            {nombreNegocio || "Nuestra carta"}
+            {nombreNegocio ? <TextoFijo texto={nombreNegocio} /> : "Nuestra carta"}
           </h1>
         </div>
       </header>
@@ -124,7 +125,7 @@ export function ThemedHeader({
                 fontSize: "clamp(1.5rem, 7vw, 1.875rem)",
               }}
             >
-              {nombreNegocio || "Nuestra carta"}
+              {nombreNegocio ? <TextoFijo texto={nombreNegocio} /> : "Nuestra carta"}
             </h1>
           </div>
           {logoUrl && (
@@ -174,7 +175,7 @@ export function ThemedHeader({
             fontSize: "clamp(1rem, 4.5vw, 1.25rem)",
           }}
         >
-          {nombreNegocio || "Nuestra carta"}
+          {nombreNegocio ? <TextoFijo texto={nombreNegocio} /> : "Nuestra carta"}
         </h1>
       </div>
       {logoUrl && (
@@ -228,7 +229,7 @@ export function CategoryNav({
                 fontFamily: "var(--menu-body-font)",
               }}
             >
-              {it.nombre}
+              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
             </button>
           );
         })}
@@ -257,7 +258,7 @@ export function CategoryNav({
                 fontFamily: "var(--menu-body-font)",
               }}
             >
-              {it.nombre}
+              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
             </button>
           );
         })}
@@ -284,7 +285,7 @@ export function CategoryNav({
                 fontFamily: "var(--menu-body-font)",
               }}
             >
-              {it.nombre}
+              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
             </button>
           );
         })}
@@ -313,7 +314,7 @@ export function CategoryNav({
               fontFamily: "var(--menu-body-font)",
             }}
           >
-            {it.nombre}
+            {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
           </button>
         );
       })}

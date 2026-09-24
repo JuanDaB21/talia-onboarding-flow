@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Bell, ChefHat, ClipboardCheck, Clock, CreditCard, DoorOpen, Loader2, Plus, Radio, UserCheck, Wallet } from "lucide-react";
+import { Bell, ChefHat, ChevronDown, ClipboardCheck, Clock, CreditCard, DoorOpen, Loader2, Plus, Radio, UserCheck, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { realtime } from "@/lib/realtime-client";
@@ -14,6 +14,9 @@ import { CajaTurnoCard } from "@/components/servicio/caja-turno-card";
 import { PagosPendientesSheet } from "@/components/servicio/pagos-pendientes-sheet";
 import { ReasignarMeseroDialog } from "@/components/servicio/reasignar-mesero-dialog";
 import { AbrirMesaDialog } from "@/components/servicio/abrir-mesa-dialog";
+import { TomarMesaButton } from "@/components/servicio/tomar-mesa-button";
+import { fueTomadaPorMi } from "@/components/servicio/mesas-tomadas";
+import { useMiStaff } from "@/hooks/use-mi-staff";
 import { POLL } from "@/lib/query-config";
 
 
@@ -23,13 +26,32 @@ export const Route = createFileRoute("/_app/servicio/")({
 });
 
 function ServicioIndex() {
+  const { rol } = useMiStaff();
+  // Autogestión: el mesero ve también las mesas libres y las de sus compañeros para tomarlas.
+  // Key propia ("todas"): el banner de alertas usa ["servicio","mesas"] asumiendo solo las suyas.
+  const esMesero = rol === "MESERO";
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["servicio", "mesas"],
-    queryFn: () => listarMesasServicio(),
+    queryKey: ["servicio", "mesas", esMesero ? "todas" : "mias"],
+    queryFn: () => listarMesasServicio(esMesero ? "todas" : "mias"),
+    enabled: rol !== null,
     // El canal realtime de abajo invalida al instante; POLL.LIVE es el respaldo para no
     // quedar desfasado con Operación si el WS está caído/reconectando.
     ...POLL.LIVE,
   });
+
+  const myId = data?.userId ?? null;
+  const todas = data?.mesas ?? [];
+  const misMesas = esMesero ? todas.filter((m) => m.id_mesero_asignado === myId) : todas;
+  const otrasMesas = esMesero ? todas.filter((m) => m.id_mesero_asignado !== myId) : [];
+  const [otrasOpen, setOtrasOpen] = useState(false);
+
+  // Último mesero conocido de cada mesa. El realtime no trae la fila vieja (`old` llega null
+  // en UPDATE), así que se compara contra este mapa para saber si la mesa ganó o perdió dueño.
+  const meseroPrevRef = useRef<Map<string, string | null>>(new Map());
+  useEffect(() => {
+    if (!data?.mesas) return;
+    meseroPrevRef.current = new Map(data.mesas.map((m) => [m.id_mesa, m.id_mesero_asignado]));
+  }, [data?.mesas]);
 
   // Realtime: cualquier cambio relevante refresca
   useEffect(() => {
@@ -43,18 +65,24 @@ function ServicioIndex() {
         (payload) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const nuevo: any = payload.new;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const viejo: any = payload.old;
-          const meAsignaron =
-            nuevo?.id_mesero_asignado === myId &&
-            viejo?.id_mesero_asignado !== myId;
-          if (meAsignaron) {
+          const idMesa: string | undefined = nuevo?.id_mesa;
+          const antes = idMesa ? meseroPrevRef.current.get(idMesa) : undefined;
+          const ahora: string | null = nuevo?.id_mesero_asignado ?? null;
+          if (idMesa) meseroPrevRef.current.set(idMesa, ahora);
+          if (ahora === myId && antes !== myId && idMesa && !fueTomadaPorMi(idMesa)) {
             toast.info(`Mesa ${nuevo.identificador} te necesita`, {
               description: "Te asignaron una nueva mesa.",
               icon: <Bell className="h-4 w-4" />,
             });
           }
-          refetch();
+          const meLaQuitaron = antes === myId && ahora !== null && ahora !== myId;
+          void refetch().then((r) => {
+            if (!meLaQuitaron) return;
+            const quien = r.data?.mesas.find((m) => m.id_mesa === idMesa)?.mesero_nombre;
+            toast.warning(`La mesa ${nuevo.identificador} ya no es tuya`, {
+              description: quien ? `Ahora la atiende ${quien}.` : "Otro mesero la tomó.",
+            });
+          });
         },
       )
       .on(
@@ -82,13 +110,15 @@ function ServicioIndex() {
   const prevListoRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!data?.mesas) return;
+    // Solo las mesas propias: con la vista "todas" no se avisa por platos de otros meseros.
+    const propias = esMesero ? data.mesas.filter((m) => m.id_mesero_asignado === data.userId) : data.mesas;
     const ahora = new Set<string>();
-    for (const m of data.mesas) {
+    for (const m of propias) {
       if (m.alerta_listo) ahora.add(m.id_mesa);
     }
     for (const id of ahora) {
       if (!prevListoRef.current.has(id)) {
-        const m = data.mesas.find((x) => x.id_mesa === id);
+        const m = propias.find((x) => x.id_mesa === id);
         if (m) {
           beepListo();
           toast.success(`Mesa ${m.identificador}: pedido listo para recoger`, {
@@ -98,7 +128,7 @@ function ServicioIndex() {
       }
     }
     prevListoRef.current = ahora;
-  }, [data?.mesas]);
+  }, [data?.mesas, data?.userId, esMesero]);
 
   const [pagosOpen, setPagosOpen] = useState(false);
   const pagosQ = useQuery({
@@ -131,7 +161,9 @@ function ServicioIndex() {
           <p className="text-sm text-muted-foreground">
             {data?.esAdmin
               ? "Vista de todas las mesas del local."
-              : "Mesas asignadas a ti."}
+              : esMesero
+                ? "Mesas asignadas a ti. Puedes tomar otra mesa desde «Otras mesas»."
+                : "Mesas asignadas a ti."}
           </p>
         </div>
         {data?.esAdmin && (
@@ -153,15 +185,17 @@ function ServicioIndex() {
 
       {!data?.esAdmin && <CajaTurnoCard />}
 
-      {isLoading ? (
+      {isLoading || rol === null ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
-      ) : !data || data.mesas.length === 0 ? (
+      ) : !data || misMesas.length === 0 ? (
         <div className="rounded-lg border bg-card p-12 text-center">
           <ChefHat className="mx-auto h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm text-muted-foreground">
             {data?.esAdmin
               ? "Aún no tienes mesas creadas. Crea la primera para empezar a recibir pedidos."
-              : "No tienes mesas activas en este momento."}
+              : otrasMesas.length > 0
+                ? "No tienes mesas activas. Toma una desde «Otras mesas»."
+                : "No tienes mesas activas en este momento."}
           </p>
           {data?.esAdmin && (
             <Button asChild className="mt-4 gap-2">
@@ -174,13 +208,67 @@ function ServicioIndex() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ordenarMesas(data.mesas).map((m) => (
+          {ordenarMesas(misMesas).map((m) => (
             <MesaCard key={m.id_mesa} m={m} esAdmin={!!data.esAdmin} />
           ))}
         </div>
       )}
 
+      {esMesero && otrasMesas.length > 0 && (
+        <section className="space-y-3">
+          <Button
+            variant="ghost"
+            className="gap-2 px-0 hover:bg-transparent"
+            onClick={() => setOtrasOpen((v) => !v)}
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${otrasOpen ? "" : "-rotate-90"}`} />
+            Otras mesas ({otrasMesas.length})
+          </Button>
+          {otrasOpen && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ordenarMesas(otrasMesas).map((m) => (
+                <OtraMesaCard key={m.id_mesa} m={m} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <PagosPendientesSheet open={pagosOpen} onOpenChange={setPagosOpen} />
+    </div>
+  );
+}
+
+// Mesa libre o de otro mesero (vista de autogestión): no navega; solo informa y permite tomarla.
+function OtraMesaCard({ m }: { m: MesaServicio }) {
+  const ocupada = m.estado !== "LIBRE";
+  return (
+    <div className="rounded-xl border border-dashed bg-card/60 p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</p>
+          <h3 className="text-xl font-bold">{m.identificador}</h3>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            ocupada ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {m.estado}
+        </span>
+      </div>
+      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <UserCheck className="h-3.5 w-3.5" />
+        <span>{m.mesero_nombre ?? "Sin mesero"}</span>
+      </div>
+      <div className="mt-3">
+        <TomarMesaButton
+          idMesa={m.id_mesa}
+          identificador={m.identificador}
+          meseroActualNombre={m.mesero_nombre}
+          ocupadaPorOtro={!!m.id_mesero_asignado}
+        />
+      </div>
     </div>
   );
 }
