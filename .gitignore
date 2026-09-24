@@ -35,3 +35,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code — local, no versionar (los activos compartidos SÍ van al repo)
+.claude/settings.local.json
+.claude/worktrees/
