@@ -11,6 +11,7 @@ import {
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { instalarGuardTraductor } from "@/lib/guard-traductor";
+import { onResync } from "@/lib/realtime-client";
 
 import appCss from "../styles.css?url";
 
@@ -137,6 +138,21 @@ function RootComponent() {
   useEffect(() => {
     instalarGuardTraductor();
   }, []);
+
+  // Si se pudieron perder eventos realtime (reconexión, celular bloqueado), se refetchea
+  // lo que está en pantalla: sin esto había botones (cobrar, cerrar mesa) que solo se
+  // habilitaban con F5. Throttle para que varias señales seguidas cuenten como una.
+  useEffect(() => {
+    let ultimo = 0;
+    const alResync = () => {
+      const ahora = Date.now();
+      if (ahora - ultimo < 3_000) return;
+      ultimo = ahora;
+      void queryClient.invalidateQueries({ type: "active" });
+    };
+    onResync.addEventListener("resync", alResync);
+    return () => onResync.removeEventListener("resync", alResync);
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>

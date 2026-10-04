@@ -65,7 +65,7 @@ export const Route = createFileRoute("/_app/caja/")({
 
 function CajaPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ["estado-caja"],
+    queryKey: ["caja", "estado"],
     queryFn: () => getEstadoCaja(),
     ...POLL.NORMAL,
   });
@@ -245,7 +245,7 @@ function AbrirCajaForm({ nuevoCiclo }: { nuevoCiclo?: boolean }) {
     try {
       await abrirCaja(n);
       toast.success("Caja abierta");
-      qc.invalidateQueries({ queryKey: ["estado-caja"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
       qc.invalidateQueries({ queryKey: ["cierres"] });
       qc.invalidateQueries({ queryKey: ["caja-ajustes-actual"] });
     } catch (e) {
@@ -433,7 +433,7 @@ function ReabrirCajaButton() {
     try {
       await reabrirCaja();
       toast.success("Caja reabierta");
-      qc.invalidateQueries({ queryKey: ["estado-caja"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
       qc.invalidateQueries({ queryKey: ["cierres"] });
       setConfirmOpen(false);
     } catch (e) {

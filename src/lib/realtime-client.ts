@@ -45,6 +45,16 @@ const SILENCIO_MAX_MS = 60_000;
 const VIGILANCIA_MS = 15_000;
 /** Un handshake que no abre en este plazo se aborta y se reintenta. */
 const HANDSHAKE_MAX_MS = 12_000;
+/** Oculta más de esto (celular bloqueado), al volver se asume que se perdieron eventos. */
+const OCULTO_RESYNC_MS = 10_000;
+
+/**
+ * Se dispara cuando pudieron perderse eventos: el socket se cayó y volvió, el backend
+ * pidió `resync` (su LISTEN se reconectó) o la pestaña estuvo oculta un rato. El
+ * realtime no reenvía lo perdido, así que sin esto los datos (y los botones que
+ * dependen de ellos) quedaban viejos hasta un F5. `__root` refetchea las queries activas.
+ */
+export const onResync = new EventTarget();
 
 class RealtimeManager {
   private ws: WebSocket | null = null;
@@ -57,13 +67,24 @@ class RealtimeManager {
   private ultimoMensaje = 0;
   private vigilante: ReturnType<typeof setInterval> | null = null;
   private pinger: ReturnType<typeof setInterval> | null = null;
+  /** El socket anterior se cayó sin que lo cerráramos: al reabrir hay que resincronizar. */
+  private perdioConexion = false;
+  private ocultoDesde: number | null = null;
 
   constructor() {
     if (typeof window === "undefined") return;
     // El caso real: el mesero bloquea el celular, el NAT descarta la sesión TCP y
     // al volver la pantalla está muerta porque `onclose` nunca llegó a dispararse.
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") this.revisarAhora();
+      if (document.visibilityState === "hidden") {
+        this.ocultoDesde = Date.now();
+        return;
+      }
+      if (this.ocultoDesde !== null && Date.now() - this.ocultoDesde >= OCULTO_RESYNC_MS) {
+        onResync.dispatchEvent(new Event("resync"));
+      }
+      this.ocultoDesde = null;
+      this.revisarAhora();
     });
     window.addEventListener("online", () => this.revisarAhora());
     // Si la sesión murió de verdad, dejamos de reintentar.
@@ -118,11 +139,16 @@ class RealtimeManager {
         this.backoff = 1000;
         this.ultimoMensaje = Date.now();
         this.sendSubscribe();
+        if (this.perdioConexion) {
+          this.perdioConexion = false;
+          onResync.dispatchEvent(new Event("resync"));
+        }
       };
       ws.onmessage = (ev) => this.onMessage(ev);
       ws.onclose = (ev) => {
         if (this.ws !== ws) return; // ya lo reemplazamos: ignorar su cierre tardío
         this.ws = null;
+        this.perdioConexion = true;
         if (ev.code === 1008) this.necesitaRefresh = true;
         this.programarReconexion();
       };
@@ -168,6 +194,7 @@ class RealtimeManager {
       // una segunda reconexión.
       const muerto = this.ws;
       this.ws = null;
+      this.perdioConexion = true;
       try {
         muerto.close();
       } catch {
@@ -212,6 +239,11 @@ class RealtimeManager {
       return;
     }
     if (msg.type === "pong" || msg.type === "ready") return;
+    // El LISTEN del backend se reconectó: los eventos de esa brecha no llegarán.
+    if (msg.type === "resync") {
+      onResync.dispatchEvent(new Event("resync"));
+      return;
+    }
     // Sesión única: el backend nos expulsó porque este usuario abrió sesión en otro
     // dispositivo. Cerramos la sesión local y avisamos (mismo flujo que onAuthExpired).
     if (msg.type === "session_revoked") {

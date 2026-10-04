@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { realtime } from "@/lib/realtime-client";
+import { onResync, realtime } from "@/lib/realtime-client";
+import { POLL } from "@/lib/query-config";
 import {
   avanzarItem,
   listarComandasEstacion,
@@ -29,11 +30,12 @@ export function KanbanBoard({ destino, titulo }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const refrescar = useCallback(async () => {
+  const refrescar = useCallback(async (silencioso = false) => {
     try {
       const res = await listarComandasEstacion(destino);
       setComandas(res.comandas);
     } catch (e) {
+      if (silencioso) return;
       const msg = e instanceof Error ? e.message : "Error";
       toast.error("No se pudo cargar", { description: msg });
     } finally {
@@ -56,6 +58,21 @@ export function KanbanBoard({ destino, titulo }: Props) {
       realtime.removeChannel(channel);
     };
   }, [refrescar, destino]);
+
+  // El tablero no usa React Query, así que ni el polling ni el resync global de `__root`
+  // lo cubren: sin esto un evento perdido dejaba comandas viejas hasta un F5.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") void refrescar(true);
+    };
+    const id = setInterval(tick, POLL.LIVE.refetchInterval);
+    const alResync = () => void refrescar(true);
+    onResync.addEventListener("resync", alResync);
+    return () => {
+      clearInterval(id);
+      onResync.removeEventListener("resync", alResync);
+    };
+  }, [refrescar]);
 
   const handleAdvance = async (idItem: string, nuevoEstado: "LISTO") => {
     setBusyId(idItem);

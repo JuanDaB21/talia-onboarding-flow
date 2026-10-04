@@ -81,7 +81,10 @@ function PagosPendientes() {
       await confirmarPago(idPago, aprobar);
       toast.success(aprobar ? "Pago aprobado" : "Pago rechazado");
       qc.invalidateQueries({ queryKey: ["pagos-pendientes"] });
-      qc.invalidateQueries({ queryKey: ["estado-caja"] });
+      qc.invalidateQueries({ queryKey: ["caja"] });
+      qc.invalidateQueries({ queryKey: ["pagos"] });
+      qc.invalidateQueries({ queryKey: ["mesaSesion"] });
+      qc.invalidateQueries({ queryKey: ["estadoCierre"] });
     } catch (e) {
       toast.error("No se pudo procesar", { description: e instanceof Error ? e.message : "" });
     } finally {

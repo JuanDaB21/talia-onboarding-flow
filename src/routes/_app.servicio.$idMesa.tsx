@@ -145,11 +145,14 @@ function MesaEnServicio() {
   const qc = useQueryClient();
   const bus = useAlertaBus();
 
+  const [pagarOpen, setPagarOpen] = useState(false);
+
   const mesaQ = useQuery({
     queryKey: ["mesaSesion", idMesa],
     queryFn: () => obtenerMesaSesion(idMesa),
-    // Sin polling: el canal `mesa-sesion-${idMesa}` invalida en cambios reales.
-    staleTime: 30_000,
+    // El canal `mesa-sesion-${idMesa}` invalida en cambios reales; el polling es la red
+    // de seguridad si se pierde un evento (antes solo F5 habilitaba "Pagar cuenta").
+    ...pollWhen(!pagarOpen, POLL.LIVE),
   });
 
   // Pre-pedido en vivo (clientes armando pedido desde su celular)
@@ -177,6 +180,18 @@ function MesaEnServicio() {
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "prepedido_sesiones" }, () =>
         qc.invalidateQueries({ queryKey: ["prepedidoMesa", idMesa] }),
+      )
+      // Pagos de ESTA mesa (incluye aprobar/rechazar transferencia desde otro equipo):
+      // cambian lo pagado y si se puede cerrar.
+      .on("postgres_changes", { event: "*", schema: "public", table: "pagos" }, (p) => {
+        const fila = p.new ?? p.old;
+        if (fila && fila.id_mesa !== idMesa) return;
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+        qc.invalidateQueries({ queryKey: ["estadoCierre", idMesa] });
+      })
+      // Abrir/cerrar caja habilita o bloquea cobrar y cerrar mesa.
+      .on("postgres_changes", { event: "*", schema: "public", table: "caja_dia" }, () =>
+        qc.invalidateQueries({ queryKey: ["caja", "abierta"] }),
       )
       .subscribe();
     return () => {
@@ -206,8 +221,6 @@ function MesaEnServicio() {
     const asig = mesaQ.data?.asignada_at;
     if (asig) bus.ack(`asig:${idMesa}:${asig}`);
   }, [mesaQ.data?.asignada_at, idMesa, bus]);
-
-  const [pagarOpen, setPagarOpen] = useState(false);
 
   // Tick visual del tiempo de servicio. Se pausa mientras se está cobrando: con
   // el sheet de pago abierto ya hay realtime + polling re-renderizando el árbol,
@@ -314,11 +327,22 @@ function MesaEnServicio() {
 
   // No se puede cobrar ni cerrar cuenta sin una caja ABIERTA (regla del backend).
   const cajaQ = useQuery({
-    queryKey: ["estado-caja"],
+    queryKey: ["caja", "abierta"],
     queryFn: () => getCajaAbierta(),
     ...pollWhen(!pagarOpen, POLL.LIVE),
   });
   const hayCaja = cajaQ.data?.abierta === true;
+
+  // Con el sheet abierto el polling se pausa; al cerrarlo se refresca de una vez para
+  // que "Cerrar mesa" no siga diciendo "Faltan N items" hasta el próximo ciclo.
+  const cambiarPagarOpen = (open: boolean) => {
+    setPagarOpen(open);
+    if (!open) {
+      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["estadoCierre", idMesa] });
+      qc.invalidateQueries({ queryKey: ["caja", "abierta"] });
+    }
+  };
 
   const cerrarMut = useMutation({
     mutationFn: () => cerrarMesa(idMesa),
@@ -550,7 +574,7 @@ function MesaEnServicio() {
         titulo="Agregar a la comanda"
       />
 
-      <PagarSheet open={pagarOpen} onOpenChange={setPagarOpen} idMesa={idMesa} />
+      <PagarSheet open={pagarOpen} onOpenChange={cambiarPagarOpen} idMesa={idMesa} />
 
       <AsignarReservaDialog
         open={reservaOpen}

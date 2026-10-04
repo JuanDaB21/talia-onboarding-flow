@@ -71,11 +71,20 @@ interface Options {
 }
 
 /**
- * `fetch` con timeout propio, combinado con el `signal` que pueda traer el llamador.
+ * `fetch` + lectura del body con UN solo timeout, combinado con el `signal` que pueda
+ * traer el llamador. El timer sigue vivo hasta que `leer` termina: si se limpiara al
+ * llegar los headers, un body que se estanca en red móvil dejaba `res.json()`
+ * pendiente para siempre (el `isPending` de "Confirmar pago" no volvía a false).
  * Se usa AbortController manual en vez de `AbortSignal.timeout`/`any` porque esos
  * solo existen desde Safari 17 y aquí hay iPhones viejos en el salón.
  */
-export function fetchConTimeout(url: string, init: RequestInit, ms: number, externo?: AbortSignal): Promise<Response> {
+export async function fetchYLeer<T>(
+  url: string,
+  init: RequestInit,
+  ms: number,
+  leer: (res: Response) => Promise<T>,
+  externo?: AbortSignal,
+): Promise<T> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(new DOMException("Tiempo de espera agotado", "TimeoutError")), ms);
   const alAbortar = () => ctrl.abort(externo?.reason);
@@ -83,11 +92,28 @@ export function fetchConTimeout(url: string, init: RequestInit, ms: number, exte
     if (externo.aborted) ctrl.abort(externo.reason);
     else externo.addEventListener("abort", alAbortar);
   }
-  return fetch(url, { ...init, signal: ctrl.signal }).finally(() => {
+  try {
+    const res = await fetch(url, { ...init, signal: ctrl.signal });
+    return await leer(res);
+  } finally {
     clearTimeout(timer);
     externo?.removeEventListener("abort", alAbortar);
-  });
+  }
 }
+
+interface RespuestaLeida {
+  status: number;
+  ok: boolean;
+  statusText: string;
+  text: string;
+}
+
+const leerTexto = async (r: Response): Promise<RespuestaLeida> => ({
+  status: r.status,
+  ok: r.ok,
+  statusText: r.statusText,
+  text: await r.text(),
+});
 
 /**
  * `red` (timeout/offline) NO es lo mismo que `rechazado` (el backend dijo 401):
@@ -102,7 +128,7 @@ export async function tryRefresh(): Promise<ResultadoRefresh> {
   const t = getTokens();
   if (!t) return "rechazado";
   if (!refreshing) {
-    refreshing = fetchConTimeout(
+    refreshing = fetchYLeer(
       `${API_URL}/auth/refresh`,
       {
         method: "POST",
@@ -110,13 +136,14 @@ export async function tryRefresh(): Promise<ResultadoRefresh> {
         body: JSON.stringify({ userId: t.userId, refresh: t.refresh }),
       },
       TIMEOUT_REFRESH_MS,
+      leerTexto,
     )
-      .then(async (r) => {
+      .then((r) => {
         // 401/403 = el backend rechazó el refresh de verdad. Otro error (5xx) es
         // un problema del servidor, no de la sesión: no desloguea.
         if (r.status === 401 || r.status === 403) return "rechazado" as const;
         if (!r.ok) return "red" as const;
-        const data = (await r.json()) as { access: string; refresh: string; user: { id: string } };
+        const data = JSON.parse(r.text) as { access: string; refresh: string; user: { id: string } };
         setTokens({ access: data.access, refresh: data.refresh, userId: data.user.id });
         return "ok" as const;
       })
@@ -135,7 +162,7 @@ async function request<T>(path: string, opts: Options = {}, retry = true): Promi
   const tokens = getTokens();
   if (auth && tokens) headers["authorization"] = `Bearer ${tokens.access}`;
 
-  const res = await fetchConTimeout(
+  const res = await fetchYLeer(
     `${API_URL}${path}`,
     {
       method,
@@ -143,6 +170,7 @@ async function request<T>(path: string, opts: Options = {}, retry = true): Promi
       body: body !== undefined ? JSON.stringify(body) : undefined,
     },
     TIMEOUT_MS,
+    leerTexto,
     signal,
   );
 
@@ -160,7 +188,7 @@ async function request<T>(path: string, opts: Options = {}, retry = true): Promi
     let code = "ERROR";
     let message = res.statusText;
     try {
-      const j = (await res.json()) as { error?: { code?: string; message?: string } };
+      const j = JSON.parse(res.text) as { error?: { code?: string; message?: string } };
       code = j.error?.code ?? code;
       message = j.error?.message ?? message;
     } catch {
@@ -170,8 +198,7 @@ async function request<T>(path: string, opts: Options = {}, retry = true): Promi
   }
 
   if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return (res.text ? JSON.parse(res.text) : undefined) as T;
 }
 
 export const api = {
