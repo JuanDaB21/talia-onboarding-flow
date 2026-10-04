@@ -134,8 +134,9 @@ function ServicioIndex() {
   const pagosQ = useQuery({
     queryKey: ["pagos", "pendientes", "badge"],
     queryFn: () => listarPagosPendientes(),
-    // Sin polling: el canal "pagos-badge" invalida cuando cambia un pago.
-    staleTime: 60_000,
+    // El canal "pagos-badge" invalida cuando cambia un pago; polling lento por si se
+    // pierde un evento.
+    ...POLL.NORMAL,
     enabled: !!data?.esAdmin,
   });
   // Realtime: refrescar badge cuando llegue/cambie un pago

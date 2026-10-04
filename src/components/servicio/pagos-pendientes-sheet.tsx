@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { realtime } from "@/lib/realtime-client";
 import { StorageImage } from "@/components/shared/storage-image";
 import { listarPagosPendientes, confirmarPago } from "@/lib/pagos.functions";
+import { POLL, pollWhen } from "@/lib/query-config";
 
 
 const fmt = new Intl.NumberFormat("es-CO", {
@@ -29,9 +30,20 @@ export function PagosPendientesSheet({
     queryKey: ["pagos", "pendientes"],
     queryFn: () => listarPagosPendientes(),
     enabled: open,
-    // Sin polling: canal "pagos-pendientes" invalida al cambiar un pago.
-    staleTime: 30_000,
+    // El canal "pagos-pendientes" invalida al cambiar un pago; el polling cubre un
+    // evento perdido (antes la lista de aprobar/rechazar quedaba vieja hasta F5).
+    ...pollWhen(open, POLL.LIVE),
   });
+
+  // Aprobar/rechazar cambia lo pagado de la mesa, su cierre y la caja.
+  const refrescar = () => {
+    qc.invalidateQueries({ queryKey: ["pagos"] });
+    qc.invalidateQueries({ queryKey: ["pagos-pendientes"] });
+    qc.invalidateQueries({ queryKey: ["servicio"] });
+    qc.invalidateQueries({ queryKey: ["mesaSesion"] });
+    qc.invalidateQueries({ queryKey: ["estadoCierre"] });
+    qc.invalidateQueries({ queryKey: ["caja"] });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -52,13 +64,15 @@ export function PagosPendientesSheet({
     mutationFn: (v: { idPago: string; aprobar: boolean }) => confirmarPago(v.idPago, v.aprobar),
     onSuccess: (_d, vars) => {
       toast.success(vars.aprobar ? "Pago aprobado" : "Pago rechazado");
-      qc.invalidateQueries({ queryKey: ["pagos"] });
-      qc.invalidateQueries({ queryKey: ["servicio"] });
+      refrescar();
     },
-    onError: (e) =>
+    onError: (e) => {
+      // Pudo aplicarse aunque la respuesta no llegó (timeout), u otro admin ya lo resolvió.
+      refrescar();
       toast.error("No se pudo actualizar", {
         description: e instanceof Error ? e.message : undefined,
-      }),
+      });
+    },
   });
 
   return (

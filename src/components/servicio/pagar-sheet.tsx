@@ -277,6 +277,16 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
     });
   };
 
+  // Todo lo que un cobro cambia. `["pagos"]` incluye los ítems cobrables de este sheet y
+  // `["caja"]` tanto `["caja","abierta"]` como `["caja","estado"]`.
+  const refrescarCobro = () => {
+    qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+    qc.invalidateQueries({ queryKey: ["estadoCierre", idMesa] });
+    qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
+    qc.invalidateQueries({ queryKey: ["pagos"] });
+    qc.invalidateQueries({ queryKey: ["caja"] });
+  };
+
   const pagarMut = useMutation({
     mutationFn: (input: PagarInput) => registrarPago(input),
     onSuccess: (res, vars) => {
@@ -285,10 +295,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
         esTransfer ? "Pago registrado · esperando confirmación del admin" : "Pago registrado",
         { icon: <CheckCircle2 className="h-4 w-4" /> },
       );
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
-      qc.invalidateQueries({ queryKey: ["pagos"] });
-      qc.invalidateQueries({ queryKey: ["caja"] });
+      refrescarCobro();
       qc.invalidateQueries({ queryKey: ["bonos"] });
 
       // El backend ya encoló el ticket automático; ofrecemos copia opcional antes de cerrar.
@@ -299,6 +306,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }
     },
     onError: (e) => {
+      // Un timeout no prueba que el pago falló: el backend pudo registrarlo. Se
+      // refresca para no dejar ítems/botones con el estado previo al intento.
+      refrescarCobro();
       if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo registrar el pago", {
         description: e instanceof Error ? e.message : undefined,
@@ -332,10 +342,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
           : "Pago dividido registrado",
         { icon: <CheckCircle2 className="h-4 w-4" /> },
       );
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
-      qc.invalidateQueries({ queryKey: ["pagos"] });
-      qc.invalidateQueries({ queryKey: ["caja"] });
+      refrescarCobro();
       qc.invalidateQueries({ queryKey: ["bonos"] });
       if (res?.idPago && cajaImprimeTickets) {
         setTicketCopia({ idPago: res.idPago, esperaTransfer: hayTransfer });
@@ -344,6 +351,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       }
     },
     onError: (e) => {
+      // Un timeout no prueba que el pago falló: el backend pudo registrarlo. Se
+      // refresca para no dejar ítems/botones con el estado previo al intento.
+      refrescarCobro();
       if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo registrar el pago dividido", {
         description: e instanceof Error ? e.message : undefined,
@@ -362,10 +372,7 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       toast.success("Abono de reserva aplicado", {
         icon: <CalendarCheck className="h-4 w-4" />,
       });
-      qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
-      qc.invalidateQueries({ queryKey: ["servicio", "mesas"] });
-      qc.invalidateQueries({ queryKey: ["pagos"] });
-      qc.invalidateQueries({ queryKey: ["caja"] });
+      refrescarCobro();
       qc.invalidateQueries({ queryKey: ["reservas"] });
       itemsQ.refetch().then((r) => {
         const restantes = r.data?.items.filter((i) => !i.pagado) ?? [];
@@ -380,6 +387,9 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
       });
     },
     onError: (e) => {
+      // Un timeout no prueba que el pago falló: el backend pudo registrarlo. Se
+      // refresca para no dejar ítems/botones con el estado previo al intento.
+      refrescarCobro();
       if (avisarSiNoCaja(e)) return;
       toast.error("No se pudo aplicar el abono", {
         description: e instanceof Error ? e.message : undefined,

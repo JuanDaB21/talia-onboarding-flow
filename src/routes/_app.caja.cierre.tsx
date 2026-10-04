@@ -57,7 +57,7 @@ function CierreWizard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
-    queryKey: ["estado-caja"],
+    queryKey: ["caja", "estado"],
     queryFn: () => getEstadoCaja(),
   });
   const { data: tipos } = useQuery({

@@ -2,7 +2,7 @@
 // (/storage/upload y /storage/pub|priv): el navegador solo habla con el backend,
 // nunca hace fetch directo al bucket (evita "Failed to fetch" por CORS/alcance).
 import { useEffect, useState } from "react";
-import { api, getTokens, fetchConTimeout } from "@/lib/api-client";
+import { api, getTokens, fetchYLeer } from "@/lib/api-client";
 import { compressForScope } from "@/lib/image-compress";
 
 export type StorageScope = "producto" | "logo" | "qr" | "comprobante";
@@ -42,9 +42,9 @@ export async function uploadToStorage(
   const toUpload = await compressForScope(scope, file);
   const contentType = (toUpload as File).type || "application/octet-stream";
   const tokens = getTokens();
-  let res: Response;
   try {
-    res = await fetchConTimeout(
+    // La respuesta se lee DENTRO del timeout: un body estancado también congelaba el spinner.
+    return await fetchYLeer(
       `${api.url}/storage/upload?scope=${encodeURIComponent(scope)}`,
       {
         method: "POST",
@@ -55,17 +55,19 @@ export async function uploadToStorage(
         body: toUpload,
       },
       UPLOAD_TIMEOUT_MS,
+      async (res) => {
+        if (!res.ok) throw new Error("No se pudo subir el archivo");
+        return (await res.json()) as { path: string; key: string };
+      },
     );
   } catch (err) {
-    // El AbortController de `fetchConTimeout` rechaza con TimeoutError al vencer;
+    // El AbortController de `fetchYLeer` rechaza con TimeoutError al vencer;
     // lo traducimos a un mensaje accionable para el mesero (red lenta, reintentar).
     if (err instanceof DOMException && err.name === "TimeoutError") {
       throw new Error("La red está lenta, no se pudo subir. Intenta de nuevo.");
     }
     throw err;
   }
-  if (!res.ok) throw new Error("No se pudo subir el archivo");
-  return (await res.json()) as { path: string; key: string };
 }
 
 /**
@@ -75,11 +77,15 @@ export async function uploadToStorage(
  */
 export async function fetchPrivObjectUrl(path: string): Promise<string> {
   const tokens = getTokens();
-  const res = await fetch(`${backendOrigin()}${path}`, {
-    headers: tokens ? { authorization: `Bearer ${tokens.access}` } : {},
-  });
-  if (!res.ok) throw new Error("No se pudo cargar la imagen");
-  const blob = await res.blob();
+  const blob = await fetchYLeer(
+    `${backendOrigin()}${path}`,
+    { headers: tokens ? { authorization: `Bearer ${tokens.access}` } : {} },
+    UPLOAD_TIMEOUT_MS,
+    async (res) => {
+      if (!res.ok) throw new Error("No se pudo cargar la imagen");
+      return res.blob();
+    },
+  );
   return URL.createObjectURL(blob);
 }
 
