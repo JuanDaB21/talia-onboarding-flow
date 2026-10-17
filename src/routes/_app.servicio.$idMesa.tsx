@@ -67,6 +67,7 @@ import {
 } from "@/components/servicio/cancelar-item-admin-dialog";
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { AsignarReservaDialog } from "@/components/servicio/asignar-reserva-dialog";
+import { ReservaVinculadaBanner } from "@/components/servicio/reserva-vinculada-banner";
 import {
   Dialog,
   DialogContent,
@@ -189,6 +190,10 @@ function MesaEnServicio() {
         qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
         qc.invalidateQueries({ queryKey: ["estadoCierre", idMesa] });
       })
+      // Sentar/desvincular una reserva desde otro equipo cambia la tira "Reserva" de la mesa.
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservas" }, () =>
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
+      )
       // Abrir/cerrar caja habilita o bloquea cobrar y cerrar mesa.
       .on("postgres_changes", { event: "*", schema: "public", table: "caja_dia" }, () =>
         qc.invalidateQueries({ queryKey: ["caja", "abierta"] }),
@@ -410,7 +415,11 @@ function MesaEnServicio() {
       </div>
     );
   }
-  if (mesaQ.isError || !mesaQ.data) {
+  // Con datos previos se sigue mostrando la mesa aunque el último refetch falle: al saldar la
+  // cuenta el backend libera la mesa y /sesion responde 409 MESERO_REQUERIDO; si aquí se
+  // desmontara la página, se iría con ella el diálogo "Imprimir copia" del PagarSheet. Ese
+  // diálogo navega a /servicio cuando el cajero pulsa "Listo".
+  if (!mesaQ.data) {
     const msg = mesaQ.error instanceof Error ? mesaQ.error.message : null;
     return (
       <p className="text-sm text-destructive">
@@ -442,12 +451,17 @@ function MesaEnServicio() {
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</p>
           <h1 className="text-2xl font-bold">{mesa.identificador}</h1>
         </div>
-        {/* Sienta una reserva del día: vincula la mesa y carga su decoración. */}
-        <Button variant="outline" size="sm" onClick={() => setReservaOpen(true)}>
-          <CalendarCheck className="mr-1 h-4 w-4" />
-          Reserva
-        </Button>
+        {/* Sienta una reserva del día: vincula la mesa y carga su decoración. Con una ya
+            sentada se oculta: primero se desvincula desde la tira de abajo. */}
+        {!mesa.reserva && (
+          <Button variant="outline" size="sm" onClick={() => setReservaOpen(true)}>
+            <CalendarCheck className="mr-1 h-4 w-4" />
+            Reserva
+          </Button>
+        )}
       </div>
+
+      {mesa.reserva && <ReservaVinculadaBanner reserva={mesa.reserva} idMesa={idMesa} />}
 
       {mesa.solicitud_cliente === "LLAMADO" && (
         <LlamadoPanel
@@ -574,7 +588,12 @@ function MesaEnServicio() {
         titulo="Agregar a la comanda"
       />
 
-      <PagarSheet open={pagarOpen} onOpenChange={cambiarPagarOpen} idMesa={idMesa} />
+      <PagarSheet
+        open={pagarOpen}
+        onOpenChange={cambiarPagarOpen}
+        idMesa={idMesa}
+        idReservaVinculada={mesa.reserva?.id_reserva ?? null}
+      />
 
       <AsignarReservaDialog
         open={reservaOpen}

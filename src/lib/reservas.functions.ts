@@ -120,6 +120,18 @@ export function sentarReserva(idReserva: string, idMesa: string) {
   }>(`/reservas/${idReserva}/sentar`, { idMesa });
 }
 
+/**
+ * Deshace "sentar": suelta la mesa, quita la decoración si no se cobró y libera la
+ * mesa si quedó sin consumo. Falla si el abono ya se aplicó.
+ */
+export function desvincularReserva(idReserva: string) {
+  return api.post<{
+    id_mesa_anterior: string;
+    decoracion_quitada: boolean;
+    mesa_liberada: boolean;
+  }>(`/reservas/${idReserva}/desvincular`);
+}
+
 // Aplica el abono de una reserva sobre items seleccionados de una mesa (checkout).
 // (pagar_con_abono_reserva en el backend → POST /reservas/pagar-con-abono)
 export function aplicarAbonoEnCheckout(input: {

@@ -115,7 +115,7 @@ function gruposPorRol(rol: Rol | null) {
   if (rol === "CAJERO") {
     return {
       admin: true,
-      dashboard: false,
+      dashboard: true,
       caja: true,
       bodega: true,
       bodegaProveedores: false,
