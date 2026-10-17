@@ -75,9 +75,11 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   idMesa: string;
+  /** Reserva sentada en la mesa: su abono se preselecciona al abrir el cobro. */
+  idReservaVinculada?: string | null;
 }
 
-export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
+export function PagarSheet({ open, onOpenChange, idMesa, idReservaVinculada = null }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const itemsQ = useQuery({
@@ -131,9 +133,14 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
   const [idBono, setIdBono] = useState<string | null>(null);
   const [idReservaAbono, setIdReservaAbono] = useState<string | null>(null);
 
+  // La reserva sentada en la mesa se preselecciona una sola vez por apertura (cuando carga la
+  // lista de aplicables); si el cajero la quita, no se vuelve a marcar.
+  const autoAbonoRef = useRef(false);
+
   // Reset al abrir
   useEffect(() => {
     if (open) {
+      autoAbonoRef.current = false;
       setPaso("items");
       setSelected(new Set());
       setMetodo("EFECTIVO");
@@ -163,6 +170,13 @@ export function PagarSheet({ open, onOpenChange, idMesa }: Props) {
 
   // Reserva (abono) seleccionado
   const reservasAplicables = reservasAplicablesQ.data ?? [];
+  useEffect(() => {
+    if (!open || autoAbonoRef.current || !idReservaVinculada || !reservasAplicablesQ.data) return;
+    autoAbonoRef.current = true;
+    if (reservasAplicablesQ.data.some((r) => r.id_reserva === idReservaVinculada)) {
+      setIdReservaAbono(idReservaVinculada);
+    }
+  }, [open, idReservaVinculada, reservasAplicablesQ.data]);
   const reservaSel = reservasAplicables.find((r) => r.id_reserva === idReservaAbono) ?? null;
   // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
   // No permitimos mezclar bono + abono de reserva por simplicidad.

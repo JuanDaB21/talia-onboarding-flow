@@ -44,6 +44,8 @@ export const Route = createFileRoute("/_app/operacion")({
 });
 
 function OperacionPage() {
+  const { rol } = useMiStaff();
+  const esAdmin = rol === "ADMIN" || rol === "SUPERADMIN";
   return (
     <div className="space-y-6">
       <div>
@@ -60,7 +62,8 @@ function OperacionPage() {
         <PersonalTurno />
       </div>
       <MesasGrid />
-      <PropinasPanel />
+      {/* Desglose de propinas por usuario: solo admin (el backend también lo restringe). */}
+      {esAdmin && <PropinasPanel />}
     </div>
   );
 }

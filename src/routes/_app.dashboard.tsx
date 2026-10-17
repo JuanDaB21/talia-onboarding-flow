@@ -6,7 +6,7 @@ import { DollarSign, Receipt, Users, Timer, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { AdminGate } from "@/components/admin/admin-gate";
+import { RoleGate } from "@/components/admin/role-gate";
 import { getKpis } from "@/lib/admin.functions";
 import { getEstadoCaja } from "@/lib/caja.functions";
 import { formatMoney } from "@/lib/format";
@@ -47,9 +47,10 @@ export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Talia" }] }),
   validateSearch: searchSchema,
   component: () => (
-    <AdminGate>
+    // El cajero controla la operación del día: también ve el dashboard.
+    <RoleGate roles={["ADMIN", "SUPERADMIN", "CAJERO"]}>
       <DashboardPage />
-    </AdminGate>
+    </RoleGate>
   ),
 });
 

@@ -258,6 +258,19 @@ export interface MesaSesion {
   tiempo_servicio_min: number;
   total_mesa: number;
   pedidos: PedidoSesion[];
+  /** Reserva sentada en la mesa y aún sin cobrar (POST /reservas/:id/sentar), o null. */
+  reserva: ReservaVinculada | null;
+}
+
+export interface ReservaVinculada {
+  id_reserva: string;
+  codigo_reserva: string;
+  customer_name: string;
+  hora_reserva: string;
+  cantidad_personas: number;
+  monto_abonado: number;
+  costo_decoracion: number | null;
+  decoracion_nombre: string | null;
 }
 
 // POST /servicio/mesas/:id/sesion — el backend asegura un pedido ABIERTO y devuelve el
