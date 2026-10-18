@@ -132,12 +132,27 @@ export function desvincularReserva(idReserva: string) {
   }>(`/reservas/${idReserva}/desvincular`);
 }
 
+/**
+ * Cambia el grupo de mesa con su cuenta: pasa la reserva y TODOS los pedidos activos de su mesa a
+ * `idMesa` (debe estar libre); la mesa de origen queda libre. Falla con transferencias por confirmar.
+ */
+export function moverReserva(idReserva: string, idMesa: string) {
+  return api.post<{
+    id_mesa_anterior: string;
+    id_mesa_destino: string;
+    identificador_destino: string;
+    pedidos_movidos: number;
+  }>(`/reservas/${idReserva}/mover`, { idMesa });
+}
+
 // Aplica el abono de una reserva sobre items seleccionados de una mesa (checkout).
 // (pagar_con_abono_reserva en el backend → POST /reservas/pagar-con-abono)
+// Con `idBono` el abono salda lo que queda después del descuento del bono.
 export function aplicarAbonoEnCheckout(input: {
   idReserva: string;
   idMesa: string;
   itemIds: string[];
+  idBono?: string | null;
 }) {
   return api.post<{ idPago: string }>("/reservas/pagar-con-abono", input);
 }

@@ -167,12 +167,16 @@ function MesaEnServicio() {
   useEffect(() => {
     const ch = realtime
       .channel(`mesa-sesion-${idMesa}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "pedido_items" }, () =>
-        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () =>
-        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
-      )
+      // Los items cobrables del PagarSheet también: sin esto el cobro abierto (o reabierto dentro
+      // del staleTime) no mostraba una línea recién cargada, p. ej. la decoración de la reserva.
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedido_items" }, () => {
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+        qc.invalidateQueries({ queryKey: ["pagos", "items", idMesa] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => {
+        qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+        qc.invalidateQueries({ queryKey: ["pagos", "items", idMesa] });
+      })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "mesas" }, () =>
         qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] }),
       )
@@ -433,7 +437,11 @@ function MesaEnServicio() {
 
   const mesa = mesaQ.data;
   const pedidoAbierto = mesa.pedidos.find((p) => p.estado === "ABIERTO");
-  const pedidosConfirmados = mesa.pedidos.filter((p) => p.estado === "CONFIRMADO");
+  // PARCIAL = confirmado con parte ya cobrada (cuenta por comensal / abono parcial): sigue siendo un
+  // pedido en servicio. Antes se filtraba solo CONFIRMADO y esos pedidos desaparecían de la mesa.
+  const pedidosConfirmados = mesa.pedidos.filter(
+    (p) => p.estado === "CONFIRMADO" || p.estado === "PARCIAL",
+  );
   const hayConfirmados = pedidosConfirmados.length > 0;
   // El botón "Cerrar pedido" por-pedido solo tiene sentido cuando la mesa tiene VARIOS
   // pedidos activos (con uno solo basta "Cerrar mesa"); evita duplicar la acción.
@@ -461,7 +469,13 @@ function MesaEnServicio() {
         )}
       </div>
 
-      {mesa.reserva && <ReservaVinculadaBanner reserva={mesa.reserva} idMesa={idMesa} />}
+      {mesa.reserva && (
+        <ReservaVinculadaBanner
+          reserva={mesa.reserva}
+          idMesa={idMesa}
+          identificadorMesa={mesa.identificador}
+        />
+      )}
 
       {mesa.solicitud_cliente === "LLAMADO" && (
         <LlamadoPanel
@@ -695,7 +709,11 @@ function MesaHeader({
   const tiempo = mesa.asignada_at
     ? Math.floor((Date.now() - new Date(mesa.asignada_at).getTime()) / 60000)
     : 0;
-  const hayPagar = mesa.pedidos.some((p) => p.estado !== "ABIERTO");
+  // También hay qué cobrar si el pedido en toma ya trae una línea entregada: la decoración de una
+  // reserva recién sentada entra así, y el grupo puede pagarla antes de enviar comanda.
+  const hayPagar = mesa.pedidos.some(
+    (p) => p.estado !== "ABIERTO" || p.items.some((i) => i.estado_preparacion === "ENTREGADO"),
+  );
   const puedeCerrar = (estado?.puede_cerrar ?? false) && hayCaja;
   const motivoCerrar = !hayCaja
     ? "No hay caja abierta"
