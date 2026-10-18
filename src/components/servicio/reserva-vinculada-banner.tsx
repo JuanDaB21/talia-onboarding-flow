@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CalendarCheck, Loader2, Unlink, Users } from "lucide-react";
+import { ArrowRightLeft, CalendarCheck, Loader2, Unlink, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,37 +17,44 @@ import {
 import { formatMoney } from "@/lib/format";
 import { desvincularReserva } from "@/lib/reservas.functions";
 import type { ReservaVinculada } from "@/lib/servicio.functions";
+import { MoverReservaDialog } from "@/components/servicio/mover-reserva-dialog";
 
 /**
- * Muestra qué reserva quedó sentada en la mesa y permite desvincularla (mesa equivocada o el
- * cliente pidió otra). Desvincular quita la decoración si no se cobró y, si la mesa quedó sin
- * consumo, la libera; la reserva vuelve a "Asignar reserva" para sentarla en la mesa correcta.
+ * Muestra qué reserva quedó sentada en la mesa y ofrece dos salidas:
+ *  - Mover: el grupo se cambia de mesa y TODA la cuenta lo sigue (mesa destino elegida, libre).
+ *  - Quitar de la mesa: la reserva se suelta (se quita la decoración si no se cobró) y vuelve a la
+ *    agenda; el consumo se queda en esta mesa como cuenta normal. Si no había consumo, la mesa
+ *    queda libre.
  */
 export function ReservaVinculadaBanner({
   reserva,
   idMesa,
+  identificadorMesa,
 }: {
   reserva: ReservaVinculada;
   idMesa: string;
+  identificadorMesa: string;
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [moverOpen, setMoverOpen] = useState(false);
 
   const mut = useMutation({
     mutationFn: () => desvincularReserva(reserva.id_reserva),
     onSuccess: (res) => {
       setConfirmOpen(false);
-      toast.success(`Reserva ${reserva.codigo_reserva} desvinculada`, {
+      toast.success(`Reserva ${reserva.codigo_reserva} quitada de la mesa`, {
         description: [
           res.decoracion_quitada ? "Se quitó la decoración de la cuenta" : null,
-          "Siéntala en la mesa correcta con el botón Reserva",
+          res.mesa_liberada ? "La mesa quedó libre" : "El consumo sigue en esta mesa",
         ]
           .filter(Boolean)
           .join(" · "),
       });
       qc.invalidateQueries({ queryKey: ["reservas"] });
       qc.invalidateQueries({ queryKey: ["servicio"] });
+      qc.invalidateQueries({ queryKey: ["pagos", "items", idMesa] });
       if (res.mesa_liberada) {
         // La mesa quedó libre (sin mesero): su sesión ya no se puede abrir, se vuelve al salón.
         navigate({ to: "/servicio" });
@@ -56,7 +63,7 @@ export function ReservaVinculadaBanner({
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
     },
     onError: (e) =>
-      toast.error("No se pudo desvincular la reserva", {
+      toast.error("No se pudo quitar la reserva de la mesa", {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
@@ -80,25 +87,47 @@ export function ReservaVinculadaBanner({
           {detalle.join(" · ")}
         </p>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setConfirmOpen(true)}
-        disabled={mut.isPending}
-      >
-        <Unlink className="mr-1 h-4 w-4" />
-        Desvincular
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMoverOpen(true)}
+          disabled={mut.isPending}
+        >
+          <ArrowRightLeft className="mr-1 h-4 w-4" />
+          Mover a otra mesa
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setConfirmOpen(true)}
+          disabled={mut.isPending}
+        >
+          <Unlink className="mr-1 h-4 w-4" />
+          Quitar de la mesa
+        </Button>
+      </div>
+
+      <MoverReservaDialog
+        open={moverOpen}
+        onOpenChange={setMoverOpen}
+        reserva={reserva}
+        idMesa={idMesa}
+        identificadorMesa={identificadorMesa}
+      />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Desvincular la reserva {reserva.codigo_reserva}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              ¿Quitar la reserva {reserva.codigo_reserva} de la mesa?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              La reserva de {reserva.customer_name} deja de estar en esta mesa.
-              {reserva.decoracion_nombre ? " Se quita la decoración de la cuenta." : ""} Si la mesa
-              no tiene otros consumos, queda libre. Luego puedes sentarla en la mesa correcta; el
-              abono se conserva.
+              La reserva de {reserva.customer_name} deja de estar en esta mesa y vuelve a la agenda
+              con su abono.
+              {reserva.decoracion_nombre ? " Se quita la decoración de la cuenta." : ""} El consumo
+              se queda en esta mesa como una cuenta normal; si no hay consumo, la mesa queda libre.
+              Para cambiar el grupo de mesa con su cuenta usa «Mover a otra mesa».
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -111,7 +140,7 @@ export function ReservaVinculadaBanner({
               disabled={mut.isPending}
             >
               {mut.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
-              Desvincular
+              Quitar de la mesa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

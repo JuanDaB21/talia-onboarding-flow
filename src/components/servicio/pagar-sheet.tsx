@@ -86,6 +86,8 @@ export function PagarSheet({ open, onOpenChange, idMesa, idReservaVinculada = nu
     queryKey: ["pagos", "items", idMesa],
     queryFn: () => listarItemsCobrables(idMesa),
     enabled: open,
+    // Siempre fresco al abrir: lo que se cobra no puede venir de una caché de hace 30 s.
+    staleTime: 0,
   });
 
   const reservasAplicablesQ = useQuery({
@@ -170,21 +172,29 @@ export function PagarSheet({ open, onOpenChange, idMesa, idReservaVinculada = nu
 
   // Reserva (abono) seleccionado
   const reservasAplicables = reservasAplicablesQ.data ?? [];
+  // Al preseleccionar se marcan también todos los pendientes (lo mismo que hace elegir la reserva
+  // a mano): sin selección el abono descontaba $0 y parecía que no se podía aplicar.
   useEffect(() => {
-    if (!open || autoAbonoRef.current || !idReservaVinculada || !reservasAplicablesQ.data) return;
+    if (!open || autoAbonoRef.current || !idReservaVinculada) return;
+    if (!reservasAplicablesQ.data || !itemsQ.data) return;
     autoAbonoRef.current = true;
     if (reservasAplicablesQ.data.some((r) => r.id_reserva === idReservaVinculada)) {
       setIdReservaAbono(idReservaVinculada);
+      setSelected((s) =>
+        s.size > 0 ? s : new Set(itemsQ.data.items.filter((i) => !i.pagado).map((i) => i.id_item)),
+      );
     }
-  }, [open, idReservaVinculada, reservasAplicablesQ.data]);
+  }, [open, idReservaVinculada, reservasAplicablesQ.data, itemsQ.data]);
   const reservaSel = reservasAplicables.find((r) => r.id_reserva === idReservaAbono) ?? null;
-  // Si el bono no se está usando, el abono cubre todo el subtotal seleccionado.
-  // No permitimos mezclar bono + abono de reserva por simplicidad.
-  const abonoActivo = !!reservaSel && !idBono;
-  const descuentoReserva = abonoActivo ? Math.min(reservaSel.monto_abonado, totalSeleccionado) : 0;
+  // Bono y abono se combinan (0055): primero el bono y el abono cubre lo que queda.
+  const abonoActivo = !!reservaSel;
+  // Mientras llega la previsualización del bono no se sabe cuánto queda para el abono.
+  const bonoListo = !idBono || !!bonoPreviewQ.data;
+  const saldoTrasBono = Math.max(0, totalSeleccionado - descuentoBono);
+  const descuentoReserva = abonoActivo ? Math.min(reservaSel.monto_abonado, saldoTrasBono) : 0;
   const subtotalConDescuentos = Math.max(0, totalSeleccionado - descuentoBono - descuentoReserva);
   const reservaCubreTodo =
-    abonoActivo && reservaSel.monto_abonado >= totalSeleccionado && totalSeleccionado > 0;
+    abonoActivo && bonoListo && reservaSel.monto_abonado >= saldoTrasBono && totalSeleccionado > 0;
   // La propina sugerida se calcula sobre el TOTAL BRUTO de los productos, no sobre el
   // restante a pagar: ni el abono de reserva ni el bono la reducen. Un abono es un anticipo
   // (los productos siguen costando lo mismo), así que la propina no debe bajar por él.
@@ -381,6 +391,7 @@ export function PagarSheet({ open, onOpenChange, idMesa, idReservaVinculada = nu
         idReserva: idReservaAbono!,
         idMesa,
         itemIds: Array.from(selected),
+        idBono,
       }),
     onSuccess: () => {
       toast.success("Abono de reserva aplicado", {
@@ -1110,7 +1121,7 @@ function PasoItems({
             setIdBono={setIdBono}
             descuento={descuentoBono}
             bonoInfo={bonoInfo}
-            disabled={!!idReservaAbono || !hayPendientes}
+            disabled={!hayPendientes}
             onEnsureSelection={onSelectAll}
           />
           <ReservaAbonoRow
@@ -1121,8 +1132,8 @@ function PasoItems({
               if (v && selected.size === 0) onSelectAll();
             }}
             descuento={descuentoReserva}
-            totalSeleccionado={totalSeleccionado}
-            disabled={!!idBono || !hayPendientes}
+            totalSeleccionado={Math.max(0, totalSeleccionado - descuentoBono)}
+            disabled={!hayPendientes}
           />
           {!reservaCubreTodo && <PropinaResumenRow propina={propina} propinaProps={propinaProps} />}
           <div className="flex items-baseline justify-between pt-1">

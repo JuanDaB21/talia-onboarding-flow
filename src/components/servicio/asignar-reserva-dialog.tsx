@@ -74,6 +74,7 @@ export function AsignarReservaDialog({
       // `mesaSesion` es lo que pinta la cuenta de la mesa: sin esto la línea de
       // decoración no aparece hasta el siguiente refetch.
       qc.invalidateQueries({ queryKey: ["mesaSesion", idMesa] });
+      qc.invalidateQueries({ queryKey: ["pagos", "items", idMesa] });
       qc.invalidateQueries({ queryKey: ["reservas"] });
       qc.invalidateQueries({ queryKey: ["servicio"] });
       onOpenChange(false);
