@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowRightLeft, CalendarCheck, Loader2, Unlink, Users } from "lucide-react";
+import { CalendarCheck, Loader2, Unlink, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,11 +17,10 @@ import {
 import { formatMoney } from "@/lib/format";
 import { desvincularReserva } from "@/lib/reservas.functions";
 import type { ReservaVinculada } from "@/lib/servicio.functions";
-import { MoverReservaDialog } from "@/components/servicio/mover-reserva-dialog";
 
 /**
- * Muestra qué reserva quedó sentada en la mesa y ofrece dos salidas:
- *  - Mover: el grupo se cambia de mesa y TODA la cuenta lo sigue (mesa destino elegida, libre).
+ * Muestra qué reserva quedó sentada en la mesa. Para cambiar el grupo de mesa con TODA su cuenta
+ * está "Trasladar" en la cabecera de la mesa (la reserva viaja con ella). Aquí queda:
  *  - Quitar de la mesa: la reserva se suelta (se quita la decoración si no se cobró) y vuelve a la
  *    agenda; el consumo se queda en esta mesa como cuenta normal. Si no había consumo, la mesa
  *    queda libre.
@@ -29,16 +28,13 @@ import { MoverReservaDialog } from "@/components/servicio/mover-reserva-dialog";
 export function ReservaVinculadaBanner({
   reserva,
   idMesa,
-  identificadorMesa,
 }: {
   reserva: ReservaVinculada;
   idMesa: string;
-  identificadorMesa: string;
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [moverOpen, setMoverOpen] = useState(false);
 
   const mut = useMutation({
     mutationFn: () => desvincularReserva(reserva.id_reserva),
@@ -91,15 +87,6 @@ export function ReservaVinculadaBanner({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setMoverOpen(true)}
-          disabled={mut.isPending}
-        >
-          <ArrowRightLeft className="mr-1 h-4 w-4" />
-          Mover a otra mesa
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
           onClick={() => setConfirmOpen(true)}
           disabled={mut.isPending}
         >
@@ -107,14 +94,6 @@ export function ReservaVinculadaBanner({
           Quitar de la mesa
         </Button>
       </div>
-
-      <MoverReservaDialog
-        open={moverOpen}
-        onOpenChange={setMoverOpen}
-        reserva={reserva}
-        idMesa={idMesa}
-        identificadorMesa={identificadorMesa}
-      />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
@@ -127,7 +106,7 @@ export function ReservaVinculadaBanner({
               con su abono.
               {reserva.decoracion_nombre ? " Se quita la decoración de la cuenta." : ""} El consumo
               se queda en esta mesa como una cuenta normal; si no hay consumo, la mesa queda libre.
-              Para cambiar el grupo de mesa con su cuenta usa «Mover a otra mesa».
+              Para cambiar el grupo de mesa con su cuenta usa «Trasladar».
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

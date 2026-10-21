@@ -42,6 +42,20 @@ export function abrirMesa(input: { idMesa: string; idMesero?: string | null }) {
   });
 }
 
+// El grupo se cambia de mesa, con o sin reserva: TODOS los pedidos activos (y la reserva sentada)
+// pasan a `idMesaDestino`, que debe estar libre; la mesa de origen queda libre. Falla con
+// transferencias por confirmar → POST /servicio/mesas/:id/trasladar
+export function trasladarMesa(idMesa: string, idMesaDestino: string) {
+  return api.post<{
+    id_mesa_anterior: string;
+    id_mesa_destino: string;
+    identificador_anterior: string;
+    identificador_destino: string;
+    pedidos_movidos: number;
+    reservas_movidas: string[];
+  }>(`/servicio/mesas/${idMesa}/trasladar`, { idMesaDestino });
+}
+
 export function iniciarNuevoPedido(idMesa: string) {
   return api.post<{ ok: true; result: string | null }>(`/servicio/mesas/${idMesa}/nuevo-pedido`);
 }

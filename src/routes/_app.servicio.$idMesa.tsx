@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRightLeft,
   Ban,
   Bell,
   CalendarCheck,
@@ -68,6 +69,7 @@ import {
 import { PagarSheet } from "@/components/servicio/pagar-sheet";
 import { AsignarReservaDialog } from "@/components/servicio/asignar-reserva-dialog";
 import { ReservaVinculadaBanner } from "@/components/servicio/reserva-vinculada-banner";
+import { TrasladarMesaDialog } from "@/components/servicio/trasladar-mesa-dialog";
 import {
   Dialog,
   DialogContent,
@@ -403,6 +405,7 @@ function MesaEnServicio() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [reasignarOpen, setReasignarOpen] = useState(false);
   const [reservaOpen, setReservaOpen] = useState(false);
+  const [trasladarOpen, setTrasladarOpen] = useState(false);
   const [cancelAdminItem, setCancelAdminItem] = useState<CancelarItemAdminItem | null>(null);
 
   const { rol, staff } = useMiStaff();
@@ -459,8 +462,15 @@ function MesaEnServicio() {
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</p>
           <h1 className="text-2xl font-bold">{mesa.identificador}</h1>
         </div>
-        {/* Sienta una reserva del día: vincula la mesa y carga su decoración. Con una ya
-            sentada se oculta: primero se desvincula desde la tira de abajo. */}
+        {/* El grupo se cambia de mesa con toda su cuenta, tenga reserva o no. */}
+        {puedeReasignar && (
+          <Button variant="outline" size="sm" onClick={() => setTrasladarOpen(true)}>
+            <ArrowRightLeft className="mr-1 h-4 w-4" />
+            Trasladar
+          </Button>
+        )}
+        {/* Sienta una reserva del día en la mesa que se elija (esta u otra) y carga su
+            decoración. Con una ya sentada se oculta: se traslada o se quita desde la tira. */}
         {!mesa.reserva && (
           <Button variant="outline" size="sm" onClick={() => setReservaOpen(true)}>
             <CalendarCheck className="mr-1 h-4 w-4" />
@@ -470,11 +480,7 @@ function MesaEnServicio() {
       </div>
 
       {mesa.reserva && (
-        <ReservaVinculadaBanner
-          reserva={mesa.reserva}
-          idMesa={idMesa}
-          identificadorMesa={mesa.identificador}
-        />
+        <ReservaVinculadaBanner reserva={mesa.reserva} idMesa={idMesa} />
       )}
 
       {mesa.solicitud_cliente === "LLAMADO" && (
@@ -609,11 +615,14 @@ function MesaEnServicio() {
         idReservaVinculada={mesa.reserva?.id_reserva ?? null}
       />
 
-      <AsignarReservaDialog
-        open={reservaOpen}
-        onOpenChange={setReservaOpen}
+      <AsignarReservaDialog open={reservaOpen} onOpenChange={setReservaOpen} idMesa={idMesa} />
+
+      <TrasladarMesaDialog
+        open={trasladarOpen}
+        onOpenChange={setTrasladarOpen}
         idMesa={idMesa}
         identificadorMesa={mesa.identificador}
+        codigoReserva={mesa.reserva?.codigo_reserva ?? null}
       />
 
       <AlertDialog open={cerrarOpen} onOpenChange={setCerrarOpen}>

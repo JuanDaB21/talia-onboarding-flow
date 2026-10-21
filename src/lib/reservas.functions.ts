@@ -105,19 +105,22 @@ export function listarReservasSentablesHoy() {
 }
 
 /**
- * Vincula la reserva a una mesa y carga su decoración como ítem de la cuenta.
- * Idempotente: repetirlo no duplica el ítem. El abono se sigue descontando al
- * cobrar, no aquí.
+ * Vincula la reserva a la mesa elegida y carga su decoración como ítem de la cuenta.
+ * Una mesa libre se abre ahí mismo: el mesero queda asignado él mismo; caja/admin
+ * mandan `idMesero`. Idempotente: repetirlo no duplica el ítem. El abono se sigue
+ * descontando al cobrar, no aquí.
  */
-export function sentarReserva(idReserva: string, idMesa: string) {
+export function sentarReserva(idReserva: string, idMesa: string, idMesero?: string | null) {
   return api.post<{
     id_pedido: string;
+    id_mesa: string;
+    identificador_mesa: string;
     id_item_decoracion: string | null;
     decoracion_nombre: string | null;
     costo_decoracion: number;
     monto_abonado: number;
     codigo_reserva: string;
-  }>(`/reservas/${idReserva}/sentar`, { idMesa });
+  }>(`/reservas/${idReserva}/sentar`, { idMesa, idMesero: idMesero ?? null });
 }
 
 /**
@@ -130,19 +133,6 @@ export function desvincularReserva(idReserva: string) {
     decoracion_quitada: boolean;
     mesa_liberada: boolean;
   }>(`/reservas/${idReserva}/desvincular`);
-}
-
-/**
- * Cambia el grupo de mesa con su cuenta: pasa la reserva y TODOS los pedidos activos de su mesa a
- * `idMesa` (debe estar libre); la mesa de origen queda libre. Falla con transferencias por confirmar.
- */
-export function moverReserva(idReserva: string, idMesa: string) {
-  return api.post<{
-    id_mesa_anterior: string;
-    id_mesa_destino: string;
-    identificador_destino: string;
-    pedidos_movidos: number;
-  }>(`/reservas/${idReserva}/mover`, { idMesa });
 }
 
 // Aplica el abono de una reserva sobre items seleccionados de una mesa (checkout).
