@@ -25,15 +25,22 @@ import {
   X,
   Trash2,
   StickyNote,
+  Armchair,
 } from "lucide-react";
 import type { Reserva } from "@/lib/reservas.functions";
 import {
   ESTADO_LABEL,
   MEDIO_ABONO_EFECTIVO,
   puedeGestionarReservas,
+  puedeOperarReservas,
   type EstadoReserva,
 } from "@/lib/reservas.schemas";
-import { cancelarReserva, eliminarReserva } from "@/lib/reservas.functions";
+import {
+  cancelarReserva,
+  eliminarReserva,
+  listarReservasSentablesHoy,
+} from "@/lib/reservas.functions";
+import { SentarReservaDialog } from "@/components/servicio/sentar-reserva-dialog";
 import { imprimirReserva } from "@/lib/impresion.functions";
 import { useMiStaff } from "@/hooks/use-mi-staff";
 import { WhatsappCopyButton } from "./whatsapp-copy-button";
@@ -68,6 +75,23 @@ export function ReservaCard({ reserva, onEdit }: Props) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const { rol } = useMiStaff();
   const puedeGestionar = puedeGestionarReservas(rol);
+  const [sentarOpen, setSentarOpen] = useState(false);
+
+  // "Sentar en mesa" solo para las que el backend ofrece hoy (día operativo, sin sentar, sin
+  // cobrar, no canceladas). Misma queryKey que el diálogo de la mesa: una sola petición por agenda.
+  const candidataSentar =
+    puedeOperarReservas(rol) &&
+    !reserva.id_mesa_asignada &&
+    reserva.estado !== "cancelada_devuelto" &&
+    reserva.estado !== "cancelada_retenido";
+  const sentablesQ = useQuery({
+    queryKey: ["reservas", "sentables-hoy"],
+    queryFn: () => listarReservasSentablesHoy(),
+    enabled: candidataSentar,
+    staleTime: 30_000,
+  });
+  const sentable =
+    candidataSentar && (sentablesQ.data ?? []).some((r) => r.id_reserva === reserva.id_reserva);
 
   const imprimirMut = useMutation({
     mutationFn: () => imprimirReserva(reserva.id_reserva),
@@ -179,6 +203,17 @@ export function ReservaCard({ reserva, onEdit }: Props) {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
+                  {sentable && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setSentarOpen(true)}
+                    >
+                      <Armchair className="mr-1 h-4 w-4" />
+                      Sentar en mesa
+                    </Button>
+                  )}
                   <WhatsappCopyButton
                     nombre={reserva.customer_name}
                     fecha={reserva.fecha_reserva}
@@ -251,6 +286,10 @@ export function ReservaCard({ reserva, onEdit }: Props) {
           await cancelarMut.mutateAsync(devolver);
         }}
       />
+
+      {sentable && (
+        <SentarReservaDialog open={sentarOpen} onOpenChange={setSentarOpen} reserva={reserva} />
+      )}
     </>
   );
 }

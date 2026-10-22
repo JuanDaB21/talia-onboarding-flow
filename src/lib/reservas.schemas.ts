@@ -73,3 +73,11 @@ export const ROLES_GESTION_RESERVAS = ["ADMIN", "SUPERADMIN", "CAJERO"] as const
 export function puedeGestionarReservas(rol: string | null | undefined): boolean {
   return !!rol && (ROLES_GESTION_RESERVAS as readonly string[]).includes(rol);
 }
+
+// Roles que pueden SENTAR una reserva en una mesa (acción operativa, también desde la agenda).
+// Espejo de `operaReserva` en reservas.ts del backend.
+export const ROLES_OPERA_RESERVAS = ["ADMIN", "SUPERADMIN", "CAJERO", "MESERO"] as const;
+
+export function puedeOperarReservas(rol: string | null | undefined): boolean {
+  return !!rol && (ROLES_OPERA_RESERVAS as readonly string[]).includes(rol);
+}

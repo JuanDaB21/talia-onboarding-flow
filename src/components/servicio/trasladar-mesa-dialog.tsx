@@ -12,28 +12,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { ordenarMesas } from "@/lib/mesas.functions";
-import { moverReserva } from "@/lib/reservas.functions";
-import { listarMesasServicio, type ReservaVinculada } from "@/lib/servicio.functions";
+import { listarMesasServicio, trasladarMesa } from "@/lib/servicio.functions";
+import { SelectorMesa } from "@/components/servicio/selector-mesa";
 
 /**
- * Cambia el grupo de la reserva a otra mesa con TODA su cuenta (pedidos enviados, el que se está
- * tomando y la decoración). Solo se ofrecen mesas libres y ninguna viene marcada: el cajero o
- * mesero tiene que elegir el destino a propósito.
+ * Cambia el grupo de mesa con TODA su cuenta (pedidos enviados, el que se está tomando y, si la
+ * mesa tiene una reserva sentada, la reserva con su decoración). Funciona con o sin reserva. Solo
+ * se ofrecen mesas libres y ninguna viene marcada: hay que elegir el destino a propósito.
  */
-export function MoverReservaDialog({
+export function TrasladarMesaDialog({
   open,
   onOpenChange,
-  reserva,
   idMesa,
   identificadorMesa,
+  codigoReserva,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  reserva: ReservaVinculada;
   idMesa: string;
   identificadorMesa: string;
+  /** Reserva sentada en la mesa, si la hay: solo para avisar que viaja con la cuenta. */
+  codigoReserva?: string | null;
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -59,12 +59,18 @@ export function MoverReservaDialog({
   );
 
   const mut = useMutation({
-    mutationFn: (idDestino: string) => moverReserva(reserva.id_reserva, idDestino),
+    mutationFn: (idDestino: string) => trasladarMesa(idMesa, idDestino),
     onSuccess: (res) => {
-      toast.success(
-        `Reserva ${reserva.codigo_reserva} movida a la mesa ${res.identificador_destino}`,
-        { description: `La mesa ${identificadorMesa} quedó libre` },
-      );
+      toast.success(`Mesa ${identificadorMesa} trasladada a la mesa ${res.identificador_destino}`, {
+        description: [
+          res.reservas_movidas.length > 0 && codigoReserva
+            ? `Reserva ${codigoReserva} incluida`
+            : null,
+          `La mesa ${identificadorMesa} quedó libre`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
       qc.invalidateQueries({ queryKey: ["reservas"] });
       qc.invalidateQueries({ queryKey: ["servicio"] });
       qc.invalidateQueries({ queryKey: ["mesaSesion"] });
@@ -73,7 +79,7 @@ export function MoverReservaDialog({
       navigate({ to: "/servicio/$idMesa", params: { idMesa: res.id_mesa_destino } });
     },
     onError: (e) =>
-      toast.error("No se pudo mover la reserva", {
+      toast.error("No se pudo trasladar la mesa", {
         description: e instanceof Error ? e.message : undefined,
       }),
   });
@@ -82,43 +88,22 @@ export function MoverReservaDialog({
     <Dialog open={open} onOpenChange={(o) => !mut.isPending && onOpenChange(o)}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Mover la reserva {reserva.codigo_reserva}</DialogTitle>
+          <DialogTitle>Trasladar la mesa {identificadorMesa}</DialogTitle>
           <DialogDescription>
-            Todo el consumo de la mesa {identificadorMesa} pasa a la mesa que elijas, con el mismo
-            mesero. La mesa {identificadorMesa} queda libre.
+            Todos los pedidos sin pagar de la mesa {identificadorMesa}
+            {codigoReserva ? ` y la reserva ${codigoReserva}` : ""} pasan a la mesa que elijas, con
+            el mismo mesero. La mesa {identificadorMesa} queda libre.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-72 overflow-y-auto">
-          {mesasQ.isLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : libres.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No hay mesas libres en este momento.
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {libres.map((m) => (
-                <Button
-                  key={m.id_mesa}
-                  type="button"
-                  variant="outline"
-                  aria-pressed={destino === m.id_mesa}
-                  disabled={mut.isPending}
-                  onClick={() => setDestino(m.id_mesa)}
-                  className={cn(
-                    "h-14 text-base font-semibold",
-                    destino === m.id_mesa && "border-primary bg-primary/10 text-primary",
-                  )}
-                >
-                  {m.identificador}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
+        <SelectorMesa
+          mesas={libres}
+          valor={destino}
+          onChange={setDestino}
+          cargando={mesasQ.isLoading}
+          disabled={mut.isPending}
+          vacio="No hay mesas libres en este momento."
+        />
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mut.isPending}>
@@ -133,7 +118,7 @@ export function MoverReservaDialog({
             ) : (
               <ArrowRightLeft className="mr-1 h-4 w-4" />
             )}
-            Mover
+            Trasladar
           </Button>
         </DialogFooter>
       </DialogContent>
