@@ -28,10 +28,14 @@ import {
   getPrepedidoPublico,
 } from "@/lib/prepedido.functions";
 import { publicUrl } from "@/lib/storage";
-import { getMenuTheme, getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
+import { getMenuTheme, getThemeStyle } from "@/lib/menu-themes";
+import { useMenuFonts } from "@/hooks/use-menu-fonts";
 import { POLL } from "@/lib/query-config";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
-import { ThemedHeader, CategoryNav } from "@/components/menu-publico/menu-chrome";
+import { ThemedHeader } from "@/components/menu-publico/menu-chrome";
+import { BuscadorCarta, MenuCuerpo } from "@/components/menu-publico/menu-cuerpo";
+import { filtrarPorBusqueda } from "@/components/menu-publico/busqueda";
+import { FondoMedia } from "@/components/menu-publico/fondo-media";
 import { PrepedidoSheet } from "@/components/menu-publico/prepedido-sheet";
 import { PrepedidoItemEditor } from "@/components/menu-publico/prepedido-item-editor";
 import { useClienteMesa } from "@/hooks/use-cliente-mesa";
@@ -65,7 +69,7 @@ function CartaPage() {
   const { cliente, hydrated, registrar, setSesion, limpiar } = useClienteMesa(idMesa);
   const [fase, setFase] = useState<"onboarding" | "menu">("onboarding");
   const [nombreInput, setNombreInput] = useState("");
-  const [catActiva, setCatActiva] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
   const [prepedidoOpen, setPrepedidoOpen] = useState(false);
   const [agregarProducto, setAgregarProducto] = useState<CartaProducto | null>(null);
   const [editingItem, setEditingItem] = useState<
@@ -207,28 +211,16 @@ function CartaPage() {
     }
   };
 
-  const productosFiltrados = useMemo(() => {
-    if (!data) return [];
-    if (!catActiva) return data.productos;
-    return data.productos.filter((p) => p.id_categoria === catActiva);
-  }, [data, catActiva]);
+  const productosFiltrados = useMemo(
+    () => (data ? filtrarPorBusqueda(data.productos, busqueda) : []),
+    [data, busqueda],
+  );
 
   const themeId = data?.negocio?.tema_menu;
   const theme = useMemo(() => getMenuTheme(themeId), [themeId]);
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
 
-  // Cargar Google Fonts del tema activo
-  useEffect(() => {
-    if (!themeId) return;
-    const href = getThemeFontsUrl(themeId);
-    const id = `menu-fonts-${themeId}`;
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = href;
-    document.head.appendChild(link);
-  }, [themeId]);
+  useMenuFonts(themeId);
 
   if (isLoading) {
     return (
@@ -258,6 +250,7 @@ function CartaPage() {
   const llamadoPendiente = estadoQ.data?.solicitud_cliente === "LLAMADO";
   const logoUrl = publicUrl(negocio?.url_logo ?? null);
   const nombreNegocio = negocio?.nombre_comercial ?? "";
+  const conFondo = (negocio?.fondo?.tipo ?? "NINGUNO") !== "NINGUNO" && !!negocio?.fondo?.url;
 
   if (fase === "onboarding") {
     return (
@@ -367,7 +360,7 @@ function CartaPage() {
         color: "var(--menu-foreground)",
         fontFamily: "var(--menu-body-font)",
       }}
-      className="min-h-screen pb-28"
+      className="menu-raiz relative isolate min-h-dvh pb-28"
     >
       <button
         type="button"
@@ -397,63 +390,39 @@ function CartaPage() {
           </span>
         )}
       </button>
-      <ThemedHeader
-        theme={theme}
-        mesa={mesa.identificador}
-        nombreNegocio={nombreNegocio}
-        logoUrl={logoUrl}
-      />
-
-      {categorias.length > 0 && (
-        <div
-          className="sticky z-10 backdrop-blur"
-          style={{
-            top: 0,
-            background: "color-mix(in oklab, var(--menu-bg) 92%, transparent)",
-            borderBottom: "1px solid var(--menu-border)",
-          }}
-        >
-          <CategoryNav
-            theme={theme}
-            categorias={categorias}
-            activa={catActiva}
-            onSelect={setCatActiva}
-          />
-        </div>
-      )}
-
-      <section
+      <FondoMedia fondo={negocio?.fondo} theme={theme} />
+      <div
         className={
-          theme.productLayout === "hero-grid"
-            ? "px-4 pt-5 grid grid-cols-2 gap-3"
-            : theme.productLayout === "lista-densa"
-              ? "px-4 pt-5 divide-y"
-              : "px-4 pt-5 space-y-3"
-        }
-        style={
-          theme.productLayout === "lista-densa"
-            ? ({ borderColor: "var(--menu-border)" } as React.CSSProperties)
+          conFondo
+            ? "flex min-h-[38svh] flex-col justify-end [&>header]:![background:transparent] [&>header]:!border-0"
             : undefined
         }
       >
-        {productosFiltrados.length === 0 ? (
-          <p
-            className="col-span-2 text-center text-sm py-12"
-            style={{ color: "var(--menu-muted)" }}
-          >
-            No hay productos disponibles en esta categoría.
-          </p>
-        ) : (
-          productosFiltrados.map((p) => (
-            <ProductoCard
-              key={p.id_producto}
-              p={p}
-              theme={theme}
-              onClick={() => setProductoSel(p)}
-            />
-          ))
+        <ThemedHeader
+          theme={theme}
+          mesa={mesa.identificador}
+          nombreNegocio={nombreNegocio}
+          logoUrl={logoUrl}
+        />
+      </div>
+
+      <MenuCuerpo
+        theme={theme}
+        categorias={categorias}
+        productos={productosFiltrados}
+        filtrando={busqueda.trim().length > 0}
+        vacio={
+          busqueda
+            ? "No encontramos productos con ese nombre."
+            : "No hay productos disponibles por ahora."
+        }
+        barraSuperior={<BuscadorCarta value={busqueda} onChange={setBusqueda} />}
+        renderProducto={(p) => (
+          <div className="h-full [&>button]:h-full">
+            <ProductoCard p={p} theme={theme} onClick={() => setProductoSel(p)} />
+          </div>
         )}
-      </section>
+      />
 
       <div
         className="fixed inset-x-0 bottom-0 z-30 backdrop-blur"
@@ -668,7 +637,9 @@ function CuentaDialog({
                     </span>
 
                     <div className="min-w-0">
-                      <p className="font-medium leading-tight break-words"><TextoFijo texto={it.nombre_producto} /></p>
+                      <p className="font-medium leading-tight break-words">
+                        <TextoFijo texto={it.nombre_producto} />
+                      </p>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {fmt.format(it.precio_unitario)} c/u
                       </p>
@@ -676,7 +647,9 @@ function CuentaDialog({
                         <ul className="mt-0.5 text-xs text-muted-foreground">
                           {it.extras.map((e, i) => (
                             <li key={i} className="flex justify-between gap-2">
-                              <span>+ <TextoFijo texto={e.nombre} /></span>
+                              <span>
+                                + <TextoFijo texto={e.nombre} />
+                              </span>
                               {e.precio > 0 && (
                                 <span className="tabular-nums">{fmt.format(e.precio)}</span>
                               )}

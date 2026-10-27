@@ -30,6 +30,13 @@ const PROFILES: Record<StorageScope, Profile> = {
   producto: { maxSizeMB: 1, maxWidthOrHeight: 1600, initialQuality: 0.85 },
   logo: { maxSizeMB: 0.5, maxWidthOrHeight: 800, initialQuality: 0.85 },
   qr: { maxSizeMB: 0.5, maxWidthOrHeight: 1000, initialQuality: 0.8 },
+  // Fondo de la carta (imagen o poster del video): pantalla completa, va bajo un velo.
+  fondo_menu: {
+    maxSizeMB: 0.6,
+    maxWidthOrHeight: 1920,
+    initialQuality: 0.8,
+    fileType: "image/jpeg",
+  },
 };
 
 /**
@@ -62,10 +69,7 @@ export async function compressForScope(
         fileType: p.fileType,
       }),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("compress-timeout")),
-          COMPRESS_TIMEOUT_MS,
-        );
+        timer = setTimeout(() => reject(new Error("compress-timeout")), COMPRESS_TIMEOUT_MS);
       }),
     ]);
     // Si por alguna razón quedó igual o más grande, usa el original.

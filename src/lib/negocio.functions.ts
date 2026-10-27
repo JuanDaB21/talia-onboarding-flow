@@ -1,11 +1,17 @@
 // Negocio (tenant): lectura, apariencia y propinas vía REST del backend Talia.
 import { api } from "@/lib/api-client";
+import type { TipoFondoMenu } from "@/lib/menu-publico.functions";
 
 export interface NegocioConfig {
   id_negocio: string;
   nombre_comercial: string;
   url_logo: string | null;
   tema_menu: string;
+  /** Fondo multimedia de la carta pública (0060). */
+  menu_fondo_tipo: TipoFondoMenu;
+  menu_fondo_url: string | null;
+  menu_fondo_poster_url: string | null;
+  menu_fondo_oscurecer: number;
   porcentaje_retencion_propina: number;
   /** % de propina sugerido al cliente en la precuenta impresa. */
   propina_pct_sugerida: number;
@@ -33,6 +39,10 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     nombre_comercial: string;
     url_logo: string | null;
     tema_menu: string | null;
+    menu_fondo_tipo: TipoFondoMenu | null;
+    menu_fondo_url: string | null;
+    menu_fondo_poster_url: string | null;
+    menu_fondo_oscurecer: number | string | null;
     porcentaje_retencion_propina: number | string | null;
     propina_pct_sugerida: number | string | null;
     propina_mensaje: string | null;
@@ -51,6 +61,10 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     nombre_comercial: n.nombre_comercial,
     url_logo: n.url_logo,
     tema_menu: n.tema_menu ?? "verde-bosque",
+    menu_fondo_tipo: n.menu_fondo_tipo ?? "NINGUNO",
+    menu_fondo_url: n.menu_fondo_url ?? null,
+    menu_fondo_poster_url: n.menu_fondo_poster_url ?? null,
+    menu_fondo_oscurecer: Number(n.menu_fondo_oscurecer ?? 55),
     porcentaje_retencion_propina: Number(n.porcentaje_retencion_propina ?? 0),
     propina_pct_sugerida: Number(n.propina_pct_sugerida ?? 10),
     propina_mensaje: n.propina_mensaje ?? "",
@@ -105,14 +119,20 @@ export async function updateNegocioCierreTurno(input: {
   return { ok: true };
 }
 
-// PATCH /negocio — solo apariencia (tema/logo). Validación en el backend.
-export async function updateNegocioApariencia(input: {
+export interface AparienciaPatch {
   tema_menu?: string;
   url_logo?: string | null;
-}): Promise<{ ok: true }> {
-  const patch: { tema_menu?: string; url_logo?: string | null } = {};
-  if (input.tema_menu !== undefined) patch.tema_menu = input.tema_menu;
-  if (input.url_logo !== undefined) patch.url_logo = input.url_logo;
+  menu_fondo_tipo?: TipoFondoMenu;
+  menu_fondo_url?: string | null;
+  menu_fondo_poster_url?: string | null;
+  menu_fondo_oscurecer?: number;
+}
+
+// PATCH /negocio — solo apariencia (tema/logo/fondo de la carta). Validación en el backend.
+export async function updateNegocioApariencia(input: AparienciaPatch): Promise<{ ok: true }> {
+  const patch = Object.fromEntries(
+    Object.entries(input).filter(([, v]) => v !== undefined),
+  ) as AparienciaPatch;
   if (Object.keys(patch).length === 0) return { ok: true };
   await api.patch("/negocio", patch);
   return { ok: true };

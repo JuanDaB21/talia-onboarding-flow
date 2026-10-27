@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { FotoCategoria } from "@/components/menu/foto-categoria";
 import {
   categoriaSchema,
   type CategoriaInput,
@@ -285,6 +286,7 @@ export function CategoriasMasterDetail({ idNegocio }: { idNegocio: string }) {
             load();
           }}
           onCancel={() => setCatSheet({ open: false })}
+          onImagenCambiada={load}
         />
       </ResponsiveSheet>
 
@@ -378,11 +380,13 @@ function CategoriaFormInline({
   initial,
   onDone,
   onCancel,
+  onImagenCambiada,
 }: {
   idNegocio: string;
   initial?: Categoria;
   onDone: () => void;
   onCancel: () => void;
+  onImagenCambiada?: () => void;
 }) {
   const {
     register,
@@ -456,6 +460,13 @@ function CategoriaFormInline({
           <Input id="nombre" {...register("nombre")} placeholder="Ej. Bebidas" autoFocus />
           {errors.nombre && <p className="text-xs text-destructive">{errors.nombre.message}</p>}
         </div>
+        {initial && (
+          <FotoCategoria
+            idCategoria={initial.id_categoria}
+            urlImagen={initial.url_imagen ?? null}
+            onCambio={() => onImagenCambiada?.()}
+          />
+        )}
         <div className="space-y-1.5">
           <Label>Espacio de trabajo (ruteo de comandas)</Label>
           {loadingEsp ? (

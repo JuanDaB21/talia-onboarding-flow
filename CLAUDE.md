@@ -50,6 +50,12 @@ src/
 │                       `pedido.$token` = seguimiento público (polling); `_app.domicilios` =
 │                       kanban de caja (realtime parcheando `["domicilios","tablero"]`).
 │                       Colores SOLO con las CSS vars `--menu-*` del tema (`menu-themes.ts`).
+│                       Ambas cartas usan `menu-publico/menu-cuerpo.tsx` (portada de tiles por
+│                       categoría + barra sticky con scroll-spy + sidebar en PC + índice en
+│                       móvil, una sola lista por secciones) y `fondo-media.tsx` (imagen/video
+│                       del negocio, poster primero, sin video con ahorro de datos/reduced-motion).
+│                       Fuentes del tema: Google y/o Fontshare vía `useMenuFonts`. Animaciones
+│                       solo CSS (`.menu-revelar`, easings en `styles.css`): sin libs nuevas (P6).
 ├── lib/
 │   ├── api-client.ts        fetch + JWT Bearer + refresh automático + timeout + ApiError
 │   ├── auth.ts              login/register/logout/getMe/isAuthenticated (JWT propio)

@@ -19,6 +19,7 @@ export function CartaHero({
   tipo,
   onTipo,
   pedidoEnCurso,
+  conFondo = false,
 }: {
   negocio: CartaNegocio;
   logoUrl: string | null;
@@ -26,6 +27,8 @@ export function CartaHero({
   tipo: TipoEntrega;
   onTipo: (t: TipoEntrega) => void;
   pedidoEnCurso: PedidoReciente | null;
+  /** Hay imagen/video de fondo (FondoMedia): la portada se vuelve transparente y alta. */
+  conFondo?: boolean;
 }) {
   const domicilio = negocio.domicilios_activo === true;
   const recoger = negocio.recoger_activo === true;
@@ -37,24 +40,32 @@ export function CartaHero({
   const minimo = Number(negocio.pedido_minimo ?? 0);
 
   return (
-    <header className="relative isolate overflow-hidden">
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{
-          background: `
+    <header
+      className={`relative isolate overflow-hidden ${
+        conFondo ? "flex min-h-[48svh] flex-col justify-end lg:min-h-[42vh]" : ""
+      }`}
+    >
+      {!conFondo && (
+        <>
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10"
+            style={{
+              background: `
             radial-gradient(120% 80% at 0% 0%, color-mix(in oklab, var(--menu-primary) 26%, transparent), transparent 60%),
             radial-gradient(90% 70% at 100% 10%, color-mix(in oklab, var(--menu-accent) 30%, transparent), transparent 55%),
             var(--menu-gradient, var(--menu-bg))`,
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute -right-16 -top-16 -z-10 h-56 w-56 rounded-full opacity-40 blur-3xl"
-        style={{ background: "var(--menu-accent)" }}
-      />
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute -right-16 -top-16 -z-10 h-56 w-56 rounded-full opacity-40 blur-3xl"
+            style={{ background: "var(--menu-accent)" }}
+          />
+        </>
+      )}
 
-      <div className="mx-auto max-w-3xl px-5 pb-6 pt-6">
+      <div className="mx-auto w-full max-w-6xl px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-3">
           {pide ? (
             <span
@@ -131,7 +142,7 @@ export function CartaHero({
           ) : null}
           <div className="min-w-0">
             <h1
-              className="text-3xl font-bold leading-[1.05] sm:text-4xl"
+              className="text-3xl font-bold leading-[1.05] sm:text-4xl lg:text-5xl"
               style={{ fontFamily: "var(--menu-heading-font)" }}
             >
               {negocio.nombre_comercial}
@@ -168,7 +179,7 @@ export function CartaHero({
               <div
                 role="radiogroup"
                 aria-label="Tipo de entrega"
-                className="mt-5 grid grid-cols-2 gap-1 p-1"
+                className="mt-5 grid grid-cols-2 gap-1 p-1 lg:max-w-md"
                 style={{
                   background: "color-mix(in oklab, var(--menu-surface) 80%, transparent)",
                   border: "1px solid var(--menu-border)",

@@ -10,7 +10,8 @@ export type MenuThemeId =
   | "sunset-vibrante"
   | "cacao-artesanal"
   | "brutalist-pop"
-  | "pastel-cafe";
+  | "pastel-cafe"
+  | "rooftop-noche";
 
 export type ProductLayout =
   | "horizontal" // imagen izquierda, texto derecha (compacto)
@@ -28,7 +29,8 @@ export type CategoryStyle =
   | "pills" // pills clásicas
   | "tabs-subrayadas" // texto con underline en activa
   | "chips-grandes" // chips redondas grandes
-  | "tags-duros"; // bordes duros, sin radius, contraste alto
+  | "tags-duros" // bordes duros, sin radius, contraste alto
+  | "neon"; // pills de vidrio con pastilla luminosa que se desliza a la activa
 
 export type PriceStyle =
   | "tag" // etiqueta tipo precinto
@@ -60,10 +62,52 @@ export interface MenuTheme {
     "--menu-body-font": string;
     "--menu-gradient"?: string;
     "--menu-shadow"?: string;
+    /** Tipografía de acento (taglines, subtítulos de categoría). */
+    "--menu-accent-font"?: string;
   };
   /** Familias Google a precargar */
   fonts: string[];
+  /** Familias de Fontshare (`slug@pesos`, itálica = peso+1: `boska@401`). */
+  fontshare?: string[];
+  /** Fondo CSS de ambiente cuando el negocio no subió imagen/video. */
+  ambiente?: string;
 }
+
+// Tema nocturno de rooftop: azul noche casi negro, violeta/magenta neón de la iluminación y
+// dorado cálido de las guirnaldas. Las superficies son vidrio translúcido para que el fondo
+// multimedia (video/imagen del negocio) se vea a través del menú.
+const ROOFTOP_NOCHE: MenuTheme = {
+  id: "rooftop-noche",
+  nombre: "Rooftop Noche",
+  descripcion: "Terraza nocturna: neón violeta, luces cálidas y vidrio sobre video de fondo.",
+  productLayout: "vertical-grande",
+  headerStyle: "hero-centrado",
+  categoryStyle: "neon",
+  priceStyle: "linea",
+  vars: {
+    "--menu-bg": "oklch(0.15 0.03 285)",
+    "--menu-surface": "oklch(0.22 0.04 290 / 0.72)",
+    "--menu-surface-2": "oklch(0.28 0.05 295 / 0.8)",
+    "--menu-foreground": "oklch(0.97 0.01 300)",
+    "--menu-muted": "oklch(0.76 0.03 300)",
+    "--menu-border": "oklch(0.72 0.12 310 / 0.22)",
+    "--menu-primary": "oklch(0.68 0.24 320)",
+    "--menu-primary-foreground": "oklch(0.99 0.005 320)",
+    "--menu-accent": "oklch(0.86 0.13 85)",
+    "--menu-radius": "1.25rem",
+    "--menu-heading-font": "'Clash Display', 'Satoshi', system-ui, sans-serif",
+    "--menu-body-font": "'Satoshi', system-ui, sans-serif",
+    "--menu-accent-font": "'Boska', Georgia, serif",
+    "--menu-gradient": "linear-gradient(120deg, oklch(0.55 0.25 295), oklch(0.66 0.26 335))",
+    "--menu-shadow": "0 18px 40px -18px oklch(0.6 0.25 315 / 0.55)",
+  },
+  fonts: [],
+  fontshare: ["clash-display@600,700", "satoshi@400,500,700", "boska@401"],
+  ambiente: `radial-gradient(70% 45% at 15% 0%, oklch(0.45 0.22 300 / 0.55), transparent 70%),
+    radial-gradient(60% 40% at 100% 25%, oklch(0.5 0.24 335 / 0.35), transparent 70%),
+    radial-gradient(50% 35% at 50% 100%, oklch(0.75 0.13 80 / 0.12), transparent 70%),
+    oklch(0.13 0.03 280)`,
+};
 
 export const MENU_THEMES: Record<MenuThemeId, MenuTheme> = {
   "verde-bosque": {
@@ -137,8 +181,7 @@ export const MENU_THEMES: Record<MenuThemeId, MenuTheme> = {
       "--menu-radius": "1.25rem",
       "--menu-heading-font": "'DM Serif Display', Georgia, serif",
       "--menu-body-font": "'Karla', system-ui, sans-serif",
-      "--menu-gradient":
-        "linear-gradient(135deg, oklch(0.58 0.13 40), oklch(0.68 0.12 55))",
+      "--menu-gradient": "linear-gradient(135deg, oklch(0.58 0.13 40), oklch(0.68 0.12 55))",
       "--menu-shadow": "0 10px 30px -12px oklch(0.58 0.13 40 / 0.25)",
     },
     fonts: ["DM+Serif+Display", "Karla:wght@400;500;600"],
@@ -188,8 +231,7 @@ export const MENU_THEMES: Record<MenuThemeId, MenuTheme> = {
       "--menu-radius": "1.5rem",
       "--menu-heading-font": "'Syne', system-ui, sans-serif",
       "--menu-body-font": "'Plus Jakarta Sans', system-ui, sans-serif",
-      "--menu-gradient":
-        "linear-gradient(135deg, oklch(0.65 0.22 25), oklch(0.62 0.22 340))",
+      "--menu-gradient": "linear-gradient(135deg, oklch(0.65 0.22 25), oklch(0.62 0.22 340))",
       "--menu-shadow": "0 14px 40px -10px oklch(0.65 0.22 25 / 0.35)",
     },
     fonts: ["Syne:wght@600;800", "Plus+Jakarta+Sans:wght@400;500;600"],
@@ -271,6 +313,7 @@ export const MENU_THEMES: Record<MenuThemeId, MenuTheme> = {
     },
     fonts: ["Cormorant+Garamond:wght@500;700", "Outfit:wght@400;500;600;700"],
   },
+  "rooftop-noche": ROOFTOP_NOCHE,
 };
 
 export const MENU_THEME_IDS = Object.keys(MENU_THEMES) as MenuThemeId[];
@@ -285,8 +328,17 @@ export function getThemeStyle(id: string | null | undefined): React.CSSPropertie
   return theme.vars as unknown as React.CSSProperties;
 }
 
-export function getThemeFontsUrl(id: string | null | undefined): string {
+/** Hojas de estilo de fuentes del tema (Google Fonts y/o Fontshare), en orden de carga. */
+export function getThemeFontsUrls(id: string | null | undefined): string[] {
   const theme = getMenuTheme(id);
-  const families = theme.fonts.map((f) => `family=${f}`).join("&");
-  return `https://fonts.googleapis.com/css2?${families}&display=swap`;
+  const urls: string[] = [];
+  if (theme.fonts.length) {
+    const families = theme.fonts.map((f) => `family=${f}`).join("&");
+    urls.push(`https://fonts.googleapis.com/css2?${families}&display=swap`);
+  }
+  if (theme.fontshare?.length) {
+    const families = theme.fontshare.map((f) => `f[]=${f}`).join("&");
+    urls.push(`https://api.fontshare.com/v2/css?${families}&display=swap`);
+  }
+  return urls;
 }

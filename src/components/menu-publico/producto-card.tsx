@@ -42,7 +42,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
               decoding="async"
               width={400}
               height={400}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              className="menu-card-img h-full w-full object-cover"
             />
           ) : (
             <ImageIcon className="h-8 w-8" style={{ color: "var(--menu-muted)" }} />
@@ -66,7 +66,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
       <button
         type="button"
         onClick={onClick}
-        className="block w-full text-left overflow-hidden transition-transform active:scale-[0.99]"
+        className="group block w-full text-left overflow-hidden transition-transform active:scale-[0.99]"
         style={{
           background: "var(--menu-surface)",
           borderColor: "var(--menu-border)",
@@ -78,7 +78,7 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
       >
         {p.url_imagen ? (
           <div
-            className="h-44 w-full overflow-hidden"
+            className="aspect-[4/3] w-full overflow-hidden"
             style={{ background: "var(--menu-surface-2)" }}
           >
             <img
@@ -87,8 +87,8 @@ function ProductoCardBase({ p, theme, onClick }: ProductoCardProps) {
               loading="lazy"
               decoding="async"
               width={800}
-              height={352}
-              className="h-full w-full object-cover"
+              height={600}
+              className="menu-card-img h-full w-full object-cover"
             />
           </div>
         ) : (

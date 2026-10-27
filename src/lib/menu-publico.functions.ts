@@ -16,6 +16,18 @@ export interface CartaProducto {
 export interface CartaCategoria {
   id_categoria: string;
   nombre: string;
+  /** Foto del tile de portada (0060); null → la carta usa la del primer producto. */
+  url_imagen?: string | null;
+}
+
+export type TipoFondoMenu = "NINGUNO" | "IMAGEN" | "VIDEO";
+
+/** Fondo multimedia detrás de la carta (0060). `oscurecer` = % de velo del color del tema. */
+export interface CartaFondo {
+  tipo: TipoFondoMenu;
+  url: string | null;
+  poster: string | null;
+  oscurecer: number;
 }
 
 export interface CartaMesa {
@@ -30,6 +42,7 @@ export interface CartaNegocio {
   nombre_comercial: string;
   url_logo: string | null;
   tema_menu: string;
+  fondo?: CartaFondo | null;
   // Solo en el menú del negocio (0059): contacto y pedidos en línea.
   whatsapp_numero?: string | null;
   instagram_url?: string | null;
