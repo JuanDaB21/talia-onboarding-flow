@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, Utensils, QrCode, Palette, Ticket, Coins, Boxes, Clock } from "lucide-react";
+import { Users, Utensils, QrCode, Palette, Ticket, Coins, Boxes, Clock, Bike } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const SECCIONES = [
@@ -32,6 +32,12 @@ const SECCIONES = [
     label: "Menú público",
     description: "Personaliza la apariencia del menú del cliente.",
     icon: Palette,
+  },
+  {
+    to: "/configuracion/domicilios",
+    label: "Domicilios y redes",
+    description: "Pedidos desde la carta, tarifas por municipio, WhatsApp e Instagram.",
+    icon: Bike,
   },
   {
     to: "/configuracion/bonos-descuentos",

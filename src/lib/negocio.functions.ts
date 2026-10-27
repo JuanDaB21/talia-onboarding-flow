@@ -16,6 +16,13 @@ export interface NegocioConfig {
   dia_operativo_inicio: string;
   /** Duración informativa de la jornada en horas (1-24). */
   dia_operativo_duracion_horas: number;
+  /** Domicilios y redes (0059): contacto público y reglas del pedido en línea. */
+  whatsapp_numero: string | null;
+  instagram_url: string | null;
+  domicilios_activo: boolean;
+  recoger_activo: boolean;
+  tiempo_estimado_min: number | null;
+  pedido_minimo: number;
 }
 
 // GET /negocio (fila completa del tenant). Se normaliza tema por defecto y se
@@ -32,6 +39,12 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     auto_cierre_turno_horas: number | string | null;
     dia_operativo_inicio: string | null;
     dia_operativo_duracion_horas: number | string | null;
+    whatsapp_numero: string | null;
+    instagram_url: string | null;
+    domicilios_activo: boolean | null;
+    recoger_activo: boolean | null;
+    tiempo_estimado_min: number | string | null;
+    pedido_minimo: number | string | null;
   }>("/negocio");
   return {
     id_negocio: n.id_negocio,
@@ -45,7 +58,28 @@ export async function getNegocioConfig(): Promise<NegocioConfig> {
     // pg serializa time como "HH:MM:SS" → normalizar a "HH:MM" (input type=time).
     dia_operativo_inicio: (n.dia_operativo_inicio ?? "00:00").slice(0, 5),
     dia_operativo_duracion_horas: Number(n.dia_operativo_duracion_horas ?? 24),
+    whatsapp_numero: n.whatsapp_numero ?? null,
+    instagram_url: n.instagram_url ?? null,
+    domicilios_activo: n.domicilios_activo === true,
+    recoger_activo: n.recoger_activo === true,
+    tiempo_estimado_min: n.tiempo_estimado_min == null ? null : Number(n.tiempo_estimado_min),
+    pedido_minimo: Number(n.pedido_minimo ?? 0),
   };
+}
+
+// PATCH /negocio — domicilios y redes (solo ADMIN, validado en el backend).
+export async function updateNegocioDomicilios(input: {
+  whatsapp_numero?: string | null;
+  instagram_url?: string | null;
+  domicilios_activo?: boolean;
+  recoger_activo?: boolean;
+  tiempo_estimado_min?: number | null;
+  pedido_minimo?: number;
+}): Promise<{ ok: true }> {
+  const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+  if (Object.keys(patch).length === 0) return { ok: true };
+  await api.patch("/negocio", patch);
+  return { ok: true };
 }
 
 // PATCH /negocio — día operativo de caja (solo ADMIN, validado en backend).

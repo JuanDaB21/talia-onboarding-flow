@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Camera, Loader2, QrCode, Trash2, Plus } from "lucide-react";
+import { Camera, Globe, Loader2, QrCode, Trash2, Plus } from "lucide-react";
 import { uploadToStorage, usePrivImage } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   listarMetodosPago,
@@ -114,6 +115,16 @@ function MetodoCard({
           {registro.titular && (
             <p className="text-xs text-muted-foreground mt-0.5">{registro.titular}</p>
           )}
+          {registro.datos_cuenta && (
+            <p className="text-xs font-mono text-muted-foreground mt-0.5">
+              {registro.datos_cuenta}
+            </p>
+          )}
+          {registro.visible_en_carta && (
+            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <Globe className="h-3 w-3" /> En la carta
+            </span>
+          )}
         </div>
         <Button
           variant="ghost"
@@ -154,6 +165,8 @@ function EditarMetodoDialog({
 }) {
   const [nombre, setNombre] = useState(registro?.nombre ?? "");
   const [titular, setTitular] = useState(registro?.titular ?? "");
+  const [datosCuenta, setDatosCuenta] = useState(registro?.datos_cuenta ?? "");
+  const [visibleEnCarta, setVisibleEnCarta] = useState(registro?.visible_en_carta ?? false);
   const [path, setPath] = useState<string | null>(registro?.url_qr ?? null);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const existingUrl = usePrivImage(registro?.signed_url);
@@ -196,6 +209,8 @@ function EditarMetodoDialog({
         nombre: nombre.trim(),
         titular: titular.trim() || null,
         path: path || null,
+        datosCuenta: datosCuenta.trim() || null,
+        visibleEnCarta,
       });
       toast.success("Método guardado");
       onSaved();
@@ -233,6 +248,24 @@ function EditarMetodoDialog({
               placeholder="Ej. Juan Pérez · 300 123 4567"
             />
           </div>
+          <div>
+            <Label htmlFor="datos-cuenta">Número de cuenta o llave (opcional)</Label>
+            <Input
+              id="datos-cuenta"
+              value={datosCuenta}
+              onChange={(e) => setDatosCuenta(e.target.value.slice(0, 120))}
+              placeholder="Ej. Ahorros 123-456789-00 · Llave @minegocio"
+            />
+          </div>
+          <label className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <span>
+              <span className="block text-sm font-medium">Mostrar en la carta pública</span>
+              <span className="block text-xs text-muted-foreground">
+                El cliente verá este método (datos y QR) al pagar un domicilio por transferencia.
+              </span>
+            </span>
+            <Switch checked={visibleEnCarta} onCheckedChange={setVisibleEnCarta} />
+          </label>
           <div>
             <Label>Imagen del QR (opcional)</Label>
             <div className="mt-1 aspect-square rounded-lg border bg-muted/40 flex items-center justify-center overflow-hidden">

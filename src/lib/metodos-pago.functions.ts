@@ -10,6 +10,10 @@ export interface MetodoPago {
   titular: string | null;
   url_qr: string | null; // key/path del objeto en storage (null = sin QR)
   orden: number;
+  /** Número de cuenta / llave que ve el cliente en la carta (0059). */
+  datos_cuenta: string | null;
+  /** true = el método se ofrece al pagar domicilios desde la carta pública. */
+  visible_en_carta: boolean;
   signed_url: string | null; // ruta proxy priv (requiere auth para verse)
 }
 
@@ -22,6 +26,8 @@ export function guardarMetodoPago(input: {
   nombre: string;
   titular?: string | null;
   path?: string | null;
+  datosCuenta?: string | null;
+  visibleEnCarta?: boolean;
 }) {
   return api.post<{ idQr: string }>("/metodos-pago", input);
 }
