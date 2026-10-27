@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { MenuTheme } from "@/lib/menu-themes";
 import { TextoFijo } from "@/components/menu-publico/texto-fijo";
 
@@ -195,124 +196,163 @@ export function ThemedHeader({
 // ============================================================
 // Navegación de categorías con variantes
 // ============================================================
+// La carta es una sola lista por secciones: `activa` la decide el scroll-spy y `onSelect`
+// hace scroll a la sección (null = portada). El chip activo se centra solo y, en los
+// estilos `neon` y `tabs-subrayadas`, un indicador se desliza hasta él (easeOutQuint).
 export function CategoryNav({
   theme,
   categorias,
   activa,
   onSelect,
+  etiquetaInicio = "Inicio",
 }: {
   theme: MenuTheme;
   categorias: { id_categoria: string; nombre: string }[];
   activa: string | null;
   onSelect: (id: string | null) => void;
+  etiquetaInicio?: string;
 }) {
   const style = theme.categoryStyle;
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const botones = useRef(new Map<string, HTMLButtonElement>());
+  const [indicador, setIndicador] = useState<{ x: number; w: number } | null>(null);
   const items: { id: string | null; nombre: string }[] = [
-    { id: null, nombre: "Todo" },
+    { id: null, nombre: etiquetaInicio },
     ...categorias.map((c) => ({ id: c.id_categoria, nombre: c.nombre })),
   ];
+  const deslizante = style === "neon" || style === "tabs-subrayadas";
 
-  if (style === "tabs-subrayadas") {
-    return (
-      <div className="flex gap-5 overflow-x-auto px-5 py-3 scrollbar-none">
-        {items.map((it) => {
-          const active = activa === it.id;
-          return (
-            <button
-              key={it.id ?? "all"}
-              type="button"
-              onClick={() => onSelect(it.id)}
-              className="shrink-0 pb-1.5 text-sm font-medium whitespace-nowrap transition-colors"
-              style={{
-                color: active ? "var(--menu-foreground)" : "var(--menu-muted)",
-                borderBottom: active ? "2px solid var(--menu-accent)" : "2px solid transparent",
-                fontFamily: "var(--menu-body-font)",
-              }}
-            >
-              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  useEffect(() => {
+    const medir = () => {
+      const el = botones.current.get(activa ?? "__inicio");
+      const sc = scrollerRef.current;
+      if (!el || !sc) return;
+      setIndicador({ x: el.offsetLeft, w: el.offsetWidth });
+      const destino = el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2;
+      sc.scrollTo({ left: Math.max(0, destino), behavior: "smooth" });
+    };
+    medir();
+    // Las web fonts cambian el ancho de los chips al cargar: re-medir.
+    const ro = new ResizeObserver(medir);
+    if (scrollerRef.current) ro.observe(scrollerRef.current);
+    return () => ro.disconnect();
+  }, [activa, categorias]);
 
-  if (style === "chips-grandes") {
-    return (
-      <div className="flex gap-2.5 overflow-x-auto px-4 py-3 scrollbar-none">
-        {items.map((it) => {
-          const active = activa === it.id;
-          return (
-            <button
-              key={it.id ?? "all"}
-              type="button"
-              onClick={() => onSelect(it.id)}
-              className="shrink-0 px-5 py-2.5 text-sm font-semibold transition-all"
-              style={{
-                borderRadius: "9999px",
-                background: active
-                  ? (theme.vars["--menu-gradient"] ?? "var(--menu-primary)")
-                  : "var(--menu-surface)",
-                color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
-                boxShadow: active ? "var(--menu-shadow, 0 6px 18px -8px rgba(0,0,0,0.2))" : "none",
-                fontFamily: "var(--menu-body-font)",
-              }}
-            >
-              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  const ref = (id: string | null) => (el: HTMLButtonElement | null) => {
+    if (el) botones.current.set(id ?? "__inicio", el);
+    else botones.current.delete(id ?? "__inicio");
+  };
 
-  if (style === "tags-duros") {
-    return (
-      <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none">
-        {items.map((it) => {
-          const active = activa === it.id;
-          return (
-            <button
-              key={it.id ?? "all"}
-              type="button"
-              onClick={() => onSelect(it.id)}
-              className="shrink-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-all"
-              style={{
-                background: active ? "var(--menu-foreground)" : "var(--menu-surface)",
-                color: active ? "var(--menu-bg)" : "var(--menu-foreground)",
-                border: "2px solid var(--menu-foreground)",
-                borderRadius: "0px",
-                fontFamily: "var(--menu-body-font)",
-              }}
-            >
-              {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
+  const estilos = (active: boolean): { className: string; style: React.CSSProperties } => {
+    switch (style) {
+      case "neon":
+        return {
+          className:
+            "relative z-10 shrink-0 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors duration-300",
+          style: {
+            borderRadius: "9999px",
+            color: active ? "var(--menu-primary-foreground)" : "var(--menu-muted)",
+            fontFamily: "var(--menu-body-font)",
+          },
+        };
+      case "tabs-subrayadas":
+        return {
+          className:
+            "relative z-10 shrink-0 pb-2 pt-1 text-sm font-medium whitespace-nowrap transition-colors",
+          style: {
+            color: active ? "var(--menu-foreground)" : "var(--menu-muted)",
+            fontFamily: "var(--menu-body-font)",
+          },
+        };
+      case "chips-grandes":
+        return {
+          className: "shrink-0 px-5 py-2.5 text-sm font-semibold transition-all",
+          style: {
+            borderRadius: "9999px",
+            background: active
+              ? (theme.vars["--menu-gradient"] ?? "var(--menu-primary)")
+              : "var(--menu-surface)",
+            color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+            boxShadow: active ? "var(--menu-shadow, 0 6px 18px -8px rgba(0,0,0,0.2))" : "none",
+            fontFamily: "var(--menu-body-font)",
+          },
+        };
+      case "tags-duros":
+        return {
+          className:
+            "shrink-0 px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-all",
+          style: {
+            background: active ? "var(--menu-foreground)" : "var(--menu-surface)",
+            color: active ? "var(--menu-bg)" : "var(--menu-foreground)",
+            border: "2px solid var(--menu-foreground)",
+            borderRadius: "0px",
+            fontFamily: "var(--menu-body-font)",
+          },
+        };
+      default:
+        return {
+          className: "shrink-0 px-4 py-1.5 text-sm font-medium transition-colors",
+          style: {
+            borderRadius: "9999px",
+            background: active ? "var(--menu-primary)" : "var(--menu-surface)",
+            color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
+            borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
+            borderWidth: 1,
+            borderStyle: "solid",
+            fontFamily: "var(--menu-body-font)",
+          },
+        };
+    }
+  };
 
-  // pills (default)
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none">
+    <div
+      ref={scrollerRef}
+      role="tablist"
+      aria-label="Categorías del menú"
+      className={`relative flex overflow-x-auto px-4 py-2.5 scrollbar-none ${
+        style === "tabs-subrayadas" ? "gap-5" : "gap-2"
+      }`}
+    >
+      {deslizante && indicador && (
+        <span
+          aria-hidden
+          className="menu-indicador pointer-events-none absolute left-0"
+          style={
+            style === "neon"
+              ? {
+                  top: 10,
+                  bottom: 10,
+                  width: indicador.w,
+                  transform: `translateX(${indicador.x}px)`,
+                  borderRadius: "9999px",
+                  background: theme.vars["--menu-gradient"] ?? "var(--menu-primary)",
+                  boxShadow:
+                    "0 0 24px -4px color-mix(in oklab, var(--menu-primary) 70%, transparent)",
+                }
+              : {
+                  bottom: 10,
+                  height: 2,
+                  width: indicador.w,
+                  transform: `translateX(${indicador.x}px)`,
+                  background: "var(--menu-accent)",
+                }
+          }
+        />
+      )}
       {items.map((it) => {
         const active = activa === it.id;
+        const { className, style: st } = estilos(active);
         return (
           <button
-            key={it.id ?? "all"}
+            key={it.id ?? "__inicio"}
+            ref={ref(it.id)}
             type="button"
+            role="tab"
+            aria-selected={active}
             onClick={() => onSelect(it.id)}
-            className="shrink-0 px-4 py-1.5 text-sm font-medium transition-colors"
-            style={{
-              borderRadius: "9999px",
-              background: active ? "var(--menu-primary)" : "var(--menu-surface)",
-              color: active ? "var(--menu-primary-foreground)" : "var(--menu-foreground)",
-              borderColor: active ? "var(--menu-primary)" : "var(--menu-border)",
-              borderWidth: 1,
-              borderStyle: "solid",
-              fontFamily: "var(--menu-body-font)",
-            }}
+            className={`min-h-9 ${className}`}
+            style={st}
           >
             {it.id ? <TextoFijo texto={it.nombre} /> : it.nombre}
           </button>

@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { listarMesas } from "@/lib/mesas.functions";
 import { publicUrl, uploadToStorage } from "@/lib/storage";
-import { getNegocioConfig, updateNegocioApariencia } from "@/lib/negocio.functions";
+import {
+  getNegocioConfig,
+  updateNegocioApariencia,
+  type AparienciaPatch,
+} from "@/lib/negocio.functions";
+import { FondoMenuCard } from "@/components/configuracion/fondo-menu-card";
+import { useMenuFonts } from "@/hooks/use-menu-fonts";
 import { MENU_THEMES, MENU_THEME_IDS, type MenuThemeId } from "@/lib/menu-themes";
 import { AdminGate } from "@/components/admin/admin-gate";
 
@@ -29,8 +35,7 @@ function AparienciaPage() {
   });
 
   const mut = useMutation({
-    mutationFn: (patch: { tema_menu?: MenuThemeId; url_logo?: string | null }) =>
-      updateNegocioApariencia(patch),
+    mutationFn: (patch: AparienciaPatch) => updateNegocioApariencia(patch),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["negocio-config"] });
     },
@@ -83,7 +88,7 @@ function AparienciaPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Apariencia del menú público</h1>
           <p className="text-sm text-muted-foreground">
-            Personaliza el logo y el tema que verán tus clientes al escanear la mesa.
+            Personaliza el logo, el fondo y el tema que verán tus clientes en la carta.
           </p>
         </div>
         <Button variant="outline" onClick={openPreview} className="gap-2">
@@ -101,6 +106,15 @@ function AparienciaPage() {
         onRemove={() =>
           mut.mutate({ url_logo: null }, { onSuccess: () => toast.success("Logo eliminado") })
         }
+      />
+
+      <FondoMenuCard
+        temaId={data.tema_menu}
+        tipo={data.menu_fondo_tipo}
+        url={data.menu_fondo_url}
+        poster={data.menu_fondo_poster_url}
+        oscurecer={data.menu_fondo_oscurecer}
+        onGuardar={(patch, mensaje) => mut.mutateAsync(patch).then(() => toast.success(mensaje))}
       />
 
       <section>
@@ -235,6 +249,7 @@ function ThemePreviewCard({
   loading: boolean;
   onSelect: () => void;
 }) {
+  useMenuFonts(themeId);
   const theme = MENU_THEMES[themeId];
   const style = theme.vars as unknown as React.CSSProperties;
   return (

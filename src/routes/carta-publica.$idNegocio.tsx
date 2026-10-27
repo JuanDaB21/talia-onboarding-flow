@@ -1,16 +1,19 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Search, ShoppingBag, X } from "lucide-react";
+import { Loader2, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { getMenuPublicoNegocio, type CartaProducto } from "@/lib/menu-publico.functions";
 import { getOpcionesProductoCarta } from "@/lib/domicilios-publico.functions";
 import { formatMoney } from "@/lib/format";
 import { publicUrl } from "@/lib/storage";
 import { enlaceWhatsApp } from "@/lib/whatsapp";
-import { getMenuTheme, getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
+import { getMenuTheme, getThemeStyle } from "@/lib/menu-themes";
+import { useMenuFonts } from "@/hooks/use-menu-fonts";
 import { ProductoCard } from "@/components/menu-publico/producto-card";
-import { CategoryNav } from "@/components/menu-publico/menu-chrome";
+import { BuscadorCarta, MenuCuerpo } from "@/components/menu-publico/menu-cuerpo";
+import { filtrarPorBusqueda } from "@/components/menu-publico/busqueda";
+import { FondoMedia } from "@/components/menu-publico/fondo-media";
 import { CartaHero } from "@/components/menu-publico/pedido/carta-hero";
 import { WhatsAppIcon } from "@/components/menu-publico/pedido/iconos-marca";
 import {
@@ -46,7 +49,6 @@ export const Route = createFileRoute("/carta-publica/$idNegocio")({
 function CartaPublicaPage() {
   const { idNegocio } = Route.useParams();
   const qc = useQueryClient();
-  const [catActiva, setCatActiva] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [productoSel, setProductoSel] = useState<CartaProducto | null>(null);
   const [checkoutAbierto, setCheckoutAbierto] = useState(false);
@@ -64,40 +66,16 @@ function CartaPublicaPage() {
     setPedidoEnCurso(leerPedidosRecientes(idNegocio)[0] ?? null);
   }, [idNegocio]);
 
-  const productosFiltrados = useMemo(() => {
-    if (!data) return [];
-    const q = busqueda
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "");
-    return data.productos.filter((p) => {
-      if (catActiva && p.id_categoria !== catActiva) return false;
-      if (!q) return true;
-      const texto = `${p.nombre_producto} ${p.descripcion_producto ?? ""}`
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/\p{Diacritic}/gu, "");
-      return texto.includes(q);
-    });
-  }, [data, catActiva, busqueda]);
+  const productosFiltrados = useMemo(
+    () => (data ? filtrarPorBusqueda(data.productos, busqueda) : []),
+    [data, busqueda],
+  );
 
   const themeId = data?.negocio?.tema_menu;
   const theme = useMemo(() => getMenuTheme(themeId), [themeId]);
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
 
-  // Cargar Google Fonts del tema activo
-  useEffect(() => {
-    if (!themeId) return;
-    const href = getThemeFontsUrl(themeId);
-    const id = `menu-fonts-${themeId}`;
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = href;
-    document.head.appendChild(link);
-  }, [themeId]);
+  useMenuFonts(themeId);
 
   const negocio = data?.negocio;
   const domicilioOn = negocio?.domicilios_activo === true && (data?.municipios.length ?? 0) > 0;
@@ -183,6 +161,7 @@ function CartaPublicaPage() {
       : `Hola ${negocio.nombre_comercial}, tengo una pregunta.`,
   );
   const hayCarrito = pide && carrito.unidades > 0;
+  const conFondo = (negocio.fondo?.tipo ?? "NINGUNO") !== "NINGUNO" && !!negocio.fondo?.url;
 
   return (
     <main
@@ -192,8 +171,9 @@ function CartaPublicaPage() {
         color: "var(--menu-foreground)",
         fontFamily: "var(--menu-body-font)",
       }}
-      className={`min-h-screen ${hayCarrito ? "pb-32" : "pb-16"}`}
+      className={`menu-raiz relative isolate min-h-dvh ${hayCarrito ? "pb-32" : "pb-16"}`}
     >
+      <FondoMedia fondo={negocio.fondo} theme={theme} />
       <CartaHero
         negocio={negocioPedido}
         logoUrl={logoUrl}
@@ -201,89 +181,33 @@ function CartaPublicaPage() {
         tipo={carrito.tipo}
         onTipo={carrito.setTipo}
         pedidoEnCurso={pedidoEnCurso}
+        conFondo={conFondo}
       />
 
-      <div
-        className="sticky top-0 z-20 backdrop-blur"
-        style={{
-          background: "color-mix(in oklab, var(--menu-bg) 90%, transparent)",
-          borderBottom: "1px solid var(--menu-border)",
-        }}
-      >
-        <div className="mx-auto max-w-3xl px-4 pt-3">
-          <label
-            className="flex h-10 items-center gap-2 px-3"
-            style={{
-              background: "var(--menu-surface)",
-              border: "1px solid var(--menu-border)",
-              borderRadius: "var(--menu-radius)",
-            }}
-          >
-            <Search className="h-4 w-4 shrink-0" style={{ color: "var(--menu-muted)" }} />
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar en el menú"
-              aria-label="Buscar en el menú"
-              className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:opacity-70"
-            />
-            {busqueda && (
-              <button type="button" aria-label="Limpiar búsqueda" onClick={() => setBusqueda("")}>
-                <X className="h-4 w-4" style={{ color: "var(--menu-muted)" }} />
-              </button>
+      <MenuCuerpo
+        theme={theme}
+        categorias={categorias}
+        productos={productosFiltrados}
+        filtrando={busqueda.trim().length > 0}
+        vacio={
+          busqueda
+            ? "No encontramos productos con ese nombre."
+            : "No hay productos disponibles por ahora."
+        }
+        barraSuperior={<BuscadorCarta value={busqueda} onChange={setBusqueda} />}
+        renderProducto={(p) => (
+          <div className="relative h-full [&>button:first-child]:h-full">
+            <ProductoCard p={p} theme={theme} onClick={() => setProductoSel(p)} />
+            {pide && (
+              <BotonAgregar
+                cantidad={carrito.porProducto.get(p.id_producto) ?? 0}
+                onClick={() => void agregarRapido(p)}
+                nombre={p.nombre_producto}
+              />
             )}
-          </label>
-        </div>
-        {categorias.length > 0 && (
-          <div className="mx-auto max-w-3xl">
-            <CategoryNav
-              theme={theme}
-              categorias={categorias}
-              activa={catActiva}
-              onSelect={setCatActiva}
-            />
           </div>
         )}
-      </div>
-
-      <section
-        className={`mx-auto max-w-3xl ${
-          theme.productLayout === "hero-grid"
-            ? "px-4 pt-5 grid grid-cols-2 gap-3 sm:grid-cols-3"
-            : theme.productLayout === "lista-densa"
-              ? "px-4 pt-5 divide-y"
-              : "px-4 pt-5 space-y-3"
-        }`}
-        style={
-          theme.productLayout === "lista-densa"
-            ? ({ borderColor: "var(--menu-border)" } as React.CSSProperties)
-            : undefined
-        }
-      >
-        {productosFiltrados.length === 0 ? (
-          <p
-            className="col-span-full text-center text-sm py-12"
-            style={{ color: "var(--menu-muted)" }}
-          >
-            {busqueda
-              ? "No encontramos productos con ese nombre."
-              : "No hay productos disponibles en esta categoría."}
-          </p>
-        ) : (
-          productosFiltrados.map((p) => (
-            <div key={p.id_producto} className="relative [&>button:first-child]:h-full">
-              <ProductoCard p={p} theme={theme} onClick={() => setProductoSel(p)} />
-              {pide && (
-                <BotonAgregar
-                  cantidad={carrito.porProducto.get(p.id_producto) ?? 0}
-                  onClick={() => void agregarRapido(p)}
-                  nombre={p.nombre_producto}
-                />
-              )}
-            </div>
-          ))
-        )}
-      </section>
+      />
 
       {/* Contacto flotante: WhatsApp de caja (pedidos / estado del domicilio). Con carrito
           se integra a la barra inferior para no tapar los botones "+" de las tarjetas. */}

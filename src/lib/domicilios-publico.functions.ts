@@ -66,6 +66,7 @@ export interface SeguimientoDomicilio {
     nombre_comercial: string;
     url_logo: string | null;
     tema_menu: string;
+    fondo?: import("@/lib/menu-publico.functions").CartaFondo | null;
     whatsapp_numero: string | null;
     instagram_url: string | null;
     tiempo_estimado_min: number | null;

@@ -8,6 +8,8 @@ export interface Categoria {
   nombre: string;
   destino: string;
   orden: number;
+  /** Foto del tile en la portada de la carta pública (0060). */
+  url_imagen?: string | null;
 }
 export interface Subcategoria {
   id_subcategoria: string;
@@ -31,6 +33,13 @@ export function crearCategoria(input: { nombre: string; destino: string }) {
 export function renombrarCategoria(input: { id_categoria: string; nombre: string }) {
   return api.patch<{ ok: true }>(`/menu/categorias/${input.id_categoria}`, {
     nombre: input.nombre,
+  });
+}
+
+// PATCH /menu/categorias/:id — foto de portada de la carta (null = quitar).
+export function setImagenCategoria(input: { id_categoria: string; url_imagen: string | null }) {
+  return api.patch<{ ok: true }>(`/menu/categorias/${input.id_categoria}`, {
+    url_imagen: input.url_imagen,
   });
 }
 

@@ -23,7 +23,8 @@ import { formatMoney } from "@/lib/format";
 import { pollWhen, POLL } from "@/lib/query-config";
 import { publicUrl } from "@/lib/storage";
 import { enlaceWhatsApp } from "@/lib/whatsapp";
-import { getThemeFontsUrl, getThemeStyle } from "@/lib/menu-themes";
+import { getThemeStyle } from "@/lib/menu-themes";
+import { useMenuFonts } from "@/hooks/use-menu-fonts";
 import { WhatsAppIcon } from "@/components/menu-publico/pedido/iconos-marca";
 
 export const Route = createFileRoute("/pedido/$token")({
@@ -120,16 +121,7 @@ function SeguimientoPage() {
 
   const themeId = data?.negocio.tema_menu;
   const themeStyle = useMemo(() => getThemeStyle(themeId), [themeId]);
-  useEffect(() => {
-    if (!themeId) return;
-    const id = `menu-fonts-${themeId}`;
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = getThemeFontsUrl(themeId);
-    document.head.appendChild(link);
-  }, [themeId]);
+  useMenuFonts(themeId);
 
   if (isLoading) {
     return (
