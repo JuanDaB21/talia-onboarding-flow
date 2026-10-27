@@ -48,10 +48,16 @@ function ReportePage() {
   const egresos =
     data.total_egresos ??
     data.ajustes.filter((a) => a.signo === "NEGATIVO").reduce((s, a) => s + a.monto, 0);
-  // Abonos de reserva aplicados: son ventas del día que entran al total, pero no a ningún
-  // cajón físico (el dinero entró antes, al reservar). Ausente/0 en cierres previos a 0048.
+  // Abonos de reserva aplicados (pago ABONO_RESERVA, 0048). Con `cuadre` (backend 0058) van en
+  // "Abonos usados" de la sección Ventas: no es dinero de hoy, así que no suman al recibido.
   const abonoReserva = data.abono_reserva_sistema ?? 0;
-  const total = recEfe + recTra + recDat + abonoReserva;
+  // Abonos de reserva RECIBIDOS en esta caja (0058): dinero que entró hoy, por método.
+  const abonoRecEfe = data.abono_recibido_efectivo ?? 0;
+  const abonoRecTra = data.abono_recibido_transferencia ?? 0;
+  const cuadre = data.cuadre;
+  const total = cuadre ? cuadre.total_recibido : recEfe + recTra + recDat + abonoReserva;
+  const abonosRecibidos = data.abonos_recibidos_detalle ?? [];
+  const abonosUsados = data.abonos_usados_detalle ?? [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -68,7 +74,7 @@ function ReportePage() {
         <div className="text-center">
           <h1 className="text-xl font-bold">{data.negocio_nombre}</h1>
           <p className="text-sm text-muted-foreground">Reporte de cierre de caja</p>
-          <p className="text-sm">Fecha: {data.fecha}</p>
+          <p className="text-sm">Fecha: {formatFechaDia(data.fecha)}</p>
           <p className="text-xs text-muted-foreground">
             Apertura: {new Date(data.abierta_at).toLocaleString()}
             {data.abierta_por_nombre && ` (${data.abierta_por_nombre})`}
@@ -89,6 +95,9 @@ function ReportePage() {
           )}
           {nuevo && (
             <Row label="Efectivo recibido" value={formatMoney(recEfe)} />
+          )}
+          {abonoRecEfe !== 0 && (
+            <Row label="Abonos de reserva recibidos" value={formatMoney(abonoRecEfe)} />
           )}
           {nuevo && ingresos > 0 && <Row label="Ingresos (ajustes +)" value={`+${formatMoney(ingresos)}`} />}
           {nuevo && egresos > 0 && <Row label="Egresos (ajustes −)" value={`−${formatMoney(egresos)}`} />}
@@ -118,10 +127,13 @@ function ReportePage() {
           {nuevo && propTra > 0 && (
             <Row label="Propina en transferencia" value={formatMoney(propTra)} />
           )}
-          {nuevo && (
-            <Row label="Transferencias recibidas" value={formatMoney(recTra)} />
+          {abonoRecTra !== 0 && (
+            <Row label="Abonos de reserva recibidos" value={formatMoney(abonoRecTra)} />
           )}
-          {abonoReserva > 0 && (
+          {nuevo && (
+            <Row label="Transferencias recibidas" value={formatMoney(recTra + abonoRecTra)} />
+          )}
+          {!cuadre && abonoReserva > 0 && (
             <>
               <Separator className="my-2" />
               <Row label="Abonos de reserva" value={formatMoney(abonoReserva)} />
@@ -135,6 +147,116 @@ function ReportePage() {
           />
         </Section>
 
+        {cuadre && (
+          <>
+            <Separator className="my-4" />
+            {/* De lo vendido a lo cobrado: los bonos y los abonos usados no entran hoy a caja. */}
+            <Section title="Ventas">
+              <Row label="Productos cobrados" value={formatMoney(data.productos_cobrados ?? 0)} />
+              {(data.descuentos_bono ?? 0) > 0 && (
+                <Row label="Bonos / descuentos" value={`−${formatMoney(data.descuentos_bono ?? 0)}`} />
+              )}
+              {(data.abonos_usados ?? 0) > 0 && (
+                <Row
+                  label="Abonos de reserva usados"
+                  value={`−${formatMoney(data.abonos_usados ?? 0)}`}
+                />
+              )}
+              <Row label="Ventas netas" value={formatMoney(cuadre.ventas_netas)} bold />
+              <Row label="+ Propinas" value={formatMoney(data.propinas_total)} />
+              <Row
+                label="= Recibido por ventas"
+                value={formatMoney(cuadre.ventas_netas + data.propinas_total)}
+                bold
+              />
+              {(abonoRecEfe !== 0 || abonoRecTra !== 0) && (
+                <Row
+                  label="+ Abonos de reserva recibidos"
+                  value={formatMoney(abonoRecEfe + abonoRecTra)}
+                />
+              )}
+              {(abonoRecEfe !== 0 || abonoRecTra !== 0) && (
+                <Row label="= Total recibido" value={formatMoney(cuadre.total_recibido)} bold />
+              )}
+            </Section>
+          </>
+        )}
+
+        {(abonosRecibidos.length > 0 || abonosUsados.length > 0) && (
+          <>
+            <Separator className="my-4" />
+            <Section title="Abonos de reserva">
+              {abonosRecibidos.length > 0 && (
+                <>
+                  <p className="text-xs font-medium">Recibidos en este turno (entran a caja)</p>
+                  <ul className="space-y-1">
+                    {abonosRecibidos.map((a, i) => (
+                      <li key={`r-${a.codigo}-${i}`} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {a.codigo}
+                          {a.cliente && ` · ${a.cliente}`} ·{" "}
+                          {a.metodo === "EFECTIVO" ? "Efectivo" : "Transferencia"}
+                          {a.motivo === "DEVOLUCION" && " · devolución"}
+                          {a.motivo === "AJUSTE" && " · ajuste"}
+                        </span>
+                        <span className="font-medium tabular-nums">{formatMoney(a.monto)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {abonosUsados.length > 0 && (
+                <>
+                  <p className="text-xs font-medium">
+                    Usados en cuentas de hoy (el dinero entró el día que se abonó)
+                  </p>
+                  <ul className="space-y-1">
+                    {abonosUsados.map((a) => (
+                      <li key={`u-${a.codigo}`} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{a.codigo}</span>
+                        <span className="font-medium tabular-nums">{formatMoney(a.monto)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </Section>
+          </>
+        )}
+
+        {cuadre && nuevo && (
+          <>
+            <Separator className="my-4" />
+            {/* Todo lo que entró vs todo lo que hay: cajón + datáfono + cuentas. */}
+            <Section title="Cuadre total">
+              <Row label="Base inicial" value={formatMoney(data.base_inicial)} />
+              <Row label="+ Total recibido" value={formatMoney(cuadre.total_recibido)} />
+              {ingresos > 0 && <Row label="+ Ingresos (ajustes)" value={formatMoney(ingresos)} />}
+              {egresos > 0 && <Row label="− Egresos (ajustes)" value={`−${formatMoney(egresos)}`} />}
+              <Row label="= Esperado" value={formatMoney(cuadre.esperado_total)} bold />
+              <Separator className="my-2" />
+              <Row label="Efectivo contado" value={formatMoney(data.efectivo_fisico)} />
+              {data.datafono_fisico > 0 && (
+                <Row label="Datáfono (cierre de lote)" value={formatMoney(data.datafono_fisico)} />
+              )}
+              <Row label="Transferencias" value={formatMoney(recTra + abonoRecTra)} />
+              <Row label="= Contado" value={formatMoney(cuadre.contado_total)} bold />
+              <Row
+                label={
+                  cuadre.diferencia_total > 0
+                    ? "Diferencia (sobrante)"
+                    : cuadre.diferencia_total < 0
+                      ? "Diferencia (faltante)"
+                      : "Diferencia"
+                }
+                value={formatMoney(cuadre.diferencia_total)}
+                bold
+                highlight={cuadre.diferencia_total !== 0}
+              />
+            </Section>
+          </>
+        )}
+
         <Separator className="my-4" />
 
         <Section title="Propinas">
@@ -143,6 +265,9 @@ function ReportePage() {
           <Row label="En transferencia" value={formatMoney(data.propinas_transferencia)} />
           {data.propinas_datafono > 0 && (
             <Row label="En datáfono" value={formatMoney(data.propinas_datafono)} />
+          )}
+          {(data.propinas_dividido ?? 0) > 0 && (
+            <Row label="En pagos divididos" value={formatMoney(data.propinas_dividido ?? 0)} />
           )}
           <p className="text-xs text-muted-foreground">
             {nuevo
@@ -267,6 +392,12 @@ function ReportePage() {
       </div>
     </div>
   );
+}
+
+/** "2026-10-24" (o un ISO de un backend anterior) → "24/10/2026", sin desfase de zona. */
+function formatFechaDia(fecha: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(fecha ?? "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : fecha;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
