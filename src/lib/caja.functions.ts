@@ -37,8 +37,19 @@ export interface ResumenCajaDia {
   total_ingresos?: number;
   total_egresos?: number;
   total_ajustes?: number;
-  /** Efectivo que el cajero debe contar = base + recibido efectivo + neto ajustes. */
+  /** Efectivo que el cajero debe contar = base + recibido efectivo + abonos en efectivo + neto ajustes. */
   efectivo_esperado?: number;
+  // Abonos de reserva (backend 0058). Opcionales: un backend anterior no los envía.
+  /** Abonos RECIBIDOS en esta caja (dinero que entró hoy al reservar), por método. */
+  abono_recibido_efectivo?: number;
+  abono_recibido_transferencia?: number;
+  /** Abonos USADOS en cuentas de hoy (informativo: el dinero entró al reservar). */
+  abonos_usados?: number;
+  descuentos_bono?: number;
+  /** Propina de pagos divididos: ya va dentro del cobro de cada método. */
+  propina_dividido?: number;
+  /** Cobros + propinas + abonos recibidos (sin base ni ajustes). */
+  total_recibido?: number;
 }
 
 // GET /caja/estado → resumen_caja_dia() (jsonb) agregado en el backend.
@@ -121,7 +132,7 @@ export interface CierreListItem {
   fecha: string;
   estado: string;
   total: number;
-  /** Ventas + propinas (lo realmente cobrado). Opcional: backend 0044+. */
+  /** Dinero que entró: cobros + propinas + abonos de reserva recibidos (0058). Opcional: backend 0044+. */
   recibido?: number;
   /** Neto de ajustes de la caja (POSITIVO − NEGATIVO). Opcional: backend 0044+. */
   ajustes?: number;
@@ -176,11 +187,14 @@ export interface CierreDetalle {
     productos: Array<{ nombre: string; cantidad: number; total: number }>;
   }>;
   unidades_totales: number;
-  /** Propinas TOTALES cobradas en esta caja por método (SUM completo, informativo). */
+  /** Propinas TOTALES cobradas en esta caja (simples + divididos). */
   propinas_total: number;
+  /** Propina de pagos simples por método (la misma que entra al cuadre; backend 0058+). */
   propinas_efectivo: number;
   propinas_transferencia: number;
   propinas_datafono: number;
+  /** Propina de pagos divididos: ya va dentro del cobro de cada método. Opcional: 0058+. */
+  propinas_dividido?: number;
   /**
    * true si este cierre incluye las propinas en el cuadre (cierres desde backend 0044).
    * En cierres históricos es false/undefined: las propinas se muestran aparte y el
@@ -207,6 +221,34 @@ export interface CierreDetalle {
   total_egresos?: number;
   /** Neto de ajustes = total_ingresos − total_egresos. */
   total_ajustes: number;
+  // Ventas, abonos y cuadre total (backend 0058). Opcionales: un backend anterior no los envía.
+  /** Productos cobrados en esta caja, antes de bonos y abonos usados. */
+  productos_cobrados?: number;
+  descuentos_bono?: number;
+  /** Abonos de reserva USADOS en cuentas de esta caja (no es dinero nuevo). */
+  abonos_usados?: number;
+  abonos_usados_detalle?: Array<{ codigo: string; monto: number }>;
+  /** Abonos RECIBIDOS en esta caja; null en cierres previos a 0058. */
+  abono_recibido_efectivo?: number | null;
+  abono_recibido_transferencia?: number | null;
+  abonos_recibidos_detalle?: Array<{
+    codigo: string;
+    cliente: string | null;
+    metodo: "EFECTIVO" | "TRANSFERENCIA";
+    monto: number;
+    motivo: "ABONO" | "AJUSTE" | "DEVOLUCION";
+  }>;
+  cuadre?: {
+    /** productos_cobrados − descuentos_bono − abonos_usados. */
+    ventas_netas: number;
+    /** Cobros + propinas + abonos recibidos. */
+    total_recibido: number;
+    /** base + total_recibido + ingresos − egresos. */
+    esperado_total: number;
+    /** efectivo contado + lote datáfono + transferencias. */
+    contado_total: number;
+    diferencia_total: number;
+  };
 }
 
 export function getCierre(idCaja: string) {

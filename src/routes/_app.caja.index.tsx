@@ -339,13 +339,37 @@ function CajaResumen({ data }: { data: NonNullable<Awaited<ReturnType<typeof get
             highlight={data.transferencia_pendiente > 0}
           />
           <Row label="Datáfono" value={formatMoney(data.recibido_datafono ?? data.datafono)} />
-          {(data.abono_reserva ?? 0) > 0 && (
-            <Row label="Abonos de reserva" value={formatMoney(data.abono_reserva ?? 0)} />
+          {/* Abonos recibidos hoy (0058) entran a caja; los usados son informativos. */}
+          {(data.abono_recibido_efectivo ?? 0) !== 0 && (
+            <Row
+              label="Abonos de reserva recibidos (efectivo)"
+              value={formatMoney(data.abono_recibido_efectivo ?? 0)}
+            />
           )}
+          {(data.abono_recibido_transferencia ?? 0) !== 0 && (
+            <Row
+              label="Abonos de reserva recibidos (transferencia)"
+              value={formatMoney(data.abono_recibido_transferencia ?? 0)}
+            />
+          )}
+          {data.abonos_usados != null
+            ? data.abonos_usados > 0 && (
+                <Row
+                  label="Abonos de reserva usados (no suman)"
+                  value={formatMoney(data.abonos_usados)}
+                />
+              )
+            : (data.abono_reserva ?? 0) > 0 && (
+                <Row label="Abonos de reserva" value={formatMoney(data.abono_reserva ?? 0)} />
+              )}
           {(data.total_ajustes ?? 0) !== 0 && (
             <Row label="Ajustes (neto)" value={formatMoney(data.total_ajustes ?? 0)} />
           )}
-          <Row label="Total sistema (sin base)" value={formatMoney(data.total_sistema)} bold />
+          {data.total_recibido != null ? (
+            <Row label="Total recibido (sin base)" value={formatMoney(data.total_recibido)} bold />
+          ) : (
+            <Row label="Total sistema (sin base)" value={formatMoney(data.total_sistema)} bold />
+          )}
           {data.efectivo_esperado != null ? (
             <Row
               label="Efectivo esperado en caja"

@@ -236,6 +236,13 @@ function CierreWizard() {
             {(data.propina_efectivo ?? 0) > 0 && (
               <Row label="Propina en efectivo" value={formatMoney(data.propina_efectivo ?? 0)} />
             )}
+            {/* Abonos de reserva recibidos en efectivo (0058): ya incluidos en efectivo_esperado. */}
+            {(data.abono_recibido_efectivo ?? 0) !== 0 && (
+              <Row
+                label="Abonos de reserva recibidos"
+                value={formatMoney(data.abono_recibido_efectivo ?? 0)}
+              />
+            )}
             {sumAjustesPrevios !== 0 && (
               <Row label="Ajustes ya registrados" value={formatMoney(sumAjustesPrevios)} />
             )}
@@ -245,7 +252,19 @@ function CierreWizard() {
             <Row label="Efectivo esperado en caja" value={formatMoney(efectivoEsperado)} bold />
             <Separator />
             <Row label="Transferencias" value={formatMoney(data.recibido_transferencia ?? data.transferencia_confirmada)} />
+            {(data.abono_recibido_transferencia ?? 0) !== 0 && (
+              <Row
+                label="Abonos de reserva por transferencia"
+                value={formatMoney(data.abono_recibido_transferencia ?? 0)}
+              />
+            )}
             <Row label="Datáfono esperado" value={formatMoney(datafonoEsperado)} bold />
+            {(data.abonos_usados ?? 0) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Abonos de reserva usados hoy: {formatMoney(data.abonos_usados ?? 0)} (entraron el
+                día que se abonaron; no se cuentan de nuevo).
+              </p>
+            )}
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep(1)}>
                 <ChevronLeft className="mr-1 h-4 w-4" /> Atrás
