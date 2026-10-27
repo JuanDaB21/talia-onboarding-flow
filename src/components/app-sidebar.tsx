@@ -3,6 +3,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { logout } from "@/lib/auth";
 import { toast } from "sonner";
 import {
+  Bike,
   Boxes,
   ShoppingCart,
   Warehouse,
@@ -78,6 +79,7 @@ const MENU_NAV = [
 const SERVICIO_NAV = [
   { to: "/operacion", label: "Operación", icon: Activity },
   { to: "/servicio", label: "Mesas en servicio", icon: ConciergeBell },
+  { to: "/domicilios", label: "Domicilios", icon: Bike },
   { to: "/reservas", label: "Reservas", icon: CalendarDays },
 ] as const;
 
@@ -315,6 +317,7 @@ export function AppSidebar() {
             SERVICIO_NAV.filter((item) => {
               if (item.to === "/operacion") return grupos.operacion;
               if (item.to === "/servicio") return grupos.servicio;
+              if (item.to === "/domicilios") return grupos.caja; // admin/caja
               if (item.to === "/reservas") return true; // visible para todos (solo lectura)
               return false;
             }),

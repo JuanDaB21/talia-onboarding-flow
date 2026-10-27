@@ -87,6 +87,7 @@ function RoleRedirect() {
     if (rol === "CAJERO") {
       const allowed = [
         "/caja",
+        "/domicilios",
         "/dashboard",
         "/clientes",
         "/operacion",

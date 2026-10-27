@@ -13,12 +13,14 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PedidoTokenRouteImport } from './routes/pedido.$token'
 import { Route as CartaIdMesaRouteImport } from './routes/carta.$idMesa'
 import { Route as CartaPublicaIdNegocioRouteImport } from './routes/carta-publica.$idNegocio'
 import { Route as AppServicioRouteImport } from './routes/_app.servicio'
 import { Route as AppReservasRouteImport } from './routes/_app.reservas'
 import { Route as AppOperacionRouteImport } from './routes/_app.operacion'
 import { Route as AppMenuRouteImport } from './routes/_app.menu'
+import { Route as AppDomiciliosRouteImport } from './routes/_app.domicilios'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppConfiguracionRouteImport } from './routes/_app.configuracion'
 import { Route as AppCocinaRouteImport } from './routes/_app.cocina'
@@ -44,6 +46,7 @@ import { Route as AppConfiguracionOperacionRouteImport } from './routes/_app.con
 import { Route as AppConfiguracionMetodosPagoRouteImport } from './routes/_app.configuracion.metodos-pago'
 import { Route as AppConfiguracionMesasRouteImport } from './routes/_app.configuracion.mesas'
 import { Route as AppConfiguracionEspaciosRouteImport } from './routes/_app.configuracion.espacios'
+import { Route as AppConfiguracionDomiciliosRouteImport } from './routes/_app.configuracion.domicilios'
 import { Route as AppConfiguracionBonosDescuentosRouteImport } from './routes/_app.configuracion.bonos-descuentos'
 import { Route as AppConfiguracionAparienciaRouteImport } from './routes/_app.configuracion.apariencia'
 import { Route as AppCajaTicketsRouteImport } from './routes/_app.caja.tickets'
@@ -79,6 +82,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PedidoTokenRoute = PedidoTokenRouteImport.update({
+  id: '/pedido/$token',
+  path: '/pedido/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CartaIdMesaRoute = CartaIdMesaRouteImport.update({
   id: '/carta/$idMesa',
   path: '/carta/$idMesa',
@@ -107,6 +115,11 @@ const AppOperacionRoute = AppOperacionRouteImport.update({
 const AppMenuRoute = AppMenuRouteImport.update({
   id: '/menu',
   path: '/menu',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDomiciliosRoute = AppDomiciliosRouteImport.update({
+  id: '/domicilios',
+  path: '/domicilios',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -239,6 +252,12 @@ const AppConfiguracionEspaciosRoute =
     path: '/espacios',
     getParentRoute: () => AppConfiguracionRoute,
   } as any)
+const AppConfiguracionDomiciliosRoute =
+  AppConfiguracionDomiciliosRouteImport.update({
+    id: '/domicilios',
+    path: '/domicilios',
+    getParentRoute: () => AppConfiguracionRoute,
+  } as any)
 const AppConfiguracionBonosDescuentosRoute =
   AppConfiguracionBonosDescuentosRouteImport.update({
     id: '/bonos-descuentos',
@@ -330,12 +349,14 @@ export interface FileRoutesByFullPath {
   '/cocina': typeof AppCocinaRoute
   '/configuracion': typeof AppConfiguracionRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
+  '/domicilios': typeof AppDomiciliosRoute
   '/menu': typeof AppMenuRouteWithChildren
   '/operacion': typeof AppOperacionRoute
   '/reservas': typeof AppReservasRouteWithChildren
   '/servicio': typeof AppServicioRouteWithChildren
   '/carta-publica/$idNegocio': typeof CartaPublicaIdNegocioRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/pedido/$token': typeof PedidoTokenRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -345,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/caja/tickets': typeof AppCajaTicketsRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/configuracion/domicilios': typeof AppConfiguracionDomiciliosRoute
   '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
@@ -377,9 +399,11 @@ export interface FileRoutesByTo {
   '/barra': typeof AppBarraRoute
   '/cocina': typeof AppCocinaRoute
   '/dashboard': typeof AppDashboardRoute
+  '/domicilios': typeof AppDomiciliosRoute
   '/operacion': typeof AppOperacionRoute
   '/carta-publica/$idNegocio': typeof CartaPublicaIdNegocioRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/pedido/$token': typeof PedidoTokenRoute
   '/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/bodega/compras': typeof AppBodegaComprasRoute
   '/bodega/proveedores-insumos': typeof AppBodegaProveedoresInsumosRoute
@@ -388,6 +412,7 @@ export interface FileRoutesByTo {
   '/caja/tickets': typeof AppCajaTicketsRoute
   '/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/configuracion/domicilios': typeof AppConfiguracionDomiciliosRoute
   '/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
@@ -425,12 +450,14 @@ export interface FileRoutesById {
   '/_app/cocina': typeof AppCocinaRoute
   '/_app/configuracion': typeof AppConfiguracionRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/domicilios': typeof AppDomiciliosRoute
   '/_app/menu': typeof AppMenuRouteWithChildren
   '/_app/operacion': typeof AppOperacionRoute
   '/_app/reservas': typeof AppReservasRouteWithChildren
   '/_app/servicio': typeof AppServicioRouteWithChildren
   '/carta-publica/$idNegocio': typeof CartaPublicaIdNegocioRoute
   '/carta/$idMesa': typeof CartaIdMesaRoute
+  '/pedido/$token': typeof PedidoTokenRoute
   '/_app/bodega/bodegas': typeof AppBodegaBodegasRoute
   '/_app/bodega/compras': typeof AppBodegaComprasRoute
   '/_app/bodega/inventario': typeof AppBodegaInventarioRouteWithChildren
@@ -440,6 +467,7 @@ export interface FileRoutesById {
   '/_app/caja/tickets': typeof AppCajaTicketsRoute
   '/_app/configuracion/apariencia': typeof AppConfiguracionAparienciaRoute
   '/_app/configuracion/bonos-descuentos': typeof AppConfiguracionBonosDescuentosRoute
+  '/_app/configuracion/domicilios': typeof AppConfiguracionDomiciliosRoute
   '/_app/configuracion/espacios': typeof AppConfiguracionEspaciosRoute
   '/_app/configuracion/mesas': typeof AppConfiguracionMesasRoute
   '/_app/configuracion/metodos-pago': typeof AppConfiguracionMetodosPagoRoute
@@ -478,12 +506,14 @@ export interface FileRouteTypes {
     | '/cocina'
     | '/configuracion'
     | '/dashboard'
+    | '/domicilios'
     | '/menu'
     | '/operacion'
     | '/reservas'
     | '/servicio'
     | '/carta-publica/$idNegocio'
     | '/carta/$idMesa'
+    | '/pedido/$token'
     | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/inventario'
@@ -493,6 +523,7 @@ export interface FileRouteTypes {
     | '/caja/tickets'
     | '/configuracion/apariencia'
     | '/configuracion/bonos-descuentos'
+    | '/configuracion/domicilios'
     | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
@@ -525,9 +556,11 @@ export interface FileRouteTypes {
     | '/barra'
     | '/cocina'
     | '/dashboard'
+    | '/domicilios'
     | '/operacion'
     | '/carta-publica/$idNegocio'
     | '/carta/$idMesa'
+    | '/pedido/$token'
     | '/bodega/bodegas'
     | '/bodega/compras'
     | '/bodega/proveedores-insumos'
@@ -536,6 +569,7 @@ export interface FileRouteTypes {
     | '/caja/tickets'
     | '/configuracion/apariencia'
     | '/configuracion/bonos-descuentos'
+    | '/configuracion/domicilios'
     | '/configuracion/espacios'
     | '/configuracion/mesas'
     | '/configuracion/metodos-pago'
@@ -572,12 +606,14 @@ export interface FileRouteTypes {
     | '/_app/cocina'
     | '/_app/configuracion'
     | '/_app/dashboard'
+    | '/_app/domicilios'
     | '/_app/menu'
     | '/_app/operacion'
     | '/_app/reservas'
     | '/_app/servicio'
     | '/carta-publica/$idNegocio'
     | '/carta/$idMesa'
+    | '/pedido/$token'
     | '/_app/bodega/bodegas'
     | '/_app/bodega/compras'
     | '/_app/bodega/inventario'
@@ -587,6 +623,7 @@ export interface FileRouteTypes {
     | '/_app/caja/tickets'
     | '/_app/configuracion/apariencia'
     | '/_app/configuracion/bonos-descuentos'
+    | '/_app/configuracion/domicilios'
     | '/_app/configuracion/espacios'
     | '/_app/configuracion/mesas'
     | '/_app/configuracion/metodos-pago'
@@ -620,6 +657,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   CartaPublicaIdNegocioRoute: typeof CartaPublicaIdNegocioRoute
   CartaIdMesaRoute: typeof CartaIdMesaRoute
+  PedidoTokenRoute: typeof PedidoTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -650,6 +688,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pedido/$token': {
+      id: '/pedido/$token'
+      path: '/pedido/$token'
+      fullPath: '/pedido/$token'
+      preLoaderRoute: typeof PedidoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/carta/$idMesa': {
@@ -692,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/menu'
       fullPath: '/menu'
       preLoaderRoute: typeof AppMenuRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/domicilios': {
+      id: '/_app/domicilios'
+      path: '/domicilios'
+      fullPath: '/domicilios'
+      preLoaderRoute: typeof AppDomiciliosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -869,6 +921,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracionEspaciosRouteImport
       parentRoute: typeof AppConfiguracionRoute
     }
+    '/_app/configuracion/domicilios': {
+      id: '/_app/configuracion/domicilios'
+      path: '/domicilios'
+      fullPath: '/configuracion/domicilios'
+      preLoaderRoute: typeof AppConfiguracionDomiciliosRouteImport
+      parentRoute: typeof AppConfiguracionRoute
+    }
     '/_app/configuracion/bonos-descuentos': {
       id: '/_app/configuracion/bonos-descuentos'
       path: '/bonos-descuentos'
@@ -1044,6 +1103,7 @@ const AppClientesRouteWithChildren = AppClientesRoute._addFileChildren(
 interface AppConfiguracionRouteChildren {
   AppConfiguracionAparienciaRoute: typeof AppConfiguracionAparienciaRoute
   AppConfiguracionBonosDescuentosRoute: typeof AppConfiguracionBonosDescuentosRoute
+  AppConfiguracionDomiciliosRoute: typeof AppConfiguracionDomiciliosRoute
   AppConfiguracionEspaciosRoute: typeof AppConfiguracionEspaciosRoute
   AppConfiguracionMesasRoute: typeof AppConfiguracionMesasRoute
   AppConfiguracionMetodosPagoRoute: typeof AppConfiguracionMetodosPagoRoute
@@ -1056,6 +1116,7 @@ interface AppConfiguracionRouteChildren {
 const AppConfiguracionRouteChildren: AppConfiguracionRouteChildren = {
   AppConfiguracionAparienciaRoute: AppConfiguracionAparienciaRoute,
   AppConfiguracionBonosDescuentosRoute: AppConfiguracionBonosDescuentosRoute,
+  AppConfiguracionDomiciliosRoute: AppConfiguracionDomiciliosRoute,
   AppConfiguracionEspaciosRoute: AppConfiguracionEspaciosRoute,
   AppConfiguracionMesasRoute: AppConfiguracionMesasRoute,
   AppConfiguracionMetodosPagoRoute: AppConfiguracionMetodosPagoRoute,
@@ -1135,6 +1196,7 @@ interface AppRouteChildren {
   AppCocinaRoute: typeof AppCocinaRoute
   AppConfiguracionRoute: typeof AppConfiguracionRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDomiciliosRoute: typeof AppDomiciliosRoute
   AppMenuRoute: typeof AppMenuRouteWithChildren
   AppOperacionRoute: typeof AppOperacionRoute
   AppReservasRoute: typeof AppReservasRouteWithChildren
@@ -1150,6 +1212,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCocinaRoute: AppCocinaRoute,
   AppConfiguracionRoute: AppConfiguracionRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
+  AppDomiciliosRoute: AppDomiciliosRoute,
   AppMenuRoute: AppMenuRouteWithChildren,
   AppOperacionRoute: AppOperacionRoute,
   AppReservasRoute: AppReservasRouteWithChildren,
@@ -1166,6 +1229,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   CartaPublicaIdNegocioRoute: CartaPublicaIdNegocioRoute,
   CartaIdMesaRoute: CartaIdMesaRoute,
+  PedidoTokenRoute: PedidoTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -45,6 +45,11 @@ src/
 ├── routes/             rutas de TanStack Router (file-based). `_app.*` = área autenticada,
 │                       `carta.$idMesa` y `carta-publica.$idNegocio` = carta pública QR,
 │                       `login` / `register`. `_app.tsx` monta el guard de rol (RoleRedirect).
+│                       `carta-publica` = landing + pedido a domicilio/recoger (carrito en
+│                       localStorage, checkout lazy en `components/menu-publico/pedido/`);
+│                       `pedido.$token` = seguimiento público (polling); `_app.domicilios` =
+│                       kanban de caja (realtime parcheando `["domicilios","tablero"]`).
+│                       Colores SOLO con las CSS vars `--menu-*` del tema (`menu-themes.ts`).
 ├── lib/
 │   ├── api-client.ts        fetch + JWT Bearer + refresh automático + timeout + ApiError
 │   ├── auth.ts              login/register/logout/getMe/isAuthenticated (JWT propio)

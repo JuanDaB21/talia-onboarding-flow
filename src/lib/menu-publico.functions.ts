@@ -30,6 +30,28 @@ export interface CartaNegocio {
   nombre_comercial: string;
   url_logo: string | null;
   tema_menu: string;
+  // Solo en el menú del negocio (0059): contacto y pedidos en línea.
+  whatsapp_numero?: string | null;
+  instagram_url?: string | null;
+  direccion?: string | null;
+  domicilios_activo?: boolean;
+  recoger_activo?: boolean;
+  tiempo_estimado_min?: number | null;
+  pedido_minimo?: number | string;
+}
+
+export interface CartaMunicipio {
+  id_municipio: string;
+  nombre: string;
+  costo_envio: number;
+}
+
+export interface CartaMetodoPago {
+  id: string;
+  nombre: string;
+  titular: string | null;
+  datos_cuenta: string | null;
+  tiene_qr: boolean;
 }
 
 interface CartaState {
@@ -52,15 +74,24 @@ export async function getMenuPublico(idMesa: string): Promise<MenuPublico> {
   return { mesa: s.mesa, negocio: s.negocio, categorias: s.categorias, productos: s.productos };
 }
 
-// Menú público del NEGOCIO (sin mesa), para compartir en redes/WhatsApp. Solo lectura.
+// Menú público del NEGOCIO (sin mesa): carta para compartir en redes/WhatsApp y, si el
+// negocio lo activa, pedidos a domicilio / para recoger (0059).
 export interface MenuNegocioPublico {
   negocio: CartaNegocio;
   categorias: CartaCategoria[];
   productos: CartaProducto[];
+  municipios: CartaMunicipio[];
+  metodos_pago: CartaMetodoPago[];
 }
 
-export function getMenuPublicoNegocio(idNegocio: string): Promise<MenuNegocioPublico> {
-  return api.get<MenuNegocioPublico>(`/carta/negocio/${idNegocio}/menu`);
+export async function getMenuPublicoNegocio(idNegocio: string): Promise<MenuNegocioPublico> {
+  const m = await api.get<MenuNegocioPublico>(`/carta/negocio/${idNegocio}/menu`);
+  return {
+    ...m,
+    productos: (m.productos ?? []).map((p) => ({ ...p, precio_venta: Number(p.precio_venta) })),
+    municipios: (m.municipios ?? []).map((x) => ({ ...x, costo_envio: Number(x.costo_envio) })),
+    metodos_pago: m.metodos_pago ?? [],
+  };
 }
 
 export function llamarMesero(idMesa: string): Promise<{ ok: true }> {
